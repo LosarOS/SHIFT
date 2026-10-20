@@ -1,0 +1,56 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{E064119B-2E8E-424D-B6A9-A275CBAFAED8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Shift.Domain", "src\Shift.Domain\Shift.Domain.csproj", "{C32B5847-E304-4CC9-B630-662053B85E88}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Shift.Application", "src\Shift.Application\Shift.Application.csproj", "{3FC6CCC1-BCC1-4738-BFEC-991343CC4CD9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Shift.Infrastructure", "src\Shift.Infrastructure\Shift.Infrastructure.csproj", "{EC2669C7-9D15-4C4B-8218-6D9B1602125E}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{1E38FE29-4433-429C-953E-504D851944F9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Shift.Tests", "tests\Shift.Tests\Shift.Tests.csproj", "{710D2AA0-8FFF-43FF-B597-5CB8D7801576}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Shift.App", "src\Shift.App\Shift.App.csproj", "{539485FF-2DF5-44A6-96F5-C82495FE9042}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{C32B5847-E304-4CC9-B630-662053B85E88}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C32B5847-E304-4CC9-B630-662053B85E88}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C32B5847-E304-4CC9-B630-662053B85E88}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C32B5847-E304-4CC9-B630-662053B85E88}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3FC6CCC1-BCC1-4738-BFEC-991343CC4CD9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3FC6CCC1-BCC1-4738-BFEC-991343CC4CD9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3FC6CCC1-BCC1-4738-BFEC-991343CC4CD9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3FC6CCC1-BCC1-4738-BFEC-991343CC4CD9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EC2669C7-9D15-4C4B-8218-6D9B1602125E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EC2669C7-9D15-4C4B-8218-6D9B1602125E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EC2669C7-9D15-4C4B-8218-6D9B1602125E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EC2669C7-9D15-4C4B-8218-6D9B1602125E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{710D2AA0-8FFF-43FF-B597-5CB8D7801576}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{710D2AA0-8FFF-43FF-B597-5CB8D7801576}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{710D2AA0-8FFF-43FF-B597-5CB8D7801576}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{710D2AA0-8FFF-43FF-B597-5CB8D7801576}.Release|Any CPU.Build.0 = Release|Any CPU
+		{539485FF-2DF5-44A6-96F5-C82495FE9042}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{539485FF-2DF5-44A6-96F5-C82495FE9042}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{539485FF-2DF5-44A6-96F5-C82495FE9042}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{539485FF-2DF5-44A6-96F5-C82495FE9042}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{C32B5847-E304-4CC9-B630-662053B85E88} = {E064119B-2E8E-424D-B6A9-A275CBAFAED8}
+		{3FC6CCC1-BCC1-4738-BFEC-991343CC4CD9} = {E064119B-2E8E-424D-B6A9-A275CBAFAED8}
+		{EC2669C7-9D15-4C4B-8218-6D9B1602125E} = {E064119B-2E8E-424D-B6A9-A275CBAFAED8}
+		{710D2AA0-8FFF-43FF-B597-5CB8D7801576} = {1E38FE29-4433-429C-953E-504D851944F9}
+		{539485FF-2DF5-44A6-96F5-C82495FE9042} = {E064119B-2E8E-424D-B6A9-A275CBAFAED8}
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,14 @@
+global using System;
+global using System.IO;
+global using System.Linq;
+global using System.Collections.Generic;
+global using System.Threading;
+global using System.Threading.Tasks;
+global using Microsoft.UI;
+global using Microsoft.UI.Xaml;
+global using Microsoft.UI.Xaml.Controls;
+global using Microsoft.UI.Xaml.Media;
+global using Shift.Domain;
+global using Shift.Application;
+global using Shift.Infrastructure;
+global using Shift.App.Services;

@@ -1,0 +1,12 @@
+**/bin/
+**/obj/
+.vs/
+artifacts/
+TestResults/
+*.user
+*.db*
+*.log
+.DS_Store
+**/.mono/
+**/.cache/
+*.dmp

@@ -1,0 +1,48 @@
+name: Draft release
+on:
+  push:
+    tags: ['v[0-9]*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (x.y.z); workflow dispatch only uploads artifacts'
+        required: true
+        default: '0.1.0'
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Resolve version
+        shell: pwsh
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          $version = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME.TrimStart('v') } else { $env:INPUT_VERSION }
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw 'Expected x.y.z version' }
+          "SHIFT_VERSION=$version" >> $env:GITHUB_ENV
+      - name: Package
+        shell: pwsh
+        run: ./packaging/Build-Release.ps1 -Version $env:SHIFT_VERSION
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SHIFT-release-candidate
+          path: |
+            artifacts/*.zip
+            artifacts/*setup.exe
+            artifacts/SHA256SUMS.txt
+      - name: Create draft GitHub release
+        if: github.ref_type == 'tag'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create $env:GITHUB_REF_NAME "artifacts/SHIFT-$env:SHIFT_VERSION-win-x64-portable.zip" "artifacts/SHIFT-$env:SHIFT_VERSION-win-x64-setup.exe" artifacts/SHA256SUMS.txt --draft --title "SHIFT $env:SHIFT_VERSION preview" --notes-file docs/RELEASE_NOTES.md
+          if ($LASTEXITCODE -ne 0) { throw 'Draft release creation failed.' }

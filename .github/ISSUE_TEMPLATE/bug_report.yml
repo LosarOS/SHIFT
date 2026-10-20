@@ -1,0 +1,29 @@
+name: Bug report
+description: Report a reproducible SHIFT problem
+title: '[Bug] '
+body:
+  - type: input
+    id: version
+    attributes:
+      label: SHIFT version and package type
+      placeholder: 0.1.0 / portable or installer
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version / build and display scaling
+      placeholder: Windows 11, build ..., 150%
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps, expected result and actual result
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Redacted diagnostics
+      description: Remove personal paths, commands, tokens and document names. Do not attach your database or full workspace export.

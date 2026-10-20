@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "workspace": {
+    "id": "1767e323-1f1a-4e12-af84-dc7a0ae79037",
+    "name": "Developer focus",
+    "description": "A safe starting point: documentation and source references. Add your own local tools.",
+    "color": "#BCADFF",
+    "isFavorite": false,
+    "tags": [
+      "development",
+      "demo"
+    ],
+    "items": [
+      {
+        "id": "aaede345-7cbe-4cdd-a59f-a7e8bf255ee0",
+        "name": ".NET documentation",
+        "kind": "Url",
+        "target": "https://learn.microsoft.com/dotnet/",
+        "arguments": "",
+        "workingDirectory": "",
+        "shell": "PowerShell",
+        "order": 0,
+        "delayMs": 0,
+        "enabled": true,
+        "note": "",
+        "icon": ""
+      },
+      {
+        "id": "d2560fe0-5601-40ae-9631-27100fd84ace",
+        "name": "MDN Web Docs",
+        "kind": "Url",
+        "target": "https://developer.mozilla.org/",
+        "arguments": "",
+        "workingDirectory": "",
+        "shell": "PowerShell",
+        "order": 1,
+        "delayMs": 300,
+        "enabled": true,
+        "note": "",
+        "icon": ""
+      },
+      {
+        "id": "4a728dd6-a1ef-4e45-93cd-505ded20bc23",
+        "name": "GitHub",
+        "kind": "Url",
+        "target": "https://github.com/",
+        "arguments": "",
+        "workingDirectory": "",
+        "shell": "PowerShell",
+        "order": 2,
+        "delayMs": 300,
+        "enabled": true,
+        "note": "",
+        "icon": ""
+      }
+    ],
+    "createdAt": "2026-10-20T00:00:00+00:00",
+    "updatedAt": "2026-10-20T00:00:00+00:00"
+  }
+}
