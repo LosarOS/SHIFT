@@ -12,7 +12,8 @@ public static class WorkspaceTransfer
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         Converters = { new JsonStringEnumConverter() },
-        MaxDepth = 32
+        MaxDepth = 32,
+        AllowDuplicateProperties = false
     };
 
     public static string Export(Workspace workspace)

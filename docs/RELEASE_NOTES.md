@@ -1,29 +1,21 @@
-# SHIFT 0.1.0 — engineering preview
+# SHIFT 1.0.0-rc.1
 
-Первый срез локального Windows workspace manager: сохранение приложений, папок, файлов, ссылок и явных команд в рабочие пространства; последовательный запуск с отменой, статусами и историей.
+Native, local-first Windows workspace manager. This candidate extends the initial MVP with a compact launcher, opt-in global hotkey, background persistence, complete usage statistics, paged history and safe backup restoration.
 
-## Включено
+## Main capabilities
 
-- Native WinUI 3 / .NET 10, SQLite, clean architecture.
-- Workspace CRUD, clone, favorites, tags, search; item editor and reordering.
-- Queue with durable per-item status, error isolation, command consent and crash marking.
-- Overview, Workspaces, Favorites, History, Settings; onboarding, RU/EN, 4 themes.
-- Tray, completion notifications, installed per-user startup.
-- Versioned JSON import/export, online backup, local bounded logs.
-- Automated core/integration tests, Windows CI, portable/installer packaging scripts.
+Workspace CRUD, clone, tags, favorites, search, sorting and per-item launch order/delays. Apps, shortcuts, folders, files, HTTP(S) and explicit PowerShell/cmd commands. Visible queue, cancellation, failure isolation, command consent on every run and durable history. No account, backend, telemetry or paid APIs.
 
-## Статус
+WinUI interface with RU/EN and four themes, tray, notifications, installed startup, second-instance activation. Ctrl+K compact search, ↑/↓ selection, Enter dispatch; opt-in Ctrl+Alt+Space. JSON import/export and verified SQLite restoration with a safety copy.
 
-Это engineering preview исходного проекта, не обещание готовности public beta. Фактически выполненные проверки находятся в `docs/VALIDATION.md`. Windows runtime, clean-machine packaging и ручная QA должны пройти до публикации пользователям.
+## Quality work
 
-## Ограничения
+52 local automated checks cover core behavior, SQLite, cancellation, command consent, backup restore, URI escaping, history statistics/paging, null/duplicate JSON and IPC. Dependencies are locked and audited; CI actions are pinned. Windows automation scripts cover real approved dispatch, refusal, theme/language, compact view, tray/activation and installed/uninstall flow, and preserve diagnostics.
 
-- Success = open request accepted, не готовность приложения и не exit code команды.
-- Нет capture текущих окон, восстановления позиций, hotkeys, расписаний и browser session restore.
-- Только последовательный режим; отмена не закрывает программы.
-- Абсолютные локальные пути, HTTP/HTTPS URL; UNC/device targets не поддерживаются.
-- Latest 100 history entries shown; history deletion/pagination deferred.
-- Domain/OS diagnostic details may be English; UI RU/EN.
-- Portable needs write access and does not register startup.
-- Apps/shortcuts/commands are trusted executable content; consent is not sandboxing.
-- Бинарники unsigned, Windows QA и подпись остаются release gates.
+## Current status
+
+Release candidate. C# reference compilation and Linux core checks are complete. Windows build/UI/installer, clean-machine validation and accessibility/performance/signing gates must pass before stable 1.0. See `docs/VALIDATION.md`; prepared tests are not reported as executed.
+
+## Limits
+
+Success means Windows accepted dispatch, not app readiness or a command exit code. Cancelling leaves open programs running. Capture of arbitrary sessions, window layouts and schedules remain roadmap features. Data/exports/backups are unencrypted. Trust executable content explicitly; SHIFT is not a sandbox. Binaries are unsigned until a signing method is configured.

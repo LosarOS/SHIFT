@@ -7,9 +7,10 @@ First run → onboarding → demo OR empty overview
 Overview → workspace detail → launch queue → history
 Workspaces → search → detail → edit metadata / add/edit item
 Favorites → workspace detail
-History → expandable run → per-item result / error
+History → query / failure filter / pagination → expandable run → per-item result / error / retry
 Settings → theme / language / behavior / backup / data / logs
-Tray → restore SHIFT / explicit quit
+Ctrl+K / opt-in Ctrl+Alt+Space → compact search → ↑/↓ / Enter launch / Esc full view
+Tray / second instance → restore existing SHIFT / explicit quit
 ```
 
 The fixed sidebar is 224 DIPs. Content uses 36 DIP horizontal margins, 14 DIP card radii, 8–16 DIP control gaps. Workspace cards are arranged in 2 columns at normal desktop widths, 1 at narrow width when rendering. Typography uses Segoe UI Variable Text; native Segoe Fluent Icons and an original SHIFT arrow mark. The app keeps the native Windows title bar, caption buttons and standard window behavior.
@@ -41,3 +42,7 @@ Cards show real name, description, tags, enabled/total item counts, star, detail
 RU defaults, EN can be saved in Settings without restart. Domain/OS error details may be in English; UI introduces them with a localized message. UI does not translate user names, paths or command text. Native controls participate in keyboard navigation. Icon-only star/detail/reorder buttons carry automation names/tooltips.
 
 Manual gates: Narrator, contrast (especially disabled rows), high contrast, 200% text scaling, DPI 100/150/200%, narrow window clipping, dialog picker focus, keyboard-only launch/cancel. Color is accompanied by text status. Current themes use explicit palette brushes, so high contrast support must be verified and improved before accessibility claims.
+
+## Candidate refinements
+
+Color selection now uses localized swatch names instead of HEX-only labels. Actions wrap within available width. Disabled item rows keep interactive controls readable; errors use theme-specific contrast. High contrast overrides custom foreground/surfaces with system colors; native animations are skipped when system animations are disabled. The compact launcher visibly highlights its selected result and supports arrow navigation. Field and navigation automation IDs are stable across RU/EN for UI smoke.

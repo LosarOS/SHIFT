@@ -7,7 +7,7 @@ namespace Shift.App;
 public sealed partial class MainWindow : Window, ICommandConsent
 {
     private readonly AppPaths paths;
-    private readonly SqliteStore store;
+    private readonly LocalDataStore store;
     private readonly FileLog log;
     private readonly DesktopIntegration desktop = new();
     private readonly ShellViewModel vm;
@@ -18,9 +18,19 @@ public sealed partial class MainWindow : Window, ICommandConsent
     private readonly StackPanel screen = new() { Spacing = 24 };
     private readonly InfoBar notice = new() { IsClosable = true, Margin = new Thickness(24, 8, 24, 12) };
     private ScrollViewer? contentScroll;
+    private readonly WindowCommands windowCommands;
+    private readonly Windows.UI.ViewManagement.AccessibilitySettings accessibility = new();
+    private readonly Windows.UI.ViewManagement.UISettings systemUi = new();
+    private bool compact;
+    private bool maintenance;
+    private Windows.Graphics.SizeInt32 fullSize = new(1240, 840);
+    private TextBox? searchBox;
+    private int activeOperations;
+    private TaskCompletionSource idleOperations = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private int cardColumns = 2;
     private bool initialized;
     private bool exiting;
+    private bool quitRequested;
     private bool trayReady;
     private bool dialogOpen;
     private Task? launchTask;
@@ -34,6 +44,10 @@ public sealed partial class MainWindow : Window, ICommandConsent
         log = new(paths.LogDirectory);
         vm = new(store, new LaunchCoordinator(store, new WindowsItemLauncher(), log));
         Title = "SHIFT";
+        idleOperations.SetResult();
+        windowCommands = new(Handle, () => DispatcherQueue.TryEnqueue(OpenQuickLauncher));
+        AddKeyboardShortcuts();
+        accessibility.HighContrastChanged += OnHighContrastChanged;
         AppWindow.Resize(new SizeInt32(1240, 840));
         var icon = Path.Combine(AppContext.BaseDirectory, "Assets", "shift.ico");
         if (File.Exists(icon))
@@ -52,7 +66,7 @@ public sealed partial class MainWindow : Window, ICommandConsent
         Content = root;
         shell.Children.Add(new ProgressRing { IsActive = true, Width = 40, Height = 40, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center });
         AppWindow.Closing += OnClosing;
-        Closed += (_, _) => { desktop.Dispose(); };
+        Closed += (_, _) => { accessibility.HighContrastChanged -= OnHighContrastChanged; windowCommands.Dispose(); desktop.Dispose(); };
         root.SizeChanged += (_, _) =>
         {
             var columns = root.ActualWidth < 1080 ? 1 : 2;
@@ -62,7 +76,16 @@ public sealed partial class MainWindow : Window, ICommandConsent
             if (trayReady && vm.Selected is null && vm.Section is "Overview" or "Workspaces" or "Favorites")
                 RenderScreen();
         };
-        root.Loaded += async (_, _) => { if (!initialized) { initialized = true; await InitializeAsync(); } };
+        root.Loaded += async (_, _) => { if (!initialized) { initialized = true; SizeForDisplay(); await SafeAsync(InitializeAsync); } };
+    }
+    private void SizeForDisplay()
+    {
+        var display = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Nearest);
+        var scale = root.XamlRoot?.RasterizationScale ?? 1;
+        var width = Math.Min((int)(1240 * scale), Math.Max(600, display.WorkArea.Width - 48));
+        var height = Math.Min((int)(840 * scale), Math.Max(440, display.WorkArea.Height - 48));
+        AppWindow.Resize(new(width, height));
+        AppWindow.Move(new(display.WorkArea.X + (display.WorkArea.Width - width) / 2, display.WorkArea.Y + (display.WorkArea.Height - height) / 2));
     }
     private async Task InitializeAsync()
     {
@@ -73,15 +96,19 @@ public sealed partial class MainWindow : Window, ICommandConsent
             await store.RecoverInterruptedAsync();
             vm.Settings = await store.LoadSettingsAsync();
             s.Language = vm.Settings.Language;
-            if (!paths.Portable)
-                vm.Settings = vm.Settings with
-                {
-                    StartWithWindows = desktop.IsStartupEnabled()
-                };
+            vm.Settings = vm.Settings with
+            {
+                StartWithWindows = !paths.Portable && desktop.IsStartupEnabled()
+            };
             await vm.RefreshAsync();
             ApplyTheme();
             BuildShell();
             ConfigureTray();
+            try
+            {
+                windowCommands.ConfigureHotkey(vm.Settings.GlobalHotkeyEnabled);
+            }
+            catch (Exception ex) { log.Error("Global shortcut unavailable", ex); ShowNotice(s["Error"], ex.Message, true); }
             if (existing)
             {
                 try
@@ -96,7 +123,7 @@ public sealed partial class MainWindow : Window, ICommandConsent
                 }
                 catch (Exception ex) { log.Error("Automatic backup failed", ex); ShowNotice(s["Error"], ex.Message, true); }
             }
-            if (!vm.Settings.OnboardingComplete)
+            if (!vm.Settings.OnboardingComplete && !quitRequested)
                 await OnboardAsync();
             log.Info("SHIFT started.");
         }
@@ -118,20 +145,25 @@ public sealed partial class MainWindow : Window, ICommandConsent
     private string BackupDirectory => string.IsNullOrWhiteSpace(vm.Settings.BackupDirectory) ? paths.BackupDirectory : vm.Settings.BackupDirectory;
     private void ConfigureTray()
     {
-        desktop.CreateTray(() => DispatcherQueue.TryEnqueue(() => { AppWindow.Show(); Activate(); }), () => DispatcherQueue.TryEnqueue(() => { _ = QuitAsync(); }), s["OpenShift"], s["Quit"]);
+        desktop.CreateTray(() => DispatcherQueue.TryEnqueue(ShowAndActivate), () => DispatcherQueue.TryEnqueue(() => { _ = QuitAsync(); }), s["OpenShift"], s["Quit"]);
         trayReady = true;
     }
     private void OnClosing(AppWindow sender, AppWindowClosingEventArgs args)
     {
         if (exiting)
             return;
+        if (quitRequested)
+        {
+            args.Cancel = true;
+            return;
+        }
         if (trayReady && vm.Settings.MinimizeToTray)
         {
             args.Cancel = true;
             AppWindow.Hide();
             return;
         }
-        if (vm.IsLaunching)
+        if (vm.IsLaunching || activeOperations > 0)
         {
             args.Cancel = true;
             _ = QuitAsync();
@@ -146,30 +178,36 @@ public sealed partial class MainWindow : Window, ICommandConsent
     {
         if (dialogOpen)
         {
-            AppWindow.Show();
-            Activate();
+            ShowAndActivate();
             return;
         }
-        await SafeAsync(async () =>
+        if (quitRequested)
+            return;
+        quitRequested = true;
+        try
         {
-            if (vm.IsLaunching)
+            await SafeAsync(async () =>
             {
-                AppWindow.Show();
-                Activate();
-                if (!await ConfirmAsync(s["QuitLaunch"], s["QuitLaunchNote"], s["Quit"]))
-                    return;
-                vm.LaunchCancellation?.Cancel();
-                if (launchTask is not null)
-                    await launchTask;
-            }
-            exiting = true;
-            desktop.Dispose();
-            Close();
-        });
+                if (vm.IsLaunching)
+                {
+                    ShowAndActivate();
+                    if (!await ConfirmAsync(s["QuitLaunch"], s["QuitLaunchNote"], s["Quit"]))
+                        return;
+                    vm.LaunchCancellation?.Cancel();
+                    if (launchTask is not null)
+                        await launchTask;
+                }
+                await idleOperations.Task;
+                exiting = true;
+                desktop.Dispose();
+                Close();
+            }, track: false);
+        }
+        finally { quitRequested = false; }
     }
     private void ApplyTheme()
     {
-        palette = Palette.For(vm.Settings.Theme);
+        palette = accessibility.HighContrast ? HighContrastPalette() : Palette.For(vm.Settings.Theme);
         root.RequestedTheme = vm.Settings.Theme == AppTheme.Light ? ElementTheme.Light : ElementTheme.Dark;
         root.Background = Brush(palette.Background);
         if (AppWindowTitleBar.IsCustomizationSupported())
@@ -225,7 +263,8 @@ public sealed partial class MainWindow : Window, ICommandConsent
         side.Children.Add(navigation);
         var foot = Stack(10);
         foot.Children.Add(Text("●  " + s["Local"], 11, color: palette.Accent));
-        foot.Children.Add(Text("0.1.0 · PREVIEW", 10, true));
+        foot.Children.Add(Text(AppInfo.Version, 10, true));
+        foot.Children.Add(Button(s["Quick"] + "  Ctrl+K", OpenQuickLauncher, false, "Quick.Open"));
         Grid.SetRow(foot, 2);
         side.Children.Add(foot);
         shell.Children.Add(side);
@@ -233,6 +272,9 @@ public sealed partial class MainWindow : Window, ICommandConsent
         screen.Margin = new Thickness(36, 28, 36, 32);
         Grid.SetColumn(contentScroll, 1);
         shell.Children.Add(contentScroll);
+        shell.ColumnDefinitions[0].Width = new GridLength(compact ? 0 : 224);
+        side.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
+        screen.Margin = compact ? new Thickness(22) : new Thickness(36, 28, 36, 32);
         RenderNavigation();
         RenderScreen();
     }
@@ -247,6 +289,8 @@ public sealed partial class MainWindow : Window, ICommandConsent
             row.Children.Add(Text(s[key], 14));
             var button = new Button { Content = row, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Left, Padding = new Thickness(14, 12, 12, 12), CornerRadius = new CornerRadius(8), BorderThickness = new Thickness(0), Background = Brush(vm.Section == key ? palette.Selected : palette.Sidebar) };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button, s[key]);
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(button, "Nav." + key);
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetHelpText(button, vm.Section == key ? s["CurrentSection"] : "");
             button.Click += (_, _) => { vm.Section = target; vm.Selected = null; vm.Query = ""; RenderNavigation(); RenderScreen(); };
             navigation.Children.Add(button);
         }
@@ -256,6 +300,14 @@ public sealed partial class MainWindow : Window, ICommandConsent
     private void RenderScreen()
     {
         screen.Children.Clear();
+        searchBox = null;
+        screen.ChildrenTransitions = systemUi.AnimationsEnabled && vm.Section is not ("Launch" or "Quick")
+            ? new Microsoft.UI.Xaml.Media.Animation.TransitionCollection { new Microsoft.UI.Xaml.Media.Animation.EntranceThemeTransition { FromVerticalOffset = 8, IsStaggeringEnabled = false } } : null;
+        if (vm.Section == "Quick")
+        {
+            RenderQuick();
+            return;
+        }
         if (vm.Section == "Launch")
         {
             RenderLaunch();
@@ -281,10 +333,25 @@ public sealed partial class MainWindow : Window, ICommandConsent
         heading.Children.Add(words);
         if (vm.Section is "Overview" or "Workspaces" or "Favorites")
         {
-            var actions = Row(8);
+            var actions = new FlowPanel();
             actions.Children.Add(AsyncButton(s["Import"], ImportAsync));
-            actions.Children.Add(AsyncButton("+  " + s["New"], () => EditWorkspaceAsync(null), true));
-            Grid.SetColumn(actions, 1);
+            actions.Children.Add(AsyncButton("+  " + s["New"], () => EditWorkspaceAsync(null), true, "Workspace.New"));
+            if (root.ActualWidth < 1120)
+            {
+                heading.RowDefinitions.Add(new()
+                {
+                    Height = GridLength.Auto
+                });
+                heading.RowDefinitions.Add(new()
+                {
+                    Height = GridLength.Auto
+                });
+                Grid.SetRow(actions, 1);
+                actions.Margin = new Thickness(0, 16, 0, 0);
+                Grid.SetColumnSpan(actions, 2);
+            }
+            else
+                Grid.SetColumn(actions, 1);
             heading.Children.Add(actions);
         }
         screen.Children.Add(heading);
@@ -312,14 +379,22 @@ public sealed partial class MainWindow : Window, ICommandConsent
         RenderNavigation();
         RenderScreen();
     }
-    private async Task SafeAsync(Func<Task> action)
+    private async Task SafeAsync(Func<Task> action, bool track = true)
     {
+        if (track && (maintenance || quitRequested))
+        {
+            ShowNotice(s[maintenance ? "DataOperation" : "Closing"], error: true);
+            return;
+        }
+        if (track && activeOperations++ == 0)
+            idleOperations = new(TaskCreationOptions.RunContinuationsAsynchronously);
         try
         {
             await action();
         }
         catch (OperationCanceledException) { }
-        catch (Exception ex) { log.Error("User action failed", ex); ShowNotice(s["Error"], (ex is ValidationException ? s["ValidationHint"] + "\n" : "") + ex.Message, true); }
+        catch (Exception ex) { log.Error("User action failed", ex); ShowNotice(s["Error"], (ex is ValidationException ? s["ValidationHint"] + "\n" : "") + s.ErrorDetails(ex), true); }
+        finally { if (track && --activeOperations == 0) idleOperations.TrySetResult(); }
     }
     private void ShowNotice(string title, string message = "", bool error = false)
     {
@@ -330,24 +405,26 @@ public sealed partial class MainWindow : Window, ICommandConsent
     }
     private static StackPanel Stack(double spacing = 12) => new() { Spacing = spacing };
     private static StackPanel Row(double spacing = 12) => new() { Orientation = Orientation.Horizontal, Spacing = spacing, VerticalAlignment = VerticalAlignment.Center };
-    private TextBlock Text(string value, double size = 14, bool muted = false, string? color = null, Windows.UI.Text.FontWeight? weight = null) => new() { Text = value, FontSize = size, Foreground = Brush(color ?? (muted ? palette.Muted : palette.Text)), FontFamily = new FontFamily("Segoe UI Variable Text"), TextWrapping = TextWrapping.Wrap, FontWeight = weight ?? Microsoft.UI.Text.FontWeights.Normal, VerticalAlignment = VerticalAlignment.Center };
-    private TextBlock Glyph(string value, double size = 18) => new() { Text = value, FontSize = size, FontFamily = new FontFamily("Segoe Fluent Icons"), Foreground = Brush(palette.Accent), VerticalAlignment = VerticalAlignment.Center };
+    private TextBlock Text(string value, double size = 14, bool muted = false, string? color = null, Windows.UI.Text.FontWeight? weight = null) => new() { Text = value, FontSize = size, Foreground = Brush(accessibility.HighContrast ? palette.Text : color ?? (muted ? palette.Muted : palette.Text)), FontFamily = new FontFamily(OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000) ? "Segoe UI Variable Text" : "Segoe UI"), TextWrapping = TextWrapping.Wrap, FontWeight = weight ?? Microsoft.UI.Text.FontWeights.Normal, VerticalAlignment = VerticalAlignment.Center };
+    private TextBlock Glyph(string value, double size = 18) => new() { Text = value, FontSize = size, FontFamily = new FontFamily(OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000) ? "Segoe Fluent Icons" : "Segoe MDL2 Assets"), Foreground = Brush(palette.Accent), VerticalAlignment = VerticalAlignment.Center };
     private Border Card(UIElement child, double padding = 22) => new() { Child = child, Padding = new Thickness(padding), Background = Brush(palette.Surface), BorderBrush = Brush(palette.Border), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(14) };
-    private Button Button(string label, Action action, bool primary = false)
+    private Button Button(string label, Action action, bool primary = false, string? automationId = null)
     {
         var button = new Button { Content = label, Padding = new Thickness(16, 10, 16, 10), CornerRadius = new CornerRadius(8) };
+        if (automationId is not null)
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(button, automationId);
         if (primary)
         {
             button.Background = Brush(palette.Accent);
-            button.Foreground = Brush("#17151F");
+            button.Foreground = Brush(accessibility.HighContrast ? palette.Background : "#17151F");
             button.BorderThickness = new Thickness(0);
         }
         button.Click += (_, _) => { try { action(); } catch (Exception ex) { log.Error("Desktop action failed", ex); ShowNotice(s["Error"], ex.Message, true); } };
         return button;
     }
-    private Button AsyncButton(string label, Func<Task> action, bool primary = false)
+    private Button AsyncButton(string label, Func<Task> action, bool primary = false, string? automationId = null)
     {
-        var button = Button(label, () => { }, primary);
+        var button = Button(label, () => { }, primary, automationId);
         button.Click += async (_, _) => await SafeAsync(action);
         return button;
     }

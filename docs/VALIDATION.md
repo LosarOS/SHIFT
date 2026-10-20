@@ -1,59 +1,70 @@
-# Фактическая валидация 0.1.0
+# Фактическая валидация 1.0.0-rc.1
 
-Дата: 2026-10-20. Среда: Linux x64; .NET SDK **10.0.402**. Итоговый target: **.NET 10 LTS** / WinUI 3 / Windows App SDK 1.8.260921001. Исходный проект первоначально проверялся на .NET 8, затем переведён на .NET 10 из-за окончания поддержки .NET 8 10 ноября 2026 года.
+2026-10-20 · Linux x64 / Debian 13 · .NET SDK 10.0.402 / runtime 10.0.13.
 
 ## Выполнено
 
 | Проверка | Результат |
 |---|---|
-| NuGet restore всех 5 проектов | Успешно, lock-файлы созданы и проверены locked restore |
-| Release core / integration tests на .NET 10 | **32 passed, 0 failed, 0 skipped**, последний прогон 591 мс |
-| WinUI C# Compile target против Windows reference assemblies | Успешно: **0 warnings, 0 errors** |
-| Dependency audit всего solution, включая transitive | По текущим NuGet advisory sources известных уязвимостей не найдено |
-| PowerShell syntax, Build-Release.ps1 и Smoke-Windows.ps1 | Успешно, разобраны PowerShell Parser 7.4.6; Windows-действия не выполнялись |
-| GitHub workflow YAML / MSBuild XML / example JSON | Синтаксически корректны |
-| Ссылки локальной Markdown-документации | Проверены |
+| Unit / integration tests | **52 passed, 0 failed, 0 skipped** |
+| C# WinUI Compile target против Windows references | **0 warnings, 0 errors** |
+| Locked NuGet restore | Успешно; lock-файлы для всех проектов |
+| Dependency audit с transitive dependencies | Известных advisory по текущим NuGet sources нет; NU1901–NU1904 — ошибки restore |
+| Source hygiene | Не найдены совпадения credential patterns и tracked build/data files; не исчерпывающий scanner |
+| PowerShell syntax | Build-Release, Smoke-Windows, Smoke-Installer разобраны parser без ошибок; Windows actions не выполнялись |
+| YAML / XML / JSON / Markdown links | Проверены локально |
+| Self-contained initialization | Effective BootstrapInitialize пусто, UndockedRegFreeWinRTInitialize=true; ошибочное принудительное bootstrap удалено |
+| Synthetic data / queue diagnostics | Успешно; изолированные 100 spaces / 2000 items / 1000 runs / 20000 run items; ничего реально не запускается |
 
-В ходе работы исправлена обнаруженная High advisory `GHSA-2m69-gcr7-jv3q`: native SQLitePCLRaw 2.1.6 заменена на 2.1.14. Итоговый Microsoft.Data.Sqlite — 10.0.13; lock-файлы закрепляют зависимости и content hashes. Отсутствие известных advisory не является доказательством отсутствия любых уязвимостей.
+## Измерения ядра
 
-## Воспроизводимые команды
+[Машиночитаемый результат](validation/core-diagnostics-linux.json). Округление до 0.1 мс:
+
+| Операция | Измерено |
+|---|---:|
+| Сохранение 100 пространств × 20 элементов | 178.6 мс |
+| Чтение этих 100 пространств | 27.3 мс |
+| Сохранение 1000 запусков × 20 результатов | 911.9 мс |
+| Чтение страницы истории из 30 записей | 41.8 мс |
+| Статистика всей истории | 3.4 мс |
+| Online backup | 8.6 мс |
+| Синтетический dispatch 20 шагов с durable progress | 29.5 мс |
+
+Это конкретный Linux-host run на временных данных, не benchmark WinUI startup/rendering или Windows process launch. Память 69.8 MiB в JSON относится к console harness, не к desktop-приложению. Числа не являются performance SLA.
+
+## Покрытие
+
+Workspace CRUD/update/clone/tags/cascade; preserved history; settings and invalid-settings refusal; online backup; unknown-schema refusal; interrupted-run recovery. Ordering, delay/cancel, disabled items, partial failures, concurrent-launch guard, consent approved/declined and fatal persistence failure. JSON fresh IDs, malformed/null/duplicate/oversized fields, bounded UTF-8 streams/BOM/invalid encoding. URL/path restrictions, environment expansion guards, reserved names, canonical shell URL escaping, separate app arguments, explicit visible PowerShell/cmd requests. History Unicode queries, pages, filtering, full counts; restore success/safety backup, invalid schema/invalid file/cancellation preserving original data; 40 simultaneous serialized saves; CurrentUserOnly instance signal.
+
+## Воспроизведение
 
 ```sh
 dotnet restore SHIFT.sln --locked-mode
-dotnet test tests/Shift.Tests -c Release --no-restore --nologo --logger trx --results-directory TestResults
+dotnet test tests/Shift.Tests -c Release --nologo --logger trx --results-directory TestResults
 dotnet list SHIFT.sln package --vulnerable --include-transitive
+python tools/audit_source.py
+dotnet run --project tools/Shift.Diagnostics -c Release -- --output artifacts/core-diagnostics.json
 ```
 
-Дополнительная **проверка компилятора**, использованная в Linux:
+Linux-only reference compilation (не runnable Windows package):
 
 ```sh
-dotnet restore src/Shift.App/Shift.App.csproj --locked-mode -p:WindowsAppSDKSelfContained=false -p:SelfContained=false
-dotnet build src/Shift.App/Shift.App.csproj --no-restore -t:Compile -p:EnableWindowsTargeting=true -p:WindowsAppSDKSelfContained=false -p:SelfContained=false
+dotnet restore src/Shift.App --locked-mode -p:WindowsAppSDKSelfContained=false -p:SelfContained=false
+dotnet build src/Shift.App --no-restore -t:Compile -p:WindowsAppSDKSelfContained=false -p:SelfContained=false
 ```
 
-Эта команда проверяет C# и ссылки. Она **не создаёт проверенный runnable Windows package**. Она намеренно не выполняет Windows resource/publish pipeline.
+## Не выполнено — обязательные release gates
 
-## Проверенное поведение ядра
+- Полный Windows self-contained publish с MakePri/native manifest tooling.
+- Подготовленные UI Automation smoke на portable и installed build; настоящие screenshots.
+- Inno installer / update / uninstall на чистой Windows VM, startup и prerequisites.
+- Windows 10/11, Narrator, high contrast, DPI, text scaling, shutdown/logoff, GUI performance.
+- Signing / SmartScreen policy и фактические проверенные дистрибутивы.
 
-SQLite roundtrip, update, clone, cascade delete with retained history; settings and online backup; newer-schema refusal; interrupted-run recovery. Queue ordering, disabled items, partial failure, consent decline/approval, disabled command behavior, cancellation before dispatch and inside delay, concurrent-run rejection, fatal persistence failure stopping dispatch. Import roundtrip/fresh IDs, malformed/null/oversized/unsupported JSON, bounded UTF-8 stream import with BOM, invalid encoding. HTTP/HTTPS-only URLs, script/interpreter type guards, expanded environment target checks, ambiguous Win32/ADS path refusal and accent validation.
+Поэтому статус — RC, не подтверждённая stable 1.0. Скрипты в CI не считаются выполненными только потому, что написаны.
 
-## Ещё не выполнено
+## GitHub
 
-- Запуск WinUI на Windows 10/11, визуальная проверка и UI Automation smoke.
-- Полная Windows self-contained сборка с native resource tooling; portable ZIP и Inno Setup EXE.
-- Чистая Windows VM без SDK/runtime, install/update/uninstall, startup/tray/notifications/pickers.
-- Narrator, high contrast, DPI, keyboard-only UX, performance targets.
-- Code signing, SmartScreen/reputation policy, настоящие screenshots.
-- Публикация GitHub-репозитория или release; здесь создан локальный исходный репозиторий.
+Аутентификация аккаунта **LosarOS** подтверждена, в том числе через явно разрешённый пользователем GitHub CLI device login. Создание `LosarOS/SHIFT` через GraphQL и REST получает **403 Resource not accessible by integration**. Репозиторий пока не создан/не загружен, Windows Actions не запускались. Для продолжения требуется пустой репозиторий, созданный владельцем через GitHub UI, либо подключение с правом создания. Credentials сохранены вне дерева проекта и не входят в исходники.
 
-В Linux при попытке полного WinUI build выявлено ограничение Windows tooling: self-contained MSIX manifest extraction и запуск `MakePri.exe` требуют Windows. Ошибки C# проверены отдельно и устранены. Никакие полученные здесь промежуточные DLL не выдаются за готовый Windows-дистрибутив.
-
-## Следующий release gate
-
-На Windows x64 с .NET 10 SDK, Windows Build Tools и Inno Setup 6:
-
-```powershell
-pwsh ./packaging/Build-Release.ps1 -Version 0.1.0
-```
-
-Сценарий делает locked restore, tests, self-contained publish, UI Automation smoke на disposable portable-профиле, portable ZIP, installer и SHA-256. В smoke: onboarding → create workspace → save/detail → Settings/save/rebuild. Затем вручную пройти `docs/QA.md` и обновить этот отчёт. Только после этого публиковать public beta.
+После появления репозитория: push → Windows CI → диагностика/исправление фактических ошибок → package hashes → manual QA → stable tag/release. На Windows команда `pwsh ./packaging/Build-Release.ps1 -Version 1.0.0-rc.1` выполняет tests/publish/portable UI smoke/package; отдельный `Smoke-Installer.ps1` предназначен только для disposable GitHub runner.

@@ -1,5 +1,5 @@
 #ifndef AppVersion
-  #define AppVersion "0.1.0"
+  #define AppVersion "1.0.0-rc.1"
 #endif
 #ifndef SourceDir
   #error SourceDir must point to the dotnet publish directory
@@ -7,10 +7,14 @@
 #ifndef OutputDir
   #define OutputDir "..\artifacts"
 #endif
+#ifndef NumericVersion
+  #define NumericVersion "1.0.0.0"
+#endif
 [Setup]
 AppId={{E4FAF163-A081-42F6-9974-0729E1397AA3}
 AppName=SHIFT
 AppVersion={#AppVersion}
+VersionInfoVersion={#NumericVersion}
 AppPublisher=SHIFT contributors
 DefaultDirName={localappdata}\Programs\SHIFT
 DefaultGroupName=SHIFT

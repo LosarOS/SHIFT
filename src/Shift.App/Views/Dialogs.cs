@@ -1,6 +1,7 @@
 using Windows.Storage.Pickers;
 using Windows.Storage;
 namespace Shift.App;
+
 public sealed partial class MainWindow
 {
     private ContentDialog Dialog(string title, UIElement content, string primary, string close)
@@ -60,8 +61,20 @@ public sealed partial class MainWindow
         var name = new TextBox { Text = source.Name, MaxLength = 100 };
         var description = new TextBox { Text = source.Description, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 72, MaxLength = 2000 };
         var tags = new TextBox { Text = string.Join(", ", source.Tags), MaxLength = 820 };
-        var colors = new[] { "#BCADFF", "#98BEFF", "#A9D4A5", "#E5BA8C" };
-        var accents = new ComboBox { ItemsSource = colors, SelectedIndex = Math.Max(0, Array.IndexOf(colors, source.Color)), HorizontalAlignment = HorizontalAlignment.Stretch };
+        var colors = new[] { "#BCADFF", "#98BEFF", "#A9D4A5", "#E5BA8C", source.Color }.Distinct().ToArray();
+        var accents = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
+        var names = new[] { s["Lavender"], s["Blue"], s["Sage"], s["Sand"] };
+        for (var index = 0; index < colors.Length; index++)
+        {
+            var label = index < names.Length ? names[index] : s["CustomColor"];
+            var swatch = Row(10);
+            swatch.Children.Add(new Border { Width = 16, Height = 16, CornerRadius = new CornerRadius(5), Background = Brush(colors[index]) });
+            swatch.Children.Add(Text(label));
+            var choice = new ComboBoxItem { Content = swatch };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(choice, label);
+            accents.Items.Add(choice);
+        }
+        accents.SelectedIndex = Math.Max(0, Array.IndexOf(colors, source.Color));
         var favorite = new CheckBox { Content = s["Favorite"], IsChecked = source.IsFavorite };
         var fields = Stack(16);
         fields.MinWidth = 440;
@@ -74,8 +87,11 @@ public sealed partial class MainWindow
         fields.Children.Add(errors);
         Workspace? saved = null;
         var dialog = Dialog(workspace is null ? s["New"] : s["Edit"], new ScrollViewer { Content = fields, MaxHeight = 540 }, s["Save"], s["Cancel"]);
+        var saving = false;
+        dialog.Closing += (_, args) => { if (saving) args.Cancel = true; };
         dialog.PrimaryButtonClick += async (_, args) =>
         {
+            saving = true;
             var deferral = args.GetDeferral();
             dialog.IsPrimaryButtonEnabled = false;
             try
@@ -91,8 +107,8 @@ public sealed partial class MainWindow
                 await vm.SaveAsync(candidate);
                 saved = candidate;
             }
-            catch (Exception ex) { args.Cancel = true; errors.Title = s["ValidationHint"]; errors.Message = ex.Message; errors.IsOpen = true; log.Error("Workspace save failed", ex); }
-            finally { dialog.IsPrimaryButtonEnabled = true; deferral.Complete(); }
+            catch (Exception ex) { args.Cancel = true; errors.Title = s["ValidationHint"]; errors.Message = s.ErrorDetails(ex); errors.IsOpen = true; log.Error("Workspace save failed", ex); }
+            finally { saving = false; dialog.IsPrimaryButtonEnabled = true; deferral.Complete(); }
         };
         if (await ShowDialogAsync(dialog) == ContentDialogResult.Primary && saved is not null)
             OpenWorkspace(vm.Workspaces.First(w => w.Id == saved.Id));
@@ -154,8 +170,11 @@ public sealed partial class MainWindow
         var errors = new InfoBar { Severity = InfoBarSeverity.Error, IsClosable = false };
         fields.Children.Add(errors);
         var dialog = Dialog(item is null ? s["AddItem"] : s["EditItem"], new ScrollViewer { Content = fields, MaxHeight = 530 }, s["Save"], s["Cancel"]);
+        var saving = false;
+        dialog.Closing += (_, args) => { if (saving) args.Cancel = true; };
         dialog.PrimaryButtonClick += async (_, args) =>
         {
+            saving = true;
             var deferral = args.GetDeferral();
             dialog.IsPrimaryButtonEnabled = false;
             try
@@ -167,7 +186,7 @@ public sealed partial class MainWindow
                 {
                     Name = name.Text.Trim(),
                     Kind = kind,
-                    Target = target.Text.Trim(),
+                    Target = kind == ItemKind.Command ? target.Text : target.Text.Trim(),
                     Arguments = kind == ItemKind.App ? arguments.Text : "",
                     WorkingDirectory = directory.Text.Trim(),
                     Shell = (CommandShell)Math.Max(0, shellChoice.SelectedIndex),
@@ -181,8 +200,8 @@ public sealed partial class MainWindow
                 };
                 await vm.SaveAsync(updated);
             }
-            catch (Exception ex) { args.Cancel = true; errors.Title = s["ValidationHint"]; errors.Message = ex.Message; errors.IsOpen = true; log.Error("Item save failed", ex); }
-            finally { dialog.IsPrimaryButtonEnabled = true; deferral.Complete(); }
+            catch (Exception ex) { args.Cancel = true; errors.Title = s["ValidationHint"]; errors.Message = s.ErrorDetails(ex); errors.IsOpen = true; log.Error("Item save failed", ex); }
+            finally { saving = false; dialog.IsPrimaryButtonEnabled = true; deferral.Complete(); }
         };
         if (await ShowDialogAsync(dialog) == ContentDialogResult.Primary)
             RenderScreen();
@@ -210,6 +229,40 @@ public sealed partial class MainWindow
         var allowed = await ShowDialogAsync(dialog) == ContentDialogResult.Primary;
         token.ThrowIfCancellationRequested();
         return allowed;
+    }
+    private async Task RestoreBackupAsync()
+    {
+        if (vm.IsLaunching)
+            throw new ValidationException([s["WaitForLaunch"]]);
+        var path = await PickFileAsync([".db"]);
+        if (path is null)
+            return;
+        if (!await ConfirmAsync(s["RestoreTitle"], path + "\n\n" + s["RestoreNote"], s["Restore"]))
+            return;
+        maintenance = true;
+        try
+        {
+            var result = await store.RestoreAsync(path, BackupDirectory);
+            vm.Settings = await store.LoadSettingsAsync();
+            vm.Settings = vm.Settings with
+            {
+                StartWithWindows = !paths.Portable && desktop.IsStartupEnabled()
+            };
+            s.Language = vm.Settings.Language;
+            await vm.RefreshAsync();
+            vm.Selected = null;
+            vm.Section = "Settings";
+            ApplyTheme();
+            ConfigureTray();
+            BuildShell();
+            try
+            {
+                windowCommands.ConfigureHotkey(vm.Settings.GlobalHotkeyEnabled);
+            }
+            catch (Exception ex) { log.Error("Restored global shortcut unavailable", ex); ShowNotice(s["Restored"], result.SafetyBackupPath + "\n" + ex.Message, true); return; }
+            ShowNotice(s["Restored"], result.SafetyBackupPath);
+        }
+        finally { maintenance = false; }
     }
     private async Task<string?> PickFileAsync(IEnumerable<string> extensions)
     {

@@ -32,3 +32,10 @@ public interface IAppLog
     void Error(string message, Exception exception);
 }
 public sealed record LaunchProgress(LaunchRun Run);
+
+public interface IHistoryQueries
+{
+    Task<HistoryPage> QueryHistoryAsync(HistoryFilter filter, CancellationToken token = default);
+    Task<UsageSummary> GetUsageAsync(CancellationToken token = default);
+    Task ClearHistoryAsync(CancellationToken token = default);
+}

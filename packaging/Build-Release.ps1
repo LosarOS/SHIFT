@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '0.1.0',
+    [ValidatePattern('^\d+\.\d+\.\d+(?:-rc\.\d+)?$')][string]$Version = '1.0.0-rc.1',
     [string]$IsccPath = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
 )
 $ErrorActionPreference = 'Stop'
@@ -22,6 +22,11 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Locked dependency restore failed.' }
     dotnet test tests/Shift.Tests/Shift.Tests.csproj -c Release --no-restore --nologo
     if ($LASTEXITCODE -ne 0) { throw 'Core tests failed.' }
+    $effective=dotnet msbuild src/Shift.App/Shift.App.csproj -getProperty:WindowsAppSDKSelfContained,WindowsAppSdkBootstrapInitialize | Out-String | ConvertFrom-Json
+    if($LASTEXITCODE -ne 0){throw 'Cannot inspect app runtime initialization.'}
+    if($effective.Properties.WindowsAppSDKSelfContained -eq 'true' -and $effective.Properties.WindowsAppSdkBootstrapInitialize -eq 'true'){
+        throw 'Self-contained apps must not bootstrap a separately installed Windows App SDK runtime.'
+    }
     dotnet publish src/Shift.App/Shift.App.csproj -c Release -r win-x64 --self-contained true -p:WindowsAppSDKSelfContained=true "-p:Version=$Version" -o $publish --no-restore --nologo
     if ($LASTEXITCODE -ne 0) { throw 'Windows publish failed.' }
     Copy-Item LICENSE (Join-Path $publish 'SHIFT-LICENSE.txt')
@@ -49,11 +54,12 @@ try {
     Copy-Item $publish $portable -Recurse
     New-Item (Join-Path $portable 'portable.flag') -ItemType File -Force | Out-Null
     Copy-Item docs/INSTALLATION.md (Join-Path $portable 'INSTALLATION.md')
-    & powershell.exe -NoProfile -File (Join-Path $PSScriptRoot 'Smoke-Windows.ps1') -AppDirectory $portable
+    & powershell.exe -NoProfile -File (Join-Path $PSScriptRoot 'Smoke-Windows.ps1') -AppDirectory $portable -DiagnosticsDirectory (Join-Path $out 'diagnostics')
     if ($LASTEXITCODE -ne 0) { throw 'Windows UI smoke failed.' }
     $zip = Join-Path $out "SHIFT-$Version-win-x64-portable.zip"
     Compress-Archive -Path $portable -DestinationPath $zip -Force
-    & $IsccPath "/DAppVersion=$Version" "/DSourceDir=$publish" "/DOutputDir=$out" (Join-Path $PSScriptRoot 'SHIFT.iss')
+    $numericVersion=($Version -split '-',2)[0]+'.0'
+    & $IsccPath "/DAppVersion=$Version" "/DNumericVersion=$numericVersion" "/DSourceDir=$publish" "/DOutputDir=$out" (Join-Path $PSScriptRoot 'SHIFT.iss')
     if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed.' }
     $exe = Join-Path $out "SHIFT-$Version-win-x64-setup.exe"
     if (-not (Test-Path $exe)) { throw 'Installer artifact missing.' }

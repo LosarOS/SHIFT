@@ -1,4 +1,5 @@
 namespace Shift.App.Services;
+
 public sealed class AppPaths
 {
     public bool Portable { get; } = File.Exists(Path.Combine(AppContext.BaseDirectory, "portable.flag"));

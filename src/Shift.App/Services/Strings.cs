@@ -1,8 +1,12 @@
 namespace Shift.App.Services;
+
 public sealed class Strings
 {
     public string Language { get; set; } = "ru";
-    public string this[string key] => Values.TryGetValue(key, out var value) ? (Language == "ru" ? value.Ru : value.En) : key;
+    public string this[string key] => key == "About" ? "SHIFT " + AppInfo.Version + " · Windows x64" : Values.TryGetValue(key, out var value) ? (Language == "ru" ? value.Ru : value.En) : key;
+    public string ErrorDetails(Exception error) => error is ValidationException validation
+        ? string.Join(Environment.NewLine, validation.Issues.Select(issue => (string.IsNullOrWhiteSpace(issue.Subject) ? "" : issue.Subject + ": ") + (Values.ContainsKey("Validation." + issue.Code) ? this["Validation." + issue.Code] : issue.Message)))
+        : error.Message;
     private static readonly Dictionary<string, (string Ru, string En)> Values = new()
     {
         ["Overview"] = ("Обзор", "Overview"),
@@ -135,5 +139,62 @@ public sealed class Strings
         ["Review"] = ("Открыть детали", "Open details"),
         ["LocalTime"] = ("Время на этом устройстве", "Device local time"),
         ["StartupMismatch"] = ("Windows может отключить автозапуск в диспетчере задач.", "Windows can disable startup in Task Manager.")
+        ,
+        ["Quick"] = ("Быстрый запуск", "Quick launcher"),
+        ["FullMode"] = ("Полный режим", "Full view"),
+        ["QuickHint"] = ("Найдите контекст — и возвращайтесь к делу.", "Find your context and get back to work."),
+        ["Sort"] = ("Сортировка", "Sort"),
+        ["SortRecent"] = ("Недавние", "Recent"),
+        ["SortName"] = ("По названию", "Name"),
+        ["SortUsed"] = ("Часто используемые", "Most used"),
+        ["AllTags"] = ("Все теги", "All tags"),
+        ["LastUsed"] = ("Последний запуск", "Last launched"),
+        ["NeverUsed"] = ("Ещё не запускалось", "Not launched yet"),
+        ["LaunchCount"] = ("запусков", "launches"),
+        ["HistorySearch"] = ("Поиск в истории", "Search history"),
+        ["OnlyFailures"] = ("Только с ошибками", "Only failures"),
+        ["Apply"] = ("Применить", "Apply"),
+        ["Previous"] = ("Назад", "Previous"),
+        ["Next"] = ("Далее", "Next"),
+        ["ClearHistory"] = ("Очистить историю", "Clear history"),
+        ["ClearHistoryNote"] = ("Завершённые записи и статистика запусков будут удалены. Пространства сохранятся. Продолжить?", "Completed runs and usage statistics will be deleted. Workspaces will be kept. Continue?"),
+        ["Retry"] = ("Повторить запуск", "Run again"),
+        ["Restore"] = ("Восстановить из копии", "Restore backup"),
+        ["RestoreTitle"] = ("Восстановить данные SHIFT?", "Restore SHIFT data?"),
+        ["RestoreNote"] = ("Пространства, история и настройки будут заменены данными из выбранного файла. Сначала SHIFT проверит копию и сохранит текущие данные в отдельный backup. Программы не будут запущены.", "Workspaces, history and settings will be replaced by the selected backup. SHIFT first validates it and saves your current data in a safety backup. No programs will be launched."),
+        ["Restored"] = ("Данные восстановлены. Предыдущие данные сохранены:", "Data restored. Your previous data is saved in:"),
+        ["Closing"] = ("SHIFT завершает текущие операции…", "SHIFT is finishing current operations…"),
+        ["DataOperation"] = ("Дождитесь завершения восстановления данных.", "Wait for data restoration to finish."),
+        ["WaitForLaunch"] = ("Сначала завершите или отмените текущий запуск.", "Finish or cancel the current launch first."),
+        ["Hotkey"] = ("Глобальный быстрый запуск: Ctrl + Alt + Space", "Global quick launcher: Ctrl + Alt + Space"),
+        ["HotkeyHint"] = ("Внутри SHIFT: Ctrl+K — быстрый запуск, Ctrl+N — новое пространство, Ctrl+F — поиск.", "In SHIFT: Ctrl+K for quick launch, Ctrl+N for a new workspace, Ctrl+F to search."),
+        ["Validation.WorkspaceId"] = ("У пространства отсутствует идентификатор.", "Workspace ID is required."),
+        ["Validation.WorkspaceName"] = ("Введите название от 1 до 100 символов без управляющих знаков.", "Enter a name with 1–100 characters and no control characters."),
+        ["Validation.Color"] = ("Цвет должен иметь формат #RRGGBB.", "Color must use #RRGGBB."),
+        ["Validation.Description"] = ("Описание: не более 2000 символов.", "Description must not exceed 2000 characters."),
+        ["Validation.Tags"] = ("Не более 20 тегов, по 1–40 символов.", "Use up to 20 tags of 1–40 characters."),
+        ["Validation.Items"] = ("Добавьте не более 100 элементов.", "Use up to 100 launch items."),
+        ["Validation.ItemNull"] = ("Пустой элемент недопустим.", "Launch items must not be null."),
+        ["Validation.DuplicateItems"] = ("Идентификаторы элементов должны отличаться.", "Item IDs must be unique."),
+        ["Validation.ItemName"] = ("Введите название элемента от 1 до 100 символов.", "Enter an item name with 1–100 characters."),
+        ["Validation.ItemType"] = ("Выберите допустимый тип и оболочку.", "Choose a valid item type and shell."),
+        ["Validation.Delay"] = ("Задержка: от 0 до 300000 мс.", "Delay must be 0–300000 ms."),
+        ["Validation.Order"] = ("Порядок не может быть отрицательным.", "Order cannot be negative."),
+        ["Validation.Target"] = ("Укажите корректный путь, адрес или команду.", "Enter a valid path, URL or command."),
+        ["Validation.Arguments"] = ("Проверьте параметры, заметку и рабочую папку.", "Check arguments, note and working directory."),
+        ["Validation.Url"] = ("Используйте полный HTTP/HTTPS адрес без управляющих символов.", "Use an absolute HTTP/HTTPS URL without control characters."),
+        ["Validation.AppType"] = ("Выберите .exe/.lnk. Для оболочек используйте тип «Команда».", "Choose an .exe/.lnk. Shell interpreters require Command type."),
+        ["Validation.FileType"] = ("Для исполняемого файла выберите тип «Приложение» или «Команда».", "Executable files require App or Command type."),
+        ["Validation.WorkingDirectory"] = ("Рабочая папка должна быть абсолютным локальным путём.", "Working directory must be an absolute local path."),
+        ["Validation.AppArguments"] = ("Отдельные параметры допустимы только для приложения; команда вводится целиком.", "Only apps accept separate arguments; enter commands in full."),
+        ["Validation.LocalPath"] = ("Укажите абсолютный локальный путь, например C:\\Projects. Сетевые пути, служебные имена и потоки NTFS не поддерживаются.", "Use an absolute local path such as C:\\Projects. Network paths, reserved names and NTFS streams are not supported.")
+        ,
+        ["Lavender"] = ("Лаванда", "Lavender"),
+        ["Blue"] = ("Небесный", "Sky"),
+        ["Sage"] = ("Шалфей", "Sage"),
+        ["Sand"] = ("Песочный", "Sand"),
+        ["CustomColor"] = ("Свой цвет", "Custom color"),
+        ["CurrentSection"] = ("Текущий раздел", "Current section"),
+        ["QuickKeys"] = ("↑ ↓ — выбор  ·  Enter — запустить  ·  Esc — полный режим", "↑ ↓ select  ·  Enter to launch  ·  Esc for full view")
     };
 }

@@ -44,3 +44,11 @@ Windows CI должен восстановить NuGet по lock-файлам, �
 4. Заполнить фактический VALIDATION, добавить настоящие screenshots, обновить changelog и release notes.
 5. Подписать и пересчитать checksums, если используется signing. Ключи не хранить в репозитории.
 6. Опубликовать draft вручную. Собирать обратную связь через GitHub issues без телеметрии.
+
+## Candidate automated smoke coverage
+
+`Smoke-Windows.ps1` использует стабильные automation IDs: onboarding → workspace create/save → Command item create → отказ (marker отсутствует) → повтор/approval → реальная запись marker из видимой PowerShell → theme/language save → compact search → close-to-tray → second-instance activation. Логи и screenshots копируются в diagnostics до удаления тестовых данных.
+
+`Smoke-Installer.ps1` запускается только при GITHUB_ACTIONS=true и отсутствии существующей установки. Проверяет silent per-user install, installed UI smoke, uninstall и cleanup registry/files. Эти сценарии подготовлены, но считаются пройденными только после Windows run.
+
+Source hygiene и synthetic console diagnostics — отдельные CI gates; actual GUI memory/startup остаются ручными измерениями. NuGet audit проверяет все зависимости, advisory warnings останавливают restore. CI action refs закреплены SHA и обновляются Dependabot.

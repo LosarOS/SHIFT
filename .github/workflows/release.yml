@@ -7,7 +7,7 @@ on:
       version:
         description: 'Version to build (x.y.z); workflow dispatch only uploads artifacts'
         required: true
-        default: '0.1.0'
+        default: '1.0.0-rc.1'
 permissions:
   contents: read
 jobs:
@@ -16,8 +16,8 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           dotnet-version: 10.0.x
       - name: Resolve version
@@ -26,12 +26,19 @@ jobs:
           INPUT_VERSION: ${{ inputs.version }}
         run: |
           $version = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME.TrimStart('v') } else { $env:INPUT_VERSION }
-          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw 'Expected x.y.z version' }
+          if ($version -notmatch '^\d+\.\d+\.\d+(?:-rc\.\d+)?$') { throw 'Expected x.y.z or x.y.z-rc.n version' }
           "SHIFT_VERSION=$version" >> $env:GITHUB_ENV
+      - name: Ensure Inno Setup
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup --yes --no-progress }
       - name: Package
         shell: pwsh
         run: ./packaging/Build-Release.ps1 -Version $env:SHIFT_VERSION
-      - uses: actions/upload-artifact@v4
+      - name: Installer smoke
+        shell: pwsh
+        run: ./packaging/Smoke-Installer.ps1 -Version $env:SHIFT_VERSION
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: SHIFT-release-candidate
           path: |
@@ -44,5 +51,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create $env:GITHUB_REF_NAME "artifacts/SHIFT-$env:SHIFT_VERSION-win-x64-portable.zip" "artifacts/SHIFT-$env:SHIFT_VERSION-win-x64-setup.exe" artifacts/SHA256SUMS.txt --draft --title "SHIFT $env:SHIFT_VERSION preview" --notes-file docs/RELEASE_NOTES.md
+          gh release create $env:GITHUB_REF_NAME "artifacts/SHIFT-$env:SHIFT_VERSION-win-x64-portable.zip" "artifacts/SHIFT-$env:SHIFT_VERSION-win-x64-setup.exe" artifacts/SHA256SUMS.txt --draft --title "SHIFT $env:SHIFT_VERSION" --notes-file docs/RELEASE_NOTES.md
           if ($LASTEXITCODE -ne 0) { throw 'Draft release creation failed.' }

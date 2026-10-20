@@ -1,0 +1,17 @@
+{
+  "platform": "Debian GNU/Linux 13 (trixie)",
+  "architecture": "X64",
+  "framework": ".NET 10.0.13",
+  "timestampUtc": "2026-10-20T16:54:31.9784611+00:00",
+  "note": "Core storage/queue harness only; these results do not measure WinUI startup, rendering or Windows dispatch.",
+  "save100WorkspacesWith20ItemsMs": 178.6435,
+  "read100WorkspacesWith20ItemsMs": 27.2904,
+  "save1000RunsWith20ItemsMs": 911.9395,
+  "historyPage30Ms": 41.8071,
+  "usageFor1000RunsMs": 3.3689,
+  "onlineBackupMs": 8.603,
+  "dispatch20SyntheticItemsAndPersistProgressMs": 29.5071,
+  "databaseBytes": 6299648,
+  "backupBytes": 6291456,
+  "harnessWorkingSetMiB": 69.83203125
+}

@@ -19,7 +19,7 @@ Infrastructure реализует интерфейсы Application, Application 
 |---|---|
 | Domain | Records, enums, проверка допустимого workspace, безопасное дублирование |
 | Application | IWorkspaceStore, IRunStore, ISettingsStore, IItemLauncher, ICommandConsent, IAppLog; LaunchCoordinator; WorkspaceTransfer |
-| Infrastructure | SqliteStore, versioned initialization, transactions, online backup, WindowsItemLauncher, FileLog |
+| Infrastructure | SqliteStore + LocalDataStore (serialized background access), versioned initialization, transactions, backup/restore, LaunchRequestFactory, WindowsItemLauncher, SingleInstanceSignal, FileLog |
 | Presentation | ShellViewModel: снимки списка/истории, запрос поиска, selection, settings, текущая очередь, cancel token; MainWindow: native controls и dialogs; DesktopIntegration: tray/registry |
 
 UI строится программно из WinUI controls. `MainWindow.cs` — shell и общие helpers; `Views/Pages.cs` — разделы, `Views/Dialogs.cs` — редакторы и взаимодействие с pickers. Обновления состояния происходят в UI synchronization context. Изменения базы завершаются до перезагрузки view model; временные поля редакторов не меняют сохранённый workspace до Save. Команды UI вызывают view model / application, launcher напрямую не доступен пользователю.
@@ -65,9 +65,9 @@ Imported workspaces receive new IDs; validation runs before import, storage and 
 
 ## Настройки / файлы
 
-Installed data `%LOCALAPPDATA%\SHIFT`; portable mode requires `portable.flag` next to EXE and writes `data\`. Repeated launches of the same data path return early; bringing the first instance to foreground on a second launch is deferred. Tray restore does bring it forward.
+Installed data `%LOCALAPPDATA%\SHIFT`; portable mode requires `portable.flag` next to EXE and writes `data\`. Repeated launches signal ACTIVATE through a bounded CurrentUserOnly named pipe, then exit. The first instance restores and activates its existing window. No workspace command is accepted over IPC.
 
-Automatic backup occurs once per UTC day on startup, retained last 10 under `<backup directory>/automatic`. Manual backups are not pruned. Backup failure is visible and does not block opening the app. Import/export limit 2 MB; export writes a temp file on the destination filesystem then replaces target.
+Automatic backup occurs once per UTC day on startup, retained last 10 under `<backup directory>/automatic`. Manual backups are not pruned. Restore validates integrity, schema columns, settings and foreign keys before changing live data; creates a safety backup, checkpoints WAL and atomically replaces the database. LocalDataStore serializes it with other storage operations; UI maintenance mode blocks new launches during restoration. Backup failure is visible and does not block opening the app. Import/export limit 2 MB; export writes a temp file on the destination filesystem then replaces target.
 
 Logging is local, day-based, max 5 MB/day, 14 files; no automatic target/argument logging. OS exception messages can still contain local paths. Unexpected unhandled UI exceptions are logged and allowed to terminate the process; marking arbitrary exceptions handled would risk corrupt state.
 
@@ -84,9 +84,15 @@ Logging is local, day-based, max 5 MB/day, 14 files; no automatic target/argumen
 | Recommendations | Local query over history, no cloud calls or background capture |
 | Parallel launch | Explicit execution groups + bounded concurrency; maintain cancel and persistence semantics |
 
-## Known architecture debt
+## Background storage and bounded presentation
 
-SQLite async APIs execute SQLite work synchronously internally. Current bounded MVP datasets are acceptable for functionality, but UI start/scroll performance is unmeasured. Before beta, measure 100+ workspaces; move repository orchestration to a serialized background executor if needed. History currently displays latest 100 runs, without retention deletion or pagination. Per-item custom Icon field is reserved; UI uses built-in glyphs rather than remote or executable icon extraction.
+SQLite APIs are synchronous internally. `LocalDataStore` puts the complete operation on a worker and serializes it through a semaphore, preserving ordering without blocking WinUI. Connections and transactions are owned by each operation. UI progress is reported inline on the coordinator caller's synchronization context, avoiding stale queued callbacks after completion.
+
+History is paged (30 rows by default) with Unicode casefold search and failure filtering. Overview uses independent recent runs and full-database aggregate counts. Explicit history clearing retains Running records. The compact launcher and hotkey use the same coordinator and consent flow.
+
+`WindowCommands` owns the current window's native hook, minimum dimensions and opt-in Ctrl+Alt+Space registration. High contrast uses system foreground/background, animations respect system preferences, and initial window sizing is clamped to the current display/DPI. These runtime behaviors still require the Windows matrix.
+
+Known limits: view updates still rebuild native control trees; performance of large workspace-card lists and assistive technology remains a manual gate. Per-item Icon metadata is reserved; the UI uses built-in glyphs. Commands record dispatch, not completion/exit codes. Automatic scheduling, browser session capture and layout restoration remain outside 1.0.
 
 ## Выбор LTS runtime
 

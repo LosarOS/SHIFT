@@ -43,3 +43,15 @@ CRUD, 5 item types, tags/favorites/search, sequential launch and cancel, command
 - Local recommendations, quick-launch widgets and usage analytics.
 
 Не планируются как обязательные зависимости: облако, API-ключи, online аккаунты, платные AI-сервисы, Windows service с повышенными привилегиями.
+
+## Реализовано в 1.0 candidate
+
+- Compact launcher с поиском, выбором ↑/↓, Enter/Esc, Ctrl+K и opt-in Ctrl+Alt+Space.
+- Activation существующего экземпляра, восстановление из трея.
+- Background SQLite access, full-data usage, сортировка и tag filter.
+- History pagination/search/failure filter/retry/clear.
+- Backup restore с validation и safety copy.
+- Typed validation RU/EN, system high contrast/reduced motion handling, DPI-aware initial window size.
+- Более полный Windows UI/installer smoke с diagnostics/screenshots и source hygiene gate.
+
+Код этих возможностей включён в RC. «Реализовано» не означает «подтверждено на Windows»; текущая валидация фиксируется отдельно. Stable 1.0 требует закрытия release gates, а session capture/layouts/schedules остаются следующими версиями.

@@ -95,6 +95,10 @@ public sealed record AppSettings
     public bool MinimizeToTray { get; init; } = true;
     public bool Notifications { get; init; } = true;
     public string BackupDirectory { get; init; } = "";
+    public bool GlobalHotkeyEnabled
+    {
+        get; init;
+    }
     public bool OnboardingComplete
     {
         get; init;

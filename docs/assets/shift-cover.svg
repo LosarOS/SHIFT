@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="440" viewBox="0 0 1280 440" role="img" aria-label="SHIFT — Your work. One SHIFT away.">
+<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#11151f"/><stop offset="1" stop-color="#20243b"/></linearGradient><radialGradient id="glow"><stop stop-color="#a99bff" stop-opacity=".2"/><stop offset="1" stop-color="#a99bff" stop-opacity="0"/></radialGradient></defs>
+<rect width="1280" height="440" rx="24" fill="url(#bg)"/>
+<circle cx="1080" cy="120" r="360" fill="url(#glow)"/>
+<path d="M955 315V157h158M955 157l170 170" transform="translate(25 -25) rotate(-90 1040 242)" stroke="#bbadff" stroke-width="38" fill="none" stroke-linejoin="round" stroke-linecap="round" opacity=".85"/>
+<rect x="64" y="60" width="180" height="30" rx="15" fill="#bdaeff" fill-opacity=".12" stroke="#bdaeff" stroke-opacity=".28"/>
+<text x="84" y="80" fill="#c4b8ff" font-family="Segoe UI,Arial,sans-serif" font-size="12" letter-spacing="2">WINDOWS · LOCAL</text>
+<text x="64" y="191" fill="#f4f3fa" font-family="Segoe UI,Arial,sans-serif" font-size="84" font-weight="700" letter-spacing="-3">SHIFT</text>
+<text x="68" y="253" fill="#f4f3fa" font-family="Segoe UI,Arial,sans-serif" font-size="31" font-weight="500">Your work. One SHIFT away.</text>
+<text x="68" y="296" fill="#a9afc5" font-family="Segoe UI,Arial,sans-serif" font-size="19">Apps, projects, files and links. Ready when you are.</text>
+<line x1="68" y1="347" x2="750" y2="347" stroke="#7e82a4" stroke-opacity=".25"/>
+<text x="68" y="384" fill="#a9afc5" font-family="Segoe UI,Arial,sans-serif" font-size="15">NATIVE WINUI 3</text><text x="263" y="384" fill="#a9afc5" font-family="Segoe UI,Arial,sans-serif" font-size="15">NO ACCOUNT</text><text x="443" y="384" fill="#a9afc5" font-family="Segoe UI,Arial,sans-serif" font-size="15">NO CLOUD REQUIRED</text>
+</svg>

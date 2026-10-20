@@ -4,7 +4,7 @@ using Shift.Domain;
 using System.Text.Json;
 namespace Shift.Infrastructure;
 
-public sealed class SqliteStore : IWorkspaceStore, IRunStore, ISettingsStore
+public sealed class SqliteStore : IWorkspaceStore, IRunStore, ISettingsStore, IHistoryQueries
 {
     private readonly string connectionString;
     public string DatabasePath
@@ -22,6 +22,7 @@ public sealed class SqliteStore : IWorkspaceStore, IRunStore, ISettingsStore
         try
         {
             await connection.OpenAsync(token);
+            connection.CreateFunction<string, string>("CASEFOLD", value => value.ToUpperInvariant(), isDeterministic: true);
             return connection;
         }
         catch { await connection.DisposeAsync(); throw; }
@@ -65,6 +66,7 @@ public sealed class SqliteStore : IWorkspaceStore, IRunStore, ISettingsStore
               Id TEXT PRIMARY KEY, WorkspaceId TEXT NOT NULL, WorkspaceName TEXT NOT NULL,
               StartedAt TEXT NOT NULL, FinishedAt TEXT, Status INTEGER NOT NULL);
             CREATE INDEX IF NOT EXISTS IX_LaunchRuns_StartedAt ON LaunchRuns(StartedAt DESC);
+            CREATE INDEX IF NOT EXISTS IX_LaunchRuns_Workspace ON LaunchRuns(WorkspaceId, StartedAt DESC);
             CREATE TABLE IF NOT EXISTS LaunchRunItems (
               RunId TEXT NOT NULL REFERENCES LaunchRuns(Id) ON DELETE CASCADE, ItemId TEXT NOT NULL,
               Name TEXT NOT NULL, Kind INTEGER NOT NULL, SortOrder INTEGER NOT NULL,
@@ -165,16 +167,43 @@ public sealed class SqliteStore : IWorkspaceStore, IRunStore, ISettingsStore
                 ("$status", (int)item.Status), ("$error", item.Error), ("$started", item.StartedAt?.ToString("O")), ("$finished", item.FinishedAt?.ToString("O")));
         tx.Commit();
     }
-    public async Task<IReadOnlyList<LaunchRun>> HistoryAsync(int limit = 100, CancellationToken token = default)
+    private const string HistoryWhere = "instr(CASEFOLD(WorkspaceName),CASEFOLD($query))>0 AND ($failures=0 OR Status IN (2,4))";
+    private static void BindHistoryFilter(SqliteCommand command, HistoryFilter filter)
     {
+        command.Parameters.AddWithValue("$query", filter.Query ?? "");
+        command.Parameters.AddWithValue("$failures", filter.OnlyFailures);
+        command.Parameters.AddWithValue("$limit", Math.Clamp(filter.PageSize, 1, 1000));
+        command.Parameters.AddWithValue("$offset", Math.Max(filter.Offset, 0));
+    }
+    public async Task<IReadOnlyList<LaunchRun>> HistoryAsync(int limit = 100, CancellationToken token = default)
+        => (await QueryHistoryAsync(new HistoryFilter(PageSize: limit), token)).Runs;
+
+    public async Task<HistoryPage> QueryHistoryAsync(HistoryFilter filter, CancellationToken token = default)
+    {
+        filter = filter with
+        {
+            Offset = Math.Max(0, filter.Offset),
+            PageSize = Math.Clamp(filter.PageSize, 1, 1000)
+        };
         await using var db = await OpenAsync(token);
         using var tx = db.BeginTransaction(deferred: true);
+        using var countCommand = db.CreateCommand();
+        countCommand.Transaction = tx;
+        countCommand.CommandText = "SELECT COUNT(*) FROM LaunchRuns WHERE " + HistoryWhere;
+        BindHistoryFilter(countCommand, filter);
+        var count = Convert.ToInt64(await countCommand.ExecuteScalarAsync(token));
+        var runs = await ReadRunsAsync(db, tx, filter, token);
+        tx.Commit();
+        return new HistoryPage(runs, count, filter.Offset, filter.PageSize);
+    }
+    private static async Task<IReadOnlyList<LaunchRun>> ReadRunsAsync(SqliteConnection db, SqliteTransaction tx, HistoryFilter filter, CancellationToken token)
+    {
         var runs = new List<LaunchRun>();
         using (var cmd = db.CreateCommand())
         {
             cmd.Transaction = tx;
-            cmd.CommandText = "SELECT * FROM LaunchRuns ORDER BY StartedAt DESC LIMIT $limit";
-            cmd.Parameters.AddWithValue("$limit", Math.Clamp(limit, 1, 1000));
+            cmd.CommandText = "SELECT * FROM LaunchRuns WHERE " + HistoryWhere + " ORDER BY StartedAt DESC,Id DESC LIMIT $limit OFFSET $offset";
+            BindHistoryFilter(cmd, filter);
             await using var r = await cmd.ExecuteReaderAsync(token);
             while (await r.ReadAsync(token))
                 runs.Add(new LaunchRun(Guid.Parse(r.GetString(0)), Guid.Parse(r.GetString(1)), r.GetString(2), DateTimeOffset.Parse(r.GetString(3)), r.IsDBNull(4) ? null : DateTimeOffset.Parse(r.GetString(4)), (RunStatus)r.GetInt32(5), []));
@@ -194,7 +223,6 @@ public sealed class SqliteStore : IWorkspaceStore, IRunStore, ISettingsStore
                 Items = items
             };
         }
-        tx.Commit();
         return runs;
     }
     public async Task RecoverInterruptedAsync(CancellationToken token = default)
@@ -223,6 +251,8 @@ public sealed class SqliteStore : IWorkspaceStore, IRunStore, ISettingsStore
     }
     public async Task SaveSettingsAsync(AppSettings settings, CancellationToken token = default)
     {
+        if (!Enum.IsDefined(settings.Theme) || settings.Language is not ("ru" or "en") || settings.BackupDirectory is null)
+            throw new ValidationException(["Settings format is invalid."]);
         await using var db = await OpenAsync(token);
         await ExecuteAsync(db, null, "INSERT INTO AppSettings VALUES(1,$json) ON CONFLICT(Id) DO UPDATE SET Json=excluded.Json", token, ("$json", JsonSerializer.Serialize(settings, WorkspaceTransfer.Json)));
     }
@@ -244,5 +274,128 @@ public sealed class SqliteStore : IWorkspaceStore, IRunStore, ISettingsStore
             return path;
         }
         catch { if (File.Exists(temp)) File.Delete(temp); throw; }
+    }
+
+    public async Task<UsageSummary> GetUsageAsync(CancellationToken token = default)
+    {
+        await using var db = await OpenAsync(token);
+        using var tx = db.BeginTransaction(deferred: true);
+        long total = 0, completed = 0, failed = 0, cancelled = 0;
+        using (var cmd = db.CreateCommand())
+        {
+            cmd.Transaction = tx;
+            cmd.CommandText = "SELECT COUNT(*),COALESCE(SUM(Status=1),0),COALESCE(SUM(Status IN (2,4)),0),COALESCE(SUM(Status IN (3,5)),0) FROM LaunchRuns";
+            await using var reader = await cmd.ExecuteReaderAsync(token);
+            if (await reader.ReadAsync(token))
+            {
+                total = reader.GetInt64(0);
+                completed = reader.GetInt64(1);
+                failed = reader.GetInt64(2);
+                cancelled = reader.GetInt64(3);
+            }
+        }
+        var usage = new List<WorkspaceUsage>();
+        using (var cmd = db.CreateCommand())
+        {
+            cmd.Transaction = tx;
+            cmd.CommandText = "SELECT WorkspaceId,COUNT(*),MAX(StartedAt),COALESCE(AVG((julianday(FinishedAt)-julianday(StartedAt))*86400000),0) FROM LaunchRuns GROUP BY WorkspaceId";
+            await using var reader = await cmd.ExecuteReaderAsync(token);
+            while (await reader.ReadAsync(token))
+                usage.Add(new(Guid.Parse(reader.GetString(0)), reader.GetInt64(1), reader.IsDBNull(2) ? null : DateTimeOffset.Parse(reader.GetString(2)), reader.GetDouble(3)));
+        }
+        tx.Commit();
+        return new(total, completed, failed, cancelled, usage);
+    }
+    public async Task ClearHistoryAsync(CancellationToken token = default)
+    {
+        await using var db = await OpenAsync(token);
+        // A running queue must retain its durable crash-recovery record.
+        await ExecuteAsync(db, null, "DELETE FROM LaunchRuns WHERE Status<>0", token);
+    }
+    private static async Task ValidateBackupAsync(string path, CancellationToken token)
+    {
+        if (!File.Exists(path))
+            throw new FileNotFoundException("Backup file not found.");
+        await using var db = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = path, Mode = SqliteOpenMode.ReadOnly, Pooling = false }.ToString());
+        await db.OpenAsync(token);
+        using var check = db.CreateCommand();
+        check.CommandText = "PRAGMA quick_check";
+        if (!string.Equals(await check.ExecuteScalarAsync(token) as string, "ok", StringComparison.Ordinal))
+            throw new InvalidDataException("Backup failed SQLite integrity validation.");
+        check.CommandText = "PRAGMA user_version";
+        if (Convert.ToInt32(await check.ExecuteScalarAsync(token)) != 1)
+            throw new InvalidDataException("Unsupported backup database version.");
+        foreach (var table in new[] { "Workspaces", "WorkspaceItems", "Tags", "WorkspaceTagLinks", "LaunchRuns", "LaunchRunItems", "AppSettings" })
+        {
+            check.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=$table";
+            check.Parameters.Clear();
+            check.Parameters.AddWithValue("$table", table);
+            if (Convert.ToInt64(await check.ExecuteScalarAsync(token)) != 1)
+                throw new InvalidDataException("Backup is missing required SHIFT tables.");
+        }
+        foreach (var sql in new[]{
+            "SELECT Id,Name,Description,Color,IsFavorite,CreatedAt,UpdatedAt FROM Workspaces LIMIT 0",
+            "SELECT Id,WorkspaceId,Name,Kind,Target,Arguments,WorkingDirectory,Shell,SortOrder,DelayMs,Enabled,Note,Icon FROM WorkspaceItems LIMIT 0",
+            "SELECT Id,WorkspaceId,WorkspaceName,StartedAt,FinishedAt,Status FROM LaunchRuns LIMIT 0",
+            "SELECT RunId,ItemId,Name,Kind,SortOrder,Status,Error,StartedAt,FinishedAt FROM LaunchRunItems LIMIT 0",
+            "SELECT Name FROM Tags LIMIT 0", "SELECT WorkspaceId,TagName FROM WorkspaceTagLinks LIMIT 0"})
+        {
+            check.CommandText = sql;
+            check.Parameters.Clear();
+            await using var columns = await check.ExecuteReaderAsync(token);
+        }
+        check.CommandText = "SELECT Json FROM AppSettings WHERE Id=1";
+        check.Parameters.Clear();
+        if (await check.ExecuteScalarAsync(token) is string settingsJson)
+        {
+            var settings = JsonSerializer.Deserialize<AppSettings>(settingsJson, WorkspaceTransfer.Json);
+            if (settings is null || !Enum.IsDefined(settings.Theme) || settings.Language is not ("ru" or "en") || settings.BackupDirectory is null)
+                throw new InvalidDataException("Backup settings are invalid.");
+        }
+        check.Parameters.Clear();
+        check.CommandText = "PRAGMA foreign_key_check";
+        await using var violations = await check.ExecuteReaderAsync(token);
+        if (await violations.ReadAsync(token))
+            throw new InvalidDataException("Backup has invalid database relations.");
+    }
+    public async Task<RestoreResult> RestoreAsync(string backupPath, string safetyDirectory, CancellationToken token = default)
+    {
+        backupPath = Path.GetFullPath(backupPath);
+        if (string.Equals(backupPath, DatabasePath, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+            throw new ValidationException(["Choose a separate backup file, not the active database."]);
+        await ValidateBackupAsync(backupPath, token);
+        var temporary = DatabasePath + ".restore-" + Guid.NewGuid().ToString("N") + ".tmp";
+        try
+        {
+            await using (var source = File.OpenRead(backupPath))
+            await using (var target = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                await source.CopyToAsync(target, token);
+                target.Flush(flushToDisk: true);
+            }
+            await ValidateBackupAsync(temporary, token);
+            var safety = await BackupAsync(safetyDirectory, token);
+            await using (var db = await OpenAsync(token))
+            {
+                using var command = db.CreateCommand();
+                command.CommandText = "PRAGMA wal_checkpoint(TRUNCATE)";
+                await using var result = await command.ExecuteReaderAsync(token);
+                if (await result.ReadAsync(token) && result.GetInt32(0) != 0)
+                    throw new IOException("Database is busy. Close other SHIFT processes before restoring.");
+            }
+            using (var poolKey = new SqliteConnection(connectionString))
+                SqliteConnection.ClearPool(poolKey);
+            token.ThrowIfCancellationRequested();
+            // Checkpoint made the current main file complete; a crash before replacement leaves it usable.
+            foreach (var suffix in new[] { "-wal", "-shm" })
+                if (File.Exists(DatabasePath + suffix))
+                    File.Delete(DatabasePath + suffix);
+            File.Move(temporary, DatabasePath, true);
+            // Do not observe cancellation after committing replacement; report the actual resulting state.
+            await InitializeAsync(CancellationToken.None);
+            await RecoverInterruptedAsync(CancellationToken.None);
+            return new(safety);
+        }
+        finally { if (File.Exists(temporary)) File.Delete(temporary); }
     }
 }

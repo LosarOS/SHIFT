@@ -12,31 +12,54 @@ jobs:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           dotnet-version: 10.0.x
+      - run: python tools/audit_source.py
       - run: dotnet restore tests/Shift.Tests --locked-mode --nologo
       - run: dotnet test tests/Shift.Tests -c Release --no-restore --nologo --logger trx --results-directory TestResults
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: tests-${{ matrix.os }}
           path: TestResults/*.trx
+  diagnostics:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet restore tools/Shift.Diagnostics --locked-mode --nologo
+      - run: dotnet run --project tools/Shift.Diagnostics -c Release --no-restore -- --output artifacts/core-diagnostics.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: core-diagnostics
+          path: artifacts/core-diagnostics.json
   windows-app:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           dotnet-version: 10.0.x
+      - name: Ensure Inno Setup
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup --yes --no-progress }
       - name: Build installer and portable
         shell: pwsh
-        run: ./packaging/Build-Release.ps1 -Version 0.1.0
-      - uses: actions/upload-artifact@v4
+        run: ./packaging/Build-Release.ps1 -Version 1.0.0-rc.1
+      - name: Installer smoke
+        shell: pwsh
+        run: ./packaging/Smoke-Installer.ps1 -Version 1.0.0-rc.1
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
         with:
-          name: SHIFT-Windows-preview
+          name: SHIFT-Windows-candidate
           path: |
             artifacts/*.zip
             artifacts/*setup.exe
             artifacts/SHA256SUMS.txt
+            artifacts/diagnostics/**

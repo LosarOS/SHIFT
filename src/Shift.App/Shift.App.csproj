@@ -12,13 +12,12 @@
     <WindowsPackageType>None</WindowsPackageType>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <SelfContained>true</SelfContained>
-    <WindowsAppSdkBootstrapInitialize>true</WindowsAppSdkBootstrapInitialize>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets/shift.ico</ApplicationIcon>
     <StartupObject>Shift.App.Program</StartupObject>
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
-    <Version>0.1.0</Version>
+    <Version>1.0.0-rc.1</Version>
     <AssemblyName>SHIFT</AssemblyName>
     <RootNamespace>Shift.App</RootNamespace>
     <PublishTrimmed>false</PublishTrimmed>

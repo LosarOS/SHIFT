@@ -1,4 +1,5 @@
 namespace Shift.App;
+
 public sealed partial class MainWindow
 {
     private void RenderOverview()
@@ -16,7 +17,7 @@ public sealed partial class MainWindow
             {
                 Width = new GridLength(1, GridUnitType.Star)
             });
-        var values = new[] { (vm.Workspaces.Count, s["SpacesCount"]), (vm.Workspaces.Count(w => w.IsFavorite), s["FavoritesCount"]), (vm.History.Count, s["RunsCount"]) };
+        (long, string)[] values = [(vm.Workspaces.Count, s["SpacesCount"]), (vm.Workspaces.Count(w => w.IsFavorite), s["FavoritesCount"]), (vm.Usage.TotalRuns, s["RunsCount"])];
         for (var i = 0; i < values.Length; i++)
         {
             var stat = Stack(5);
@@ -32,10 +33,10 @@ public sealed partial class MainWindow
             screen.Children.Add(Empty(s["EmptyTitle"], s["EmptyNote"], () => EditWorkspaceAsync(null)));
         else
             screen.Children.Add(WorkspaceCards(vm.Workspaces.OrderByDescending(w => w.IsFavorite).Take(4).ToArray()));
-        if (vm.History.Count > 0)
+        if (vm.RecentRuns.Count > 0)
         {
             screen.Children.Add(SectionHeading(s["Recent"], () => Navigate("History")));
-            foreach (var run in vm.History.Take(3))
+            foreach (var run in vm.RecentRuns)
                 screen.Children.Add(RunCard(run));
         }
     }
@@ -69,6 +70,16 @@ public sealed partial class MainWindow
         var query = new TextBox { PlaceholderText = s["Search"], Text = vm.Query, Padding = new Thickness(16, 12, 16, 12), CornerRadius = new CornerRadius(9) };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(query, s["Search"]);
         screen.Children.Add(query);
+        searchBox = query;
+        var filters = new FlowPanel();
+        var tags = new[] { s["AllTags"] }.Concat(vm.Workspaces.SelectMany(w => w.Tags).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(t => t, StringComparer.CurrentCultureIgnoreCase)).ToArray();
+        var tag = new ComboBox { ItemsSource = tags, SelectedIndex = Math.Max(0, Array.FindIndex(tags, t => t == vm.TagFilter)), MinWidth = 150 };
+        var sort = new ComboBox { ItemsSource = new[] { s["SortRecent"], s["SortName"], s["SortUsed"] }, SelectedIndex = (int)vm.Sort, MinWidth = 180 };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(tag, s["AllTags"]);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(sort, s["Sort"]);
+        filters.Children.Add(tag);
+        filters.Children.Add(sort);
+        screen.Children.Add(filters);
         var results = Stack(12);
         screen.Children.Add(results);
         void Refresh()
@@ -77,7 +88,7 @@ public sealed partial class MainWindow
             var spaces = vm.Filtered.ToArray();
             if (spaces.Length > 0)
                 results.Children.Add(WorkspaceCards(spaces));
-            else if (vm.Query.Length > 0)
+            else if (vm.Query.Length > 0 || vm.TagFilter.Length > 0)
                 results.Children.Add(Empty(s["NoResults"], s["NoResultsNote"]));
             else if (vm.Section == "Favorites")
                 results.Children.Add(Empty(s["EmptyFavorites"], s["EmptyFavoritesNote"]));
@@ -85,6 +96,8 @@ public sealed partial class MainWindow
                 results.Children.Add(Empty(s["EmptyTitle"], s["EmptyNote"], () => EditWorkspaceAsync(null)));
         }
         query.TextChanged += (_, _) => { vm.Query = query.Text; Refresh(); };
+        tag.SelectionChanged += (_, _) => { vm.TagFilter = tag.SelectedIndex <= 0 ? "" : tags[tag.SelectedIndex]; Refresh(); };
+        sort.SelectionChanged += (_, _) => { vm.Sort = (WorkspaceSort)Math.Max(0, sort.SelectedIndex); Refresh(); };
         Refresh();
     }
     private Grid WorkspaceCards(IReadOnlyList<Workspace> spaces)
@@ -151,6 +164,8 @@ public sealed partial class MainWindow
         content.Children.Add(description);
         if (workspace.Tags.Count > 0)
             content.Children.Add(Text(string.Join("   ·   ", workspace.Tags.Take(4)), 11, color: palette.Accent));
+        var usage = vm.Usage.Workspaces.FirstOrDefault(u => u.WorkspaceId == workspace.Id);
+        content.Children.Add(Text(usage is null ? s["NeverUsed"] : $"{usage.LaunchCount} {s["LaunchCount"]}  ·  {usage.LastLaunchedAt?.ToLocalTime():g}", 11, true));
         var footer = new Grid();
         footer.ColumnDefinitions.Add(new()
         {
@@ -161,7 +176,7 @@ public sealed partial class MainWindow
             Width = GridLength.Auto
         });
         footer.Children.Add(Text($"{workspace.Items.Count(i => i.Enabled)} / {workspace.Items.Count} {s["Items"]}", 11, true));
-        var actions = Row(8);
+        var actions = new FlowPanel();
         actions.Children.Add(Button("↗", () => OpenWorkspace(workspace)));
         ToolTipService.SetToolTip(actions.Children[0], s["Review"]);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(actions.Children[0], s["Review"]);
@@ -194,8 +209,8 @@ public sealed partial class MainWindow
             header.Children.Add(Text(workspace.Description, 15, true));
         if (workspace.Tags.Count > 0)
             header.Children.Add(Text(string.Join("   ·   ", workspace.Tags), 12, color: palette.Accent));
-        var actions = Row(8);
-        var launch = AsyncButton("↗  " + s["Launch"], () => StartLaunchAsync(workspace), true);
+        var actions = new FlowPanel();
+        var launch = AsyncButton("↗  " + s["Launch"], () => StartLaunchAsync(workspace), true, "Workspace.Launch");
         launch.IsEnabled = !vm.IsLaunching;
         actions.Children.Add(launch);
         actions.Children.Add(AsyncButton(s["Edit"], () => EditWorkspaceAsync(workspace)));
@@ -226,7 +241,7 @@ public sealed partial class MainWindow
             Width = GridLength.Auto
         });
         itemsHeading.Children.Add(Text($"{workspace.Items.Count} {s["Items"]}", 19, weight: Microsoft.UI.Text.FontWeights.SemiBold));
-        var add = AsyncButton("+  " + s["AddItem"], () => EditItemAsync(workspace, null));
+        var add = AsyncButton("+  " + s["AddItem"], () => EditItemAsync(workspace, null), false, "Item.New");
         Grid.SetColumn(add, 1);
         itemsHeading.Children.Add(add);
         screen.Children.Add(itemsHeading);
@@ -286,7 +301,8 @@ public sealed partial class MainWindow
             controls.Children.Add(AsyncButton(s["Delete"], async () => { if (await ConfirmAsync(s["DeleteItem"], item.Name, s["Delete"])) { await vm.SaveAsync(workspace with { Items = workspace.Items.Where(i => i.Id != item.Id).ToArray() }); RenderScreen(); } }));
             content.Children.Add(controls);
             var card = Card(content, 18);
-            card.Opacity = item.Enabled ? 1 : 0.6;
+            if (!item.Enabled)
+                card.Background = Brush(palette.Sidebar);
             screen.Children.Add(card);
         }
         screen.Children.Add(Text(s["DispatchNote"], 12, true));
@@ -304,19 +320,73 @@ public sealed partial class MainWindow
     }
     private void RenderHistory()
     {
-        screen.Children.Add(Text(s["LocalTime"], 12, true));
+        var query = new TextBox { Text = vm.HistoryFilter.Query, PlaceholderText = s["HistorySearch"], MinWidth = 240 };
+        searchBox = query;
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(query, s["HistorySearch"]);
+        var onlyFailures = new CheckBox { Content = s["OnlyFailures"], IsChecked = vm.HistoryFilter.OnlyFailures };
+        async Task Apply()
+        {
+            vm.HistoryFilter = vm.HistoryFilter with
+            {
+                Query = query.Text.Trim(),
+                OnlyFailures = onlyFailures.IsChecked == true,
+                Offset = 0
+            };
+            await vm.RefreshHistoryAsync();
+            if (vm.Section == "History")
+                RenderScreen();
+        }
+        var filters = new FlowPanel();
+        filters.Children.Add(query);
+        filters.Children.Add(onlyFailures);
+        filters.Children.Add(AsyncButton(s["Apply"], Apply));
+        var clear = AsyncButton(s["ClearHistory"], async () =>
+        {
+            if (vm.IsLaunching)
+                throw new ValidationException([s["WaitForLaunch"]]);
+            if (!await ConfirmAsync(s["ClearHistory"], s["ClearHistoryNote"], s["ClearHistory"]))
+                return;
+            await store.ClearHistoryAsync();
+            vm.HistoryFilter = vm.HistoryFilter with
+            {
+                Offset = 0
+            };
+            await vm.RefreshAsync();
+            RenderScreen();
+        });
+        clear.IsEnabled = !vm.IsLaunching && vm.Usage.TotalRuns > 0;
+        filters.Children.Add(clear);
+        screen.Children.Add(filters);
+        query.KeyDown += async (_, args) => { if (args.Key == Windows.System.VirtualKey.Enter) { args.Handled = true; await SafeAsync(Apply); } };
+        screen.Children.Add(Text(s["LocalTime"] + "  ·  " + vm.HistoryPage.TotalCount + " " + s["RunsCount"], 12, true));
         if (vm.History.Count == 0)
-            screen.Children.Add(Empty(s["NoHistory"], s["NoHistoryNote"]));
+            screen.Children.Add(Empty(vm.HistoryFilter.Query.Length > 0 || vm.HistoryFilter.OnlyFailures ? s["NoResults"] : s["NoHistory"], s[vm.HistoryFilter.Query.Length>0||vm.HistoryFilter.OnlyFailures?"NoResultsNote":"NoHistoryNote"]));
         else
             foreach (var run in vm.History)
                 screen.Children.Add(RunCard(run));
+        var pages = new FlowPanel();
+        var previous = AsyncButton("← " + s["Previous"], async () => { vm.HistoryFilter = vm.HistoryFilter with { Offset = Math.Max(0, vm.HistoryFilter.Offset - vm.HistoryFilter.PageSize) }; await vm.RefreshHistoryAsync(); RenderScreen(); });
+        previous.IsEnabled = vm.HistoryPage.HasPrevious;
+        var next = AsyncButton(s["Next"] + " →", async () => { vm.HistoryFilter = vm.HistoryFilter with { Offset = vm.HistoryFilter.Offset + vm.HistoryFilter.PageSize }; await vm.RefreshHistoryAsync(); RenderScreen(); });
+        next.IsEnabled = vm.HistoryPage.HasNext;
+        pages.Children.Add(previous);
+        pages.Children.Add(next);
+        screen.Children.Add(pages);
     }
     private Expander RunCard(LaunchRun run)
     {
         var header = Stack(6);
         header.Children.Add(Text(run.WorkspaceName, 16, weight: Microsoft.UI.Text.FontWeights.SemiBold));
         header.Children.Add(Text($"{run.StartedAt.ToLocalTime():g}  ·  {s[run.Status.ToString()]}", 12, true));
-        return new Expander { Header = header, Content = RunItems(run), HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch };
+        var content = RunItems(run);
+        var workspace = vm.Workspaces.FirstOrDefault(w => w.Id == run.WorkspaceId);
+        if (workspace is not null)
+        {
+            var retry = AsyncButton(s["Retry"], () => StartLaunchAsync(workspace));
+            retry.IsEnabled = !vm.IsLaunching;
+            content.Children.Add(retry);
+        }
+        return new Expander { Header = header, Content = content, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch };
     }
     private StackPanel RunItems(LaunchRun run)
     {
@@ -326,7 +396,7 @@ public sealed partial class MainWindow
             var row = Stack(5);
             var color = item.Status switch
             {
-                ItemStatus.Failed => "#E9A59C",
+                ItemStatus.Failed => vm.Settings.Theme == AppTheme.Light ? "#A12F24" : "#F2A69A",
                 ItemStatus.Success => palette.Accent,
                 _ => palette.Muted
             };
@@ -380,6 +450,8 @@ public sealed partial class MainWindow
             var stop = Button(s["CancelLaunch"], () => vm.LaunchCancellation?.Cancel());
             screen.Children.Add(stop);
         }
+        else if (vm.ActiveRun is { } finished && vm.Workspaces.FirstOrDefault(w => w.Id == finished.WorkspaceId) is { } workspace)
+            screen.Children.Add(AsyncButton(s["Retry"], () => StartLaunchAsync(workspace), true, "Launch.Retry"));
         screen.Children.Add(Text(s["DispatchNote"], 13, true));
         screen.Children.Add(Button(s["Back"], () => Navigate("Workspaces")));
     }
@@ -401,16 +473,22 @@ public sealed partial class MainWindow
         behavior.Children.Add(tray);
         var notifications = new ToggleSwitch { Header = s["Notifications"], IsOn = vm.Settings.Notifications, OnContent = s["Enabled"], OffContent = s["Disabled"] };
         behavior.Children.Add(notifications);
+        var hotkey = new ToggleSwitch { Header = s["Hotkey"], IsOn = vm.Settings.GlobalHotkeyEnabled, OnContent = s["Enabled"], OffContent = s["Disabled"] };
+        behavior.Children.Add(hotkey);
+        behavior.Children.Add(Text(s["HotkeyHint"], 12, true));
         screen.Children.Add(Card(behavior));
         var data = Stack(16);
         data.Children.Add(Text(s["Data"], 20, weight: Microsoft.UI.Text.FontWeights.SemiBold));
         var path = new TextBox { Text = vm.Settings.BackupDirectory, PlaceholderText = paths.BackupDirectory };
         data.Children.Add(Field(s["BackupPath"], path));
         data.Children.Add(AsyncButton(s["Browse"], async () => { var folder = await PickFolderAsync(); if (folder is not null) path.Text = folder; }));
-        var buttons = Row(8);
+        var buttons = new FlowPanel();
         buttons.Children.Add(AsyncButton(s["Backup"], async () => { var backup = await store.BackupAsync(BackupDirectory); ShowNotice(s["BackupCreated"], backup); }));
         buttons.Children.Add(Button(s["OpenData"], () => DesktopIntegration.OpenFolder(paths.DataDirectory)));
         buttons.Children.Add(Button(s["OpenLogs"], () => DesktopIntegration.OpenFolder(paths.LogDirectory)));
+        var restore = AsyncButton(s["Restore"], RestoreBackupAsync);
+        restore.IsEnabled = !vm.IsLaunching;
+        buttons.Children.Add(restore);
         data.Children.Add(buttons);
         data.Children.Add(Text(s["Privacy"], 12, true));
         screen.Children.Add(Card(data));
@@ -420,7 +498,7 @@ public sealed partial class MainWindow
             if (backup.Length > 0 && !Path.IsPathFullyQualified(backup))
                 throw new ValidationException([s["BackupPath"] + ": absolute path required."]);
             if (backup.Length > 0)
-                Directory.CreateDirectory(backup);
+                await Task.Run(() => Directory.CreateDirectory(backup));
             var updated = vm.Settings with
             {
                 Theme = (AppTheme)Math.Max(0, theme.SelectedIndex),
@@ -428,16 +506,28 @@ public sealed partial class MainWindow
                 StartWithWindows = !paths.Portable && startup.IsOn,
                 MinimizeToTray = tray.IsOn,
                 Notifications = notifications.IsOn,
+                GlobalHotkeyEnabled = hotkey.IsOn,
                 BackupDirectory = backup
             };
             var previousStartup = desktop.IsStartupEnabled();
             try
             {
+                windowCommands.ConfigureHotkey(updated.GlobalHotkeyEnabled);
                 if (!paths.Portable)
                     desktop.SetStartup(updated.StartWithWindows);
                 await store.SaveSettingsAsync(updated);
             }
-            catch { if (!paths.Portable) desktop.SetStartup(previousStartup); throw; }
+            catch
+            {
+                try
+                {
+                    windowCommands.ConfigureHotkey(vm.Settings.GlobalHotkeyEnabled);
+                    if (!paths.Portable)
+                        desktop.SetStartup(previousStartup);
+                }
+                catch (Exception rollbackError) { log.Error("Settings rollback failed", rollbackError); }
+                throw;
+            }
             vm.Settings = updated;
             s.Language = updated.Language;
             ApplyTheme();
@@ -452,6 +542,12 @@ public sealed partial class MainWindow
         var field = Stack(7);
         field.Children.Add(Text(name, 12, true));
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(input, name);
+        foreach (var key in new[] { "Name", "Description", "Tags", "Color", "Kind", "Target", "Arguments", "WorkingDirectory", "Delay", "Note", "Theme", "Language", "BackupPath" })
+            if (name == s[key])
+            {
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(input, "Field." + key);
+                break;
+            }
         field.Children.Add(input);
         return field;
     }
