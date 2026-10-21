@@ -28,6 +28,10 @@ Windows CI должен восстановить NuGet по lock-файлам, �
 - [ ] Import: valid with review, invalid JSON/schema/fields, >2 MB, malicious URL, command review.
 - [ ] Export → import сохраняет значения, новые IDs; отказ экспорта не портит старый файл.
 - [ ] Backup while app active, restore по инструкции, automatic retention, invalid/newer DB fail safely.
+- [ ] Restore с WAL выбранной базы включает последние committed изменения; повреждённые значения и история за первой страницей отклоняются, текущие данные и safety copy сохраняются.
+- [ ] Пока открыты picker/редактирование/сохранение, Restore не заменяет базу; повтор после завершения работает; временные snapshot-файлы не остаются.
+- [ ] Быстрый повтор кнопок не создаёт дубликаты; повторный Launch показывает текущую очередь; добавление после импорта с Order=int.MaxValue помещает новый элемент в конец.
+- [ ] Экспорт workspace с большим Unicode-текстом отклоняет результат >2 МБ до save picker и не трогает существующий файл.
 - [ ] Disk full, read-only DB/data folder, denied registry: читаемая ошибка, никакого скрытого сброса.
 - [ ] UI: 960/1240/1920 ширина, DPI 100/150/200%, multi-monitor, high contrast, text scaling.
 - [ ] Keyboard only: navigation, search, create/edit, reorder, command consent, cancel; Narrator names.

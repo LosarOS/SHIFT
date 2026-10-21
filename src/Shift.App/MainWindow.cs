@@ -66,7 +66,7 @@ public sealed partial class MainWindow : Window, ICommandConsent
         Content = root;
         shell.Children.Add(new ProgressRing { IsActive = true, Width = 40, Height = 40, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center });
         AppWindow.Closing += OnClosing;
-        Closed += (_, _) => { accessibility.HighContrastChanged -= OnHighContrastChanged; windowCommands.Dispose(); desktop.Dispose(); };
+        Closed += (_, _) => { accessibility.HighContrastChanged -= OnHighContrastChanged; windowCommands.Dispose(); desktop.Dispose(); store.Dispose(); };
         root.SizeChanged += (_, _) =>
         {
             var columns = root.ActualWidth < 1080 ? 1 : 2;
@@ -425,7 +425,12 @@ public sealed partial class MainWindow : Window, ICommandConsent
     private Button AsyncButton(string label, Func<Task> action, bool primary = false, string? automationId = null)
     {
         var button = Button(label, () => { }, primary, automationId);
-        button.Click += async (_, _) => await SafeAsync(action);
+        button.Click += async (_, _) =>
+        {
+            button.IsEnabled = false;
+            try { await SafeAsync(action); }
+            finally { button.IsEnabled = true; }
+        };
         return button;
     }
     private static Color ColorOf(string hex)

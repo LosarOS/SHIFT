@@ -413,6 +413,14 @@ public sealed partial class MainWindow
     }
     private async Task StartLaunchAsync(Workspace workspace)
     {
+        if (vm.IsLaunching)
+        {
+            vm.Selected = null;
+            vm.Section = "Launch";
+            RenderNavigation();
+            RenderScreen();
+            return;
+        }
         if (!workspace.Items.Any(i => i.Enabled))
         {
             ShowNotice(s["EmptyLaunch"], error: true);

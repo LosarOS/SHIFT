@@ -115,7 +115,7 @@ public sealed partial class MainWindow
     }
     private async Task EditItemAsync(Workspace workspace, WorkspaceItem? item)
     {
-        var source = item ?? new WorkspaceItem { Kind = ItemKind.App, Order = workspace.Items.Count == 0 ? 0 : workspace.Items.Max(i => i.Order) + 1 };
+        var source = item ?? new WorkspaceItem { Kind = ItemKind.App, Order = workspace.Items.Count };
         var name = new TextBox { Text = source.Name, MaxLength = 100 };
         var kinds = Enum.GetValues<ItemKind>();
         var type = new ComboBox { ItemsSource = kinds.Select(k => s[k.ToString()]).ToArray(), SelectedIndex = (int)source.Kind, HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -196,7 +196,9 @@ public sealed partial class MainWindow
                 };
                 var updated = workspace with
                 {
-                    Items = item is null ? [.. workspace.Items, candidate] : workspace.Items.Select(i => i.Id == item.Id ? candidate : i).ToArray()
+                    Items = item is null
+                        ? workspace.Items.OrderBy(i => i.Order).ThenBy(i => i.Id).Append(candidate).Select((i, index) => i with { Order = index }).ToArray()
+                        : workspace.Items.Select(i => i.Id == item.Id ? candidate : i).ToArray()
                 };
                 await vm.SaveAsync(updated);
             }
@@ -234,11 +236,17 @@ public sealed partial class MainWindow
     {
         if (vm.IsLaunching)
             throw new ValidationException([s["WaitForLaunch"]]);
+        if (activeOperations > 1)
+            throw new ValidationException([s["WaitForActions"]]);
         var path = await PickFileAsync([".db"]);
         if (path is null)
             return;
         if (!await ConfirmAsync(s["RestoreTitle"], path + "\n\n" + s["RestoreNote"], s["Restore"]))
             return;
+        // File pickers and confirmation yield to the dispatcher. Other actions may have started
+        // since the first check; no in-flight action may write old state into the restored database.
+        if (vm.IsLaunching || activeOperations > 1)
+            throw new ValidationException([s["WaitForActions"]]);
         maintenance = true;
         try
         {
@@ -309,13 +317,14 @@ public sealed partial class MainWindow
     }
     private async Task ExportAsync(Workspace workspace)
     {
+        // Validate transfer limits before opening a picker or touching any destination file.
+        var json = WorkspaceTransfer.Export(workspace);
         var picker = new FileSavePicker { SuggestedFileName = string.Concat(workspace.Name.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c)) };
         picker.FileTypeChoices.Add("SHIFT workspace", new List<string> { ".json" });
         WinRT.Interop.InitializeWithWindow.Initialize(picker, Handle);
         var file = await picker.PickSaveFileAsync();
         if (file is null)
             return;
-        var json = WorkspaceTransfer.Export(workspace);
         // Atomic replacement in the destination directory. Existing export survives an interrupted write.
         var temp = file.Path + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try

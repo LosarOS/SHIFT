@@ -14,6 +14,8 @@ public sealed class Strings
         ["Favorites"] = ("Избранное", "Favorites"),
         ["History"] = ("История", "History"),
         ["Settings"] = ("Настройки", "Settings"),
+        ["WaitForActions"] = ("Дождитесь завершения текущих действий и повторите восстановление.", "Wait for current actions to finish, then try restoring again."),
+        ["Validation.ExportSize"] = ("Экспорт превышает 2 МБ. Сократите команды, параметры или заметки элементов.", "The export exceeds 2 MB. Shorten item commands, arguments or notes."),
         ["Tagline"] = ("Ваш рабочий контекст", "Your working context"),
         ["Local"] = ("Локально. Только у вас.", "Local. Only yours."),
         ["New"] = ("Новое пространство", "New workspace"),

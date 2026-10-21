@@ -1,12 +1,12 @@
 # Фактическая валидация 1.0.0-rc.1
 
-2026-10-20 · Linux x64 / Debian 13 · .NET SDK 10.0.402 / runtime 10.0.13.
+2026-10-21 · Linux x64 / Debian 13 · .NET SDK 10.0.402 / runtime 10.0.13.
 
 ## Выполнено
 
 | Проверка | Результат |
 |---|---|
-| Unit / integration tests | **52 passed, 0 failed, 0 skipped** |
+| Unit / integration tests | **63 passed, 0 failed, 0 skipped** |
 | C# WinUI Compile target против Windows references | **0 warnings, 0 errors** |
 | Locked NuGet restore | Успешно; lock-файлы для всех проектов |
 | Dependency audit с transitive dependencies | Известных advisory по текущим NuGet sources нет; NU1901–NU1904 — ошибки restore |
@@ -35,6 +35,8 @@
 ## Покрытие
 
 Workspace CRUD/update/clone/tags/cascade; preserved history; settings and invalid-settings refusal; online backup; unknown-schema refusal; interrupted-run recovery. Ordering, delay/cancel, disabled items, partial failures, concurrent-launch guard, consent approved/declined and fatal persistence failure. JSON fresh IDs, malformed/null/duplicate/oversized fields, bounded UTF-8 streams/BOM/invalid encoding. URL/path restrictions, environment expansion guards, reserved names, canonical shell URL escaping, separate app arguments, explicit visible PowerShell/cmd requests. History Unicode queries, pages, filtering, full counts; restore success/safety backup, invalid schema/invalid file/cancellation preserving original data; 40 simultaneous serialized saves; CurrentUserOnly instance signal.
+
+Дополнительные регрессии 2026-10-21: restore читает committed WAL страницы выбранной базы; неверные GUID, даты, типы, статусы и имена отклоняются до замены текущих данных. Проверяется история за первой страницей (201 запись), отсутствие временных файлов после отказа и запрет экспорта JSON сверх лимита собственного импорта. Исходные реализации воспроизвели потерю WAL-изменений и приём повреждённых значений; после исправлений тесты проходят. UI guards, нормализация порядка новых элементов и блокировка повторных нажатий проверены компиляцией; их интерактивная Windows-проверка ещё нужна.
 
 ## Воспроизведение
 

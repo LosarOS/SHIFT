@@ -20,10 +20,13 @@
 - Save dialogs and exit wait for active writes; restore blocks new launch actions.
 - Null/duplicate JSON fields, reserved path names, incomplete backup schemas and stale progress handling.
 - Removed generated machine registry files from the unpublished bootstrap commit.
+- Restore now snapshots committed source WAL pages, validates workspace/history values across all pages, and cleans temporary journals after refusal.
+- Restore refuses to race with in-flight UI actions; repeated Launch opens the active queue, and asynchronous buttons ignore repeated clicks while busy.
+- Adding an item normalizes imported sort orders, avoiding integer overflow; export refuses files larger than its own import limit before opening a picker.
 
 ### Validation
 
-52 core/integration tests passed locally; Windows release gates are pending. See docs/VALIDATION.md.
+63 core/integration tests passed locally (updated 2026-10-21); Windows release gates are pending. See docs/VALIDATION.md.
 
 
 ## 0.1.0 — 2026-10-20 (engineering preview)

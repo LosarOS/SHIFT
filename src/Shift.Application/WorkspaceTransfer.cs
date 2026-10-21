@@ -19,7 +19,10 @@ public static class WorkspaceTransfer
     public static string Export(Workspace workspace)
     {
         WorkspaceValidator.Validate(workspace);
-        return JsonSerializer.Serialize(new WorkspaceExport(1, workspace), Json);
+        var json = JsonSerializer.Serialize(new WorkspaceExport(1, workspace), Json);
+        if (System.Text.Encoding.UTF8.GetByteCount(json) > MaxBytes)
+            throw new ValidationException([new ValidationIssue("ExportSize", "Workspace export exceeds 2 MB. Shorten item targets, arguments or notes.")]);
+        return json;
     }
 
     public static async Task<Workspace> ImportAsync(Stream stream, CancellationToken token = default)

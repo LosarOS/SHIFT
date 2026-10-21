@@ -11,10 +11,16 @@ public sealed class SqliteStore : IWorkspaceStore, IRunStore, ISettingsStore, IH
     {
         get;
     }
-    public SqliteStore(string path)
+    public SqliteStore(string path) : this(path, readOnly: false) { }
+    private SqliteStore(string path, bool readOnly)
     {
         DatabasePath = Path.GetFullPath(path);
-        connectionString = new SqliteConnectionStringBuilder { DataSource = DatabasePath, ForeignKeys = true, DefaultTimeout = 15 }.ToString();
+        connectionString = new SqliteConnectionStringBuilder
+        {
+            DataSource = DatabasePath, ForeignKeys = true, DefaultTimeout = 15,
+            Mode = readOnly ? SqliteOpenMode.ReadOnly : SqliteOpenMode.ReadWriteCreate,
+            Pooling = !readOnly
+        }.ToString();
     }
     private async Task<SqliteConnection> OpenAsync(CancellationToken token)
     {
@@ -107,7 +113,7 @@ public sealed class SqliteStore : IWorkspaceStore, IRunStore, ISettingsStore, IH
         using (var cmd = db.CreateCommand())
         {
             cmd.Transaction = tx;
-            cmd.CommandText = "SELECT * FROM Workspaces ORDER BY IsFavorite DESC, UpdatedAt DESC";
+            cmd.CommandText = "SELECT Id,Name,Description,Color,IsFavorite,CreatedAt,UpdatedAt FROM Workspaces ORDER BY IsFavorite DESC, UpdatedAt DESC";
             await using var r = await cmd.ExecuteReaderAsync(token);
             while (await r.ReadAsync(token))
                 workspaces.Add(new Workspace { Id = Guid.Parse(r.GetString(0)), Name = r.GetString(1), Description = r.GetString(2), Color = r.GetString(3), IsFavorite = r.GetBoolean(4), CreatedAt = DateTimeOffset.Parse(r.GetString(5)), UpdatedAt = DateTimeOffset.Parse(r.GetString(6)) });
@@ -120,7 +126,7 @@ public sealed class SqliteStore : IWorkspaceStore, IRunStore, ISettingsStore, IH
             using (var cmd = db.CreateCommand())
             {
                 cmd.Transaction = tx;
-                cmd.CommandText = "SELECT * FROM WorkspaceItems WHERE WorkspaceId=$id ORDER BY SortOrder,Id";
+                cmd.CommandText = "SELECT Id,WorkspaceId,Name,Kind,Target,Arguments,WorkingDirectory,Shell,SortOrder,DelayMs,Enabled,Note,Icon FROM WorkspaceItems WHERE WorkspaceId=$id ORDER BY SortOrder,Id";
                 cmd.Parameters.AddWithValue("$id", workspace.Id.ToString());
                 await using var r = await cmd.ExecuteReaderAsync(token);
                 while (await r.ReadAsync(token))
@@ -202,7 +208,7 @@ public sealed class SqliteStore : IWorkspaceStore, IRunStore, ISettingsStore, IH
         using (var cmd = db.CreateCommand())
         {
             cmd.Transaction = tx;
-            cmd.CommandText = "SELECT * FROM LaunchRuns WHERE " + HistoryWhere + " ORDER BY StartedAt DESC,Id DESC LIMIT $limit OFFSET $offset";
+            cmd.CommandText = "SELECT Id,WorkspaceId,WorkspaceName,StartedAt,FinishedAt,Status FROM LaunchRuns WHERE " + HistoryWhere + " ORDER BY StartedAt DESC,Id DESC LIMIT $limit OFFSET $offset";
             BindHistoryFilter(cmd, filter);
             await using var r = await cmd.ExecuteReaderAsync(token);
             while (await r.ReadAsync(token))
@@ -212,7 +218,7 @@ public sealed class SqliteStore : IWorkspaceStore, IRunStore, ISettingsStore, IH
         {
             using var cmd = db.CreateCommand();
             cmd.Transaction = tx;
-            cmd.CommandText = "SELECT * FROM LaunchRunItems WHERE RunId=$id ORDER BY SortOrder,ItemId";
+            cmd.CommandText = "SELECT RunId,ItemId,Name,Kind,SortOrder,Status,Error,StartedAt,FinishedAt FROM LaunchRunItems WHERE RunId=$id ORDER BY SortOrder,ItemId";
             cmd.Parameters.AddWithValue("$id", runs[index].Id.ToString());
             await using var r = await cmd.ExecuteReaderAsync(token);
             var items = new List<LaunchRunItem>();
@@ -354,25 +360,52 @@ public sealed class SqliteStore : IWorkspaceStore, IRunStore, ISettingsStore, IH
         }
         check.Parameters.Clear();
         check.CommandText = "PRAGMA foreign_key_check";
-        await using var violations = await check.ExecuteReaderAsync(token);
-        if (await violations.ReadAsync(token))
-            throw new InvalidDataException("Backup has invalid database relations.");
+        await using (var violations = await check.ExecuteReaderAsync(token))
+            if (await violations.ReadAsync(token))
+                throw new InvalidDataException("Backup has invalid database relations.");
+
+        // Validate the same models the UI will read, before replacing the working database.
+        // Read-only, unpooled connections cannot leave the temporary snapshot locked on Windows.
+        var candidate = new SqliteStore(path, readOnly: true);
+        foreach (var workspace in await candidate.ListAsync(token))
+            WorkspaceValidator.Validate(workspace);
+        for (var offset = 0; ; offset += 200)
+        {
+            var page = await candidate.QueryHistoryAsync(new(Offset: offset, PageSize: 200), token);
+            foreach (var run in page.Runs)
+            {
+                if (run.Id == Guid.Empty || run.WorkspaceId == Guid.Empty || !Enum.IsDefined(run.Status)
+                    || string.IsNullOrWhiteSpace(run.WorkspaceName) || run.WorkspaceName.Length > 100 || run.WorkspaceName.Any(char.IsControl)
+                    || run.Items.Any(item => item.ItemId == Guid.Empty || !Enum.IsDefined(item.Kind) || !Enum.IsDefined(item.Status)
+                        || item.Order < 0 || string.IsNullOrWhiteSpace(item.Name) || item.Name.Length > 100 || item.Name.Any(char.IsControl)))
+                    throw new InvalidDataException("Backup contains invalid launch history.");
+            }
+            if (!page.HasNext)
+                break;
+        }
     }
     public async Task<RestoreResult> RestoreAsync(string backupPath, string safetyDirectory, CancellationToken token = default)
     {
         backupPath = Path.GetFullPath(backupPath);
         if (string.Equals(backupPath, DatabasePath, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
             throw new ValidationException(["Choose a separate backup file, not the active database."]);
-        await ValidateBackupAsync(backupPath, token);
         var temporary = DatabasePath + ".restore-" + Guid.NewGuid().ToString("N") + ".tmp";
         try
         {
-            await using (var source = File.OpenRead(backupPath))
-            await using (var target = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            // SQLite's snapshot includes committed WAL pages. Copying only the main file can
+            // silently restore older data when the selected database still has a WAL journal.
+            await using (var source = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = backupPath, Mode = SqliteOpenMode.ReadOnly, Pooling = false }.ToString()))
+            await using (var target = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = temporary, Pooling = false }.ToString()))
             {
-                await source.CopyToAsync(target, token);
-                target.Flush(flushToDisk: true);
+                await source.OpenAsync(token);
+                await target.OpenAsync(token);
+                token.ThrowIfCancellationRequested();
+                source.BackupDatabase(target);
+                // Keep the private snapshot self-contained. Read-only validation of a WAL-mode
+                // header can otherwise leave journal sidecars behind, even without any writes.
+                await ExecuteAsync(target, null, "PRAGMA journal_mode=DELETE", token);
             }
+            token.ThrowIfCancellationRequested();
             await ValidateBackupAsync(temporary, token);
             var safety = await BackupAsync(safetyDirectory, token);
             await using (var db = await OpenAsync(token))
@@ -396,6 +429,11 @@ public sealed class SqliteStore : IWorkspaceStore, IRunStore, ISettingsStore, IH
             await RecoverInterruptedAsync(CancellationToken.None);
             return new(safety);
         }
-        finally { if (File.Exists(temporary)) File.Delete(temporary); }
+        finally
+        {
+            foreach (var suffix in new[] { "", "-wal", "-shm", "-journal" })
+                if (File.Exists(temporary + suffix))
+                    File.Delete(temporary + suffix);
+        }
     }
 }

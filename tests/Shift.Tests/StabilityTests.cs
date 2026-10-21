@@ -77,6 +77,77 @@ public sealed class StabilityTests : IDisposable
         Assert.Equal(2, (await safety.ListAsync()).Count);
     }
     [Fact]
+    public async Task Restore_includes_committed_changes_from_source_WAL()
+    {
+        var store = await Store();
+        await store.SaveAsync(Space("Original"));
+        var backup = await store.BackupAsync(Path.Combine(directory, "wal-source"));
+        await using var source = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = backup, Pooling = false }.ToString());
+        await source.OpenAsync();
+        using var command = source.CreateCommand();
+        command.CommandText = "PRAGMA journal_mode=WAL; PRAGMA wal_autocheckpoint=0; UPDATE Workspaces SET Name='Committed in WAL';";
+        await command.ExecuteNonQueryAsync();
+        Assert.True(new FileInfo(backup + "-wal").Length > 0);
+
+        await store.RestoreAsync(backup, Path.Combine(directory, "safety"));
+
+        Assert.Equal("Committed in WAL", Assert.Single(await store.ListAsync()).Name);
+    }
+    [Theory]
+    [InlineData("UPDATE Workspaces SET Name=''")]
+    [InlineData("UPDATE WorkspaceItems SET Kind=999")]
+    [InlineData("UPDATE LaunchRuns SET Status=999")]
+    [InlineData("UPDATE LaunchRunItems SET ItemId='invalid-guid'")]
+    [InlineData("UPDATE LaunchRunItems SET Status=999")]
+    [InlineData("UPDATE Workspaces SET CreatedAt='invalid-date'")]
+    [InlineData("UPDATE LaunchRuns SET StartedAt='invalid-date'")]
+    [InlineData("UPDATE LaunchRuns SET WorkspaceName=''")]
+    public async Task Invalid_backup_content_is_rejected_before_replacing_current_data(string corruption)
+    {
+        var store = await Store();
+        var space = Space("Current data");
+        await store.SaveAsync(space);
+        await store.SaveRunAsync(new(Guid.NewGuid(), space.Id, space.Name, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow,
+            RunStatus.Completed, [new(space.Items[0].Id, "Docs", ItemKind.Url, 0, ItemStatus.Success)]));
+        var backup = await store.BackupAsync(Path.Combine(directory, "invalid-content"));
+        await using (var source = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = backup, Pooling = false }.ToString()))
+        {
+            await source.OpenAsync();
+            using var command = source.CreateCommand();
+            command.CommandText = corruption;
+            await command.ExecuteNonQueryAsync();
+        }
+
+        await Assert.ThrowsAnyAsync<Exception>(() => store.RestoreAsync(backup, Path.Combine(directory, "safety")));
+
+        Assert.Equal(space.Id, Assert.Single(await store.ListAsync()).Id);
+        Assert.Equal("Current data", Assert.Single(await store.ListAsync()).Name);
+        Assert.Equal(RunStatus.Completed, Assert.Single(await store.HistoryAsync()).Status);
+        Assert.Empty(Directory.EnumerateFiles(directory, "*.restore-*"));
+    }
+    [Fact]
+    public async Task Restore_validates_history_after_the_first_page()
+    {
+        var store = await Store();
+        var space = Space();
+        await store.SaveAsync(space);
+        for (var index = 0; index < 201; index++)
+            await store.SaveRunAsync(Run(space.Id, space.Name, index));
+        var backup = await store.BackupAsync(Path.Combine(directory, "paged-history"));
+        await using (var source = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = backup, Pooling = false }.ToString()))
+        {
+            await source.OpenAsync();
+            using var command = source.CreateCommand();
+            command.CommandText = "UPDATE LaunchRuns SET Status=999 WHERE Id=(SELECT Id FROM LaunchRuns ORDER BY StartedAt ASC LIMIT 1)";
+            await command.ExecuteNonQueryAsync();
+        }
+
+        await Assert.ThrowsAsync<InvalidDataException>(() => store.RestoreAsync(backup, Path.Combine(directory, "safety")));
+
+        Assert.Equal(201, (await store.GetUsageAsync()).CompletedRuns);
+        Assert.Equal(space.Id, Assert.Single(await store.ListAsync()).Id);
+    }
+    [Fact]
     public async Task Invalid_restore_leaves_original_database_untouched()
     {
         var store = await Store();
@@ -135,6 +206,24 @@ public sealed class StabilityTests : IDisposable
         await using var server = new SingleInstanceSignal(name, () => activated.TrySetResult(), new NullLog());
         Assert.True(await SingleInstanceSignal.SendAsync(name));
         await activated.Task.WaitAsync(TimeSpan.FromSeconds(5));
+    }
+    [Fact]
+    public void Export_cannot_produce_a_file_that_exceeds_its_own_import_limit()
+    {
+        var space = Space() with
+        {
+            Items = Enumerable.Range(0, 100).Select(index => new WorkspaceItem
+            {
+                Name = "Command " + index,
+                Kind = ItemKind.Command,
+                Target = new string('Ж', 8192)
+            }).ToArray()
+        };
+        WorkspaceValidator.Validate(space);
+
+        var error = Assert.Throws<ValidationException>(() => WorkspaceTransfer.Export(space));
+
+        Assert.Equal("ExportSize", Assert.Single(error.Issues).Code);
     }
     [Fact]
     public void Duplicate_JSON_keys_are_rejected()

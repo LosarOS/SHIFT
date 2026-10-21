@@ -10,7 +10,7 @@ WinUI interface with RU/EN and four themes, tray, notifications, installed start
 
 ## Quality work
 
-52 local automated checks cover core behavior, SQLite, cancellation, command consent, backup restore, URI escaping, history statistics/paging, null/duplicate JSON and IPC. Dependencies are locked and audited; CI actions are pinned. Windows automation scripts cover real approved dispatch, refusal, theme/language, compact view, tray/activation and installed/uninstall flow, and preserve diagnostics.
+63 local automated checks cover core behavior, SQLite, cancellation, command consent, backup restore, URI escaping, history statistics/paging, null/duplicate JSON and IPC. Restore snapshots include committed WAL changes and reject corrupt workspace/history values before replacing current data. Failed restoration cleans temporary journals; export enforces its import size budget before touching a destination. Dependencies are locked and audited; CI actions are pinned. Windows automation scripts cover real approved dispatch, refusal, theme/language, compact view, tray/activation and installed/uninstall flow, and preserve diagnostics.
 
 ## Current status
 
