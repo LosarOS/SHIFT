@@ -115,6 +115,7 @@ public sealed record StudioRecoveryJournal
     public StudioApplyStatus Status { get; init; } = StudioApplyStatus.Preparing;
     public WallpaperSnapshot Before { get; init; } = new([], WallpaperPlacement.Fill, true);
     public WallpaperSnapshot Intended { get; init; } = new([], WallpaperPlacement.Fill, true);
+    public IReadOnlyList<WallpaperAssignment> RecoveryWallpapers { get; init; } = [];
     // Persist intent before each external operation; a crash between OS mutation and acknowledgement is ambiguous.
     public IReadOnlyList<string> AttemptedMonitorIds { get; init; } = [];
     public IReadOnlyList<string> AppliedMonitorIds { get; init; } = [];
