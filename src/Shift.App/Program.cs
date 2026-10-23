@@ -34,7 +34,7 @@ internal static class Program
     }
 }
 
-public sealed class ShiftApplication : Microsoft.UI.Xaml.Application
+public sealed partial class ShiftApplication : Microsoft.UI.Xaml.Application
 {
     private MainWindow? window;
     private readonly AppPaths paths;
@@ -50,7 +50,7 @@ public sealed class ShiftApplication : Microsoft.UI.Xaml.Application
             new FileLog(paths.LogDirectory).Error("Unhandled UI error", e.Exception);
         };
         AppDomain.CurrentDomain.UnhandledException += (_, e) => new FileLog(paths.LogDirectory).Error("Fatal error", e.ExceptionObject as Exception ?? new Exception("Unknown fatal error"));
-        Resources.MergedDictionaries.Add(new Microsoft.UI.Xaml.Controls.XamlControlsResources());
+        InitializeComponent();
     }
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
