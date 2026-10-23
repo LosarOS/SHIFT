@@ -206,10 +206,32 @@ try {
         } 'tray setting'
         $toggle=$tray.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern)
         if($toggle.Current.ToggleState -eq [System.Windows.Automation.ToggleState]::On){$toggle.Toggle()}
-        Click 'Save'
-        $null=Wait-For { Find-Control 'Overview' ([System.Windows.Automation.ControlType]::Button) } 'saved close behavior'
-        $process.CloseMainWindow() | Out-Null
-        if(-not $process.WaitForExit(15000)){throw 'Graceful application exit timed out.'}
+        # Save is asynchronous. The permanent Overview navigation button is not a
+        # completion signal: closing against the previous setting legitimately hides
+        # the app to tray. A fresh, enabled Save peer proves BuildShell has rebuilt
+        # Settings after persistence; the fresh tray toggle must also confirm Off.
+        $saveBefore=Wait-For { Find-Control 'Save' ([System.Windows.Automation.ControlType]::Button) } 'settings save button'
+        $saveRuntimeBefore=$saveBefore.GetRuntimeId() -join ':'
+        $trayRuntimeBefore=$tray.GetRuntimeId() -join ':'
+        $saveBefore.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+        $null=Wait-For {
+            $saveAfter=Find-Control 'Save' ([System.Windows.Automation.ControlType]::Button)
+            if($saveAfter -and $saveAfter.Current.IsEnabled -and ($saveAfter.GetRuntimeId() -join ':') -ne $saveRuntimeBefore){
+                $scope=[System.Windows.Automation.AutomationElement]::FromHandle($process.MainWindowHandle)
+                $condition=New-Object System.Windows.Automation.PropertyCondition -ArgumentList @([System.Windows.Automation.AutomationElement]::AutomationIdProperty,'Settings.MinimizeToTray')
+                $trayAfter=$scope.FindFirst([System.Windows.Automation.TreeScope]::Descendants,$condition)
+                if($trayAfter -and ($trayAfter.GetRuntimeId() -join ':') -ne $trayRuntimeBefore -and
+                   $trayAfter.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Current.ToggleState -eq [System.Windows.Automation.ToggleState]::Off){$true}
+            }
+        } 'persisted close behavior in rebuilt settings'
+        Write-Host 'Settings save acknowledged: fresh enabled Save peer and fresh tray toggle Off.'
+        $process.Refresh()
+        if(-not $process.CloseMainWindow()){throw 'Windows did not accept the graceful close request.'}
+        if(-not $process.WaitForExit(15000)){
+            $process.Refresh()
+            Write-Host "Close timeout: handle=$($process.MainWindowHandle), visible=$([ShiftWindowProbe]::IsWindowVisible($process.MainWindowHandle)), responding=$($process.Responding)."
+            throw 'Graceful application exit timed out.'
+        }
         if($process.ExitCode -ne 0){throw "Graceful exit failed ($($process.ExitCode))."}
         $process.Dispose()
         $process=Start-Process $exe -WorkingDirectory $app -PassThru
