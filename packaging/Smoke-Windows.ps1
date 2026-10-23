@@ -27,6 +27,8 @@ if (-not $Installed -and -not (Test-Path (Join-Path $app 'portable.flag'))) { th
 if (Test-Path $data) { throw 'Refusing to use or remove existing user data.' }
 if ($DiagnosticsDirectory) { New-Item $DiagnosticsDirectory -ItemType Directory -Force | Out-Null }
 $process = $null
+$monitor = $null
+$dumpDirectory = $null
 $startedAt = Get-Date
 $label = if ($Installed) { 'installed' } else { 'portable' }
 function Wait-For([scriptblock]$Probe,[string]$Description) {
@@ -86,6 +88,11 @@ function Capture([string]$Name) {
     } finally { $graphics.Dispose(); $bitmap.Dispose() }
 }
 try {
+    if ($env:GITHUB_ACTIONS -eq 'true' -and $env:SHIFT_CRASH_MONITOR) {
+        $dumpDirectory = Join-Path $env:RUNNER_TEMP ('SHIFT-dumps-' + [guid]::NewGuid().ToString('N'))
+        New-Item $dumpDirectory -ItemType Directory | Out-Null
+        $monitor = Start-Process $env:SHIFT_CRASH_MONITOR -ArgumentList @('-accepteula','-e','-ma','-w','SHIFT.exe',"`"$dumpDirectory`"") -PassThru -RedirectStandardOutput (Join-Path $dumpDirectory 'monitor.log') -RedirectStandardError (Join-Path $dumpDirectory 'monitor-error.log')
+    }
     $process = Start-Process $exe -WorkingDirectory $app -PassThru
     Click 'Начать с чистого листа'
     Click '' 'Workspace.New'
@@ -136,6 +143,20 @@ try {
     Write-Host "UI smoke passed ($label): CRUD, command decline/approval, real dispatch, theme/language, compact search, tray, second-instance activation."
 } catch {
     try { Capture 'failure' } catch { Write-Warning 'Screenshot capture failed.' }
+    if ($null -ne $monitor -and $dumpDirectory) {
+        $null=$monitor.WaitForExit(10000)
+        Get-Content (Join-Path $dumpDirectory 'monitor.log') -ErrorAction SilentlyContinue | Write-Host
+        foreach($dump in @(Get-ChildItem $dumpDirectory -Filter '*.dmp')) {
+            if ($env:SHIFT_CRASH_PROBE) {
+                $nativeLog=Join-Path $dumpDirectory 'native-stack.txt'
+                $probe=Start-Process $env:SHIFT_CRASH_PROBE -ArgumentList @("`"$($dump.FullName)`"") -PassThru -RedirectStandardOutput $nativeLog
+                if(-not $probe.WaitForExit(45000)){$probe.Kill();$probe.WaitForExit()}
+                Get-Content $nativeLog -ErrorAction SilentlyContinue | Write-Host
+                if($DiagnosticsDirectory){Copy-Item $nativeLog (Join-Path $DiagnosticsDirectory "$label-native-stack.txt")}
+                $probe.Dispose()
+            }
+        }
+    }
     # Native XAML failures can occur before managed application logging starts.
     # Read only events emitted during this disposable smoke, filtered to this app.
     try {
@@ -154,5 +175,6 @@ try {
         if (-not $process.HasExited) { $process.Kill();$process.WaitForExit() }
         $process.Dispose()
     }
+    if ($null -ne $monitor) { if (-not $monitor.HasExited) { $monitor.Kill();$monitor.WaitForExit() };$monitor.Dispose() }
     if (Test-Path $data) { Remove-Item $data -Recurse -Force }
 }

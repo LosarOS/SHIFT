@@ -50,6 +50,9 @@ jobs:
         shell: pwsh
         run: |
           if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup --yes --no-progress }
+      - name: Prepare isolated native crash diagnostics
+        shell: pwsh
+        run: ./packaging/Prepare-NativeDiagnostics.ps1
       - name: Build installer and portable
         shell: pwsh
         run: ./packaging/Build-Release.ps1 -Version 1.0.0-rc.1
