@@ -225,7 +225,15 @@ internal sealed class WidgetWindow : Forms.Form
             if (DisplayActive) value.Text = FormatDuration(timer.State.RemainingSeconds);
             if (completed)
             {
-                if (!preview) { MarkDirty(); await FlushAsync(); notify(L("Фокус-сессия завершена", "Focus session complete")); }
+                if (!preview)
+                {
+                    MarkDirty();
+                    try { await FlushAsync(); }
+                    catch (Exception ex) { nextSave = now.AddSeconds(30); ShowError(ex); log.Error("Completed timer state could not be saved", ex); }
+                    // Completion is useful even during a database outage. The controller
+                    // and local draft retain its one-shot flag; no tick-count retry is used.
+                    notify(L("Фокус-сессия завершена", "Focus session complete"));
+                }
             }
         }
         if (!preview && dirty && !saveConflict && now >= nextSave)
