@@ -27,6 +27,7 @@ if (-not $Installed -and -not (Test-Path (Join-Path $app 'portable.flag'))) { th
 if (Test-Path $data) { throw 'Refusing to use or remove existing user data.' }
 if ($DiagnosticsDirectory) { New-Item $DiagnosticsDirectory -ItemType Directory -Force | Out-Null }
 $process = $null
+$startedAt = Get-Date
 $label = if ($Installed) { 'installed' } else { 'portable' }
 function Wait-For([scriptblock]$Probe,[string]$Description) {
     $deadline = [DateTime]::UtcNow.AddSeconds(40)
@@ -135,6 +136,15 @@ try {
     Write-Host "UI smoke passed ($label): CRUD, command decline/approval, real dispatch, theme/language, compact search, tray, second-instance activation."
 } catch {
     try { Capture 'failure' } catch { Write-Warning 'Screenshot capture failed.' }
+    # Native XAML failures can occur before managed application logging starts.
+    # Read only events emitted during this disposable smoke, filtered to this app.
+    try {
+        $events = Get-WinEvent -FilterHashtable @{LogName='Application'; StartTime=$startedAt} -ErrorAction Stop |
+            Where-Object { $_.Message -match '(?i)SHIFT\.exe|SHIFT\.dll' } |
+            Select-Object TimeCreated, Id, ProviderName, Message | Format-List | Out-String
+        Write-Host $events
+        if ($DiagnosticsDirectory) { $events | Set-Content (Join-Path $DiagnosticsDirectory "$label-windows-events.txt") }
+    } catch { Write-Warning "No matching Windows event diagnostics: $($_.Exception.Message)" }
     Get-ChildItem (Join-Path $data 'logs') -Filter '*.log' -ErrorAction SilentlyContinue | ForEach-Object { Get-Content $_.FullName -Tail 40 }
     throw
 } finally {

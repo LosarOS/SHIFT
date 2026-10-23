@@ -25,6 +25,11 @@ internal static class Program
                 _ = new ShiftApplication(paths, "SHIFT-" + identity);
             });
         }
+        catch (Exception ex)
+        {
+            new FileLog(paths.LogDirectory).Error("Application initialization failed", ex);
+            throw;
+        }
         finally { mutex.ReleaseMutex(); }
     }
 }
@@ -39,13 +44,13 @@ public sealed class ShiftApplication : Microsoft.UI.Xaml.Application
     {
         this.paths = paths;
         this.signalName = signalName;
-        Resources.MergedDictionaries.Add(new Microsoft.UI.Xaml.Controls.XamlControlsResources());
         UnhandledException += (_, e) =>
         {
             // Unknown dispatcher failures are fatal; do not continue with potentially inconsistent state.
             new FileLog(paths.LogDirectory).Error("Unhandled UI error", e.Exception);
         };
         AppDomain.CurrentDomain.UnhandledException += (_, e) => new FileLog(paths.LogDirectory).Error("Fatal error", e.ExceptionObject as Exception ?? new Exception("Unknown fatal error"));
+        Resources.MergedDictionaries.Add(new Microsoft.UI.Xaml.Controls.XamlControlsResources());
     }
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
