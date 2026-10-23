@@ -8,6 +8,7 @@ public sealed partial class MainWindow
         hero.Children.Add(Text("↗  " + s["Ready"], 11, color: palette.Accent));
         hero.Children.Add(Text(s["Welcome"], 36, weight: Microsoft.UI.Text.FontWeights.SemiBold));
         hero.Children.Add(Text(s["WelcomeNote"], 15, true));
+        hero.Children.Add(AsyncButton(s["Setup.Create"], OpenQuickSetupAsync, true, "Workspace.QuickSetup"));
         var heroCard = Card(hero, 28);
         heroCard.Background = Brush(palette.Selected);
         screen.Children.Add(heroCard);
@@ -79,6 +80,7 @@ public sealed partial class MainWindow
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(sort, s["Sort"]);
         filters.Children.Add(tag);
         filters.Children.Add(sort);
+        filters.Children.Add(AsyncButton(s["Setup.Create"], OpenQuickSetupAsync, false, "Workspace.QuickSetup"));
         screen.Children.Add(filters);
         var results = Stack(12);
         screen.Children.Add(results);
