@@ -9,6 +9,8 @@
     <UseWinUI>true</UseWinUI>
     <ImplicitUsings>disable</ImplicitUsings>
     <WindowsPackageType>None</WindowsPackageType>
+    <!-- The unpackaged WinUI resource loader looks for this well-known main index. -->
+    <ProjectPriFileName>resources.pri</ProjectPriFileName>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <SelfContained>true</SelfContained>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
@@ -16,7 +18,7 @@
     <ApplicationIcon>Assets/shift.ico</ApplicationIcon>
     <StartupObject>Shift.App.Program</StartupObject>
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
-    <Version>1.0.0-rc.1</Version>
+    <Version>1.0.0-rc.2</Version>
     <AssemblyName>SHIFT</AssemblyName>
     <RootNamespace>Shift.App</RootNamespace>
     <PublishTrimmed>false</PublishTrimmed>
@@ -33,4 +35,17 @@
          a second PRI resource with the same key (PRI175/PRI277 on Windows publish). -->
     <Content Update="Assets/shift.ico" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+  <!-- Windows App SDK 1.8 uses the legacy MRT targets for unpackaged apps.
+       They generate the PRI during Build but do not add it to dotnet publish.
+       Publish the generated index, including embedded XBF and merged control resources. -->
+  <Target Name="PublishShiftResources" AfterTargets="ComputeResolvedFilesToPublishList"
+          DependsOnTargets="_GenerateProjectPriFile">
+    <Error Condition="!Exists('$(ProjectPriFullPath)')" Text="WinUI application resource index is missing: $(ProjectPriFullPath)" />
+    <ItemGroup>
+      <ResolvedFileToPublish Include="$(ProjectPriFullPath)">
+        <RelativePath>resources.pri</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </ResolvedFileToPublish>
+    </ItemGroup>
+  </Target>
 </Project>

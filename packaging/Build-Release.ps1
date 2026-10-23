@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidatePattern('^\d+\.\d+\.\d+(?:-rc\.\d+)?$')][string]$Version = '1.0.0-rc.1',
+    [ValidatePattern('^\d+\.\d+\.\d+(?:-rc\.\d+)?$')][string]$Version = '1.0.0-rc.2',
     [string]$IsccPath = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
 )
 $ErrorActionPreference = 'Stop'
@@ -29,6 +29,7 @@ try {
     }
     dotnet publish src/Shift.App/Shift.App.csproj -c Release -r win-x64 --self-contained true -p:WindowsAppSDKSelfContained=true "-p:Version=$Version" -o $publish --no-restore --nologo
     if ($LASTEXITCODE -ne 0) { throw 'Windows publish failed.' }
+    if (-not (Test-Path (Join-Path $publish 'resources.pri'))) { throw 'Published WinUI application resource index is missing.' }
     # Inspect the actual published resource payload when diagnosing native startup in CI.
     if ($env:SHIFT_STARTUP_TRACE -eq '1') {
         Get-ChildItem $publish -Recurse -File | Where-Object { $_.Extension -in @('.pri', '.xbf', '.xaml') } |
