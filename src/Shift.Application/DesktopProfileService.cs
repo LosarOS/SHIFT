@@ -180,7 +180,7 @@ public sealed class DesktopProfileService(IStudioStore store, IWallpaperService 
             bool AlreadyRestored(string monitorId, string actual, string original) => Same(actual, original)
                 || recoveryCopies.TryGetValue(monitorId, out var copy) && Same(actual, copy);
             var current = hasWindowsChanges ? await wallpapers.CaptureAsync(token) : journal.Before;
-            if (hasWindowsChanges && (!current.CanRestore || current.SlideshowActive)) return new(false, [current.Limitation ?? "Windows wallpaper state cannot be compared safely."], []);
+            if (hasWindowsChanges && (!current.CanCompare || current.SlideshowActive)) return new(false, [current.Limitation ?? "Windows wallpaper state cannot be compared safely."], []);
             foreach (var id in journal.AttemptedMonitorIds.Distinct())
             {
                 var actual = current.Wallpapers.FirstOrDefault(w => w.MonitorId == id);
@@ -204,7 +204,7 @@ public sealed class DesktopProfileService(IStudioStore store, IWallpaperService 
                 var before = journal.Before.Wallpapers.FirstOrDefault(w => w.MonitorId == id);
                 var expected = journal.Intended.Wallpapers.FirstOrDefault(w => w.MonitorId == id);
                 var freshSnapshot = await wallpapers.CaptureAsync(token);
-                if (!freshSnapshot.CanRestore || freshSnapshot.SlideshowActive) { conflicts.Add("Windows wallpaper state changed during restore: " + id); continue; }
+                if (!freshSnapshot.CanCompare || freshSnapshot.SlideshowActive) { conflicts.Add("Windows wallpaper state changed during restore: " + id); continue; }
                 var fresh = freshSnapshot.Wallpapers.FirstOrDefault(w => w.MonitorId == id);
                 if (before is null || expected is null || fresh is null) { errors.Add("Display unavailable: " + id); continue; }
                 if (AlreadyRestored(id, fresh.ImagePath, before.ImagePath)) continue;
@@ -228,7 +228,7 @@ public sealed class DesktopProfileService(IStudioStore store, IWallpaperService 
             if (journal.PositionAttempted)
             {
                 var fresh = await wallpapers.CaptureAsync(token);
-                if (!fresh.CanRestore || fresh.SlideshowActive) conflicts.Add("Windows wallpaper state changed during placement restore.");
+                if (!fresh.CanCompare || fresh.SlideshowActive) conflicts.Add("Windows wallpaper state changed during placement restore.");
                 else if (fresh.Position != journal.Before.Position)
                 {
                     if (!overwriteConflicts && fresh.Position != journal.Intended.Position) conflicts.Add("Wallpaper placement changed during restore.");

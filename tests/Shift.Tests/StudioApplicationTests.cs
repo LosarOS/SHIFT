@@ -30,8 +30,8 @@ public class StudioApplicationTests
     {
         public Dictionary<string, string> Values = new() { ["A"] = @"C:\original-a.png", ["B"] = @"C:\original-b.png" };
         public WallpaperPlacement Position = WallpaperPlacement.Fit;
-        public bool Slideshow; public int Sets; public Action<WallpaperAssignment>? BeforeSet; public bool FailAfterMutation; public string? FailMonitor;
-        public Task<WallpaperSnapshot> CaptureAsync(CancellationToken token = default) => Task.FromResult(new WallpaperSnapshot(Values.Select(p => new WallpaperAssignment(p.Key, p.Value)).ToArray(), Position, !Slideshow, Slideshow));
+        public bool Slideshow; public bool MissingCurrentFile; public bool Comparable = true; public int Sets; public Action<WallpaperAssignment>? BeforeSet; public bool FailAfterMutation; public string? FailMonitor;
+        public Task<WallpaperSnapshot> CaptureAsync(CancellationToken token = default) => Task.FromResult(new WallpaperSnapshot(Values.Select(p => new WallpaperAssignment(p.Key, p.Value)).ToArray(), Position, !Slideshow && !MissingCurrentFile, Slideshow, CanCompare: Comparable));
         public Task SetWallpaperAsync(WallpaperAssignment assignment, CancellationToken token = default)
         {
             BeforeSet?.Invoke(assignment); Sets++;
@@ -209,6 +209,21 @@ public class StudioApplicationTests
         f.Images.InvalidPaths.UnionWith([original, copy]);
         var restore = await f.Service.RestoreAsync(result.JournalId);
         Assert.False(restore.Restored); Assert.NotEmpty(restore.Errors); Assert.Equal(@"C:\selected.png", f.Wallpaper.Values["A"]);
+    }
+    [Fact] public async Task MissingCurrentWallpaperFileDoesNotPreventUndoOfKnownOwnedPath()
+    {
+        var f = new Fixture(); var applied = await f.Service.ApplyAsync(f.Profile.Id, true);
+        f.Wallpaper.MissingCurrentFile = true; // Windows retains a path after a portable directory was moved.
+        Assert.True((await f.Service.RestoreAsync(applied.JournalId)).Restored);
+        Assert.Equal(@"C:\original-a.png", f.Wallpaper.Values["A"]);
+    }
+    [Fact] public async Task UncomparableWallpaperStateCannotBeForcedEvenWithExplicitConflictOverride()
+    {
+        var f = new Fixture(); var applied = await f.Service.ApplyAsync(f.Profile.Id, true);
+        f.Wallpaper.Comparable = false;
+        var sets = f.Wallpaper.Sets;
+        Assert.False((await f.Service.RestoreAsync(applied.JournalId, true)).Restored);
+        Assert.Equal(sets, f.Wallpaper.Sets);
     }
     [Fact] public async Task StartupPendingInspectionIsReadOnlyAndNeverReapplies()
     {

@@ -35,7 +35,7 @@ public sealed class WindowsWallpaperService : IWallpaperService
             }
         }
         return new WallpaperSnapshot(originals, (WallpaperPlacement)position, limitation is null, (status & 2) != 0,
-            limitation ?? "Only static image values and position are captured. Windows Spotlight/provider configuration is not detectable or restorable through this API.");
+            limitation ?? "Only static image values and position are captured. Windows Spotlight/provider configuration is not detectable or restorable through this API.", CanCompare: status == 1);
     }, token);
 
     public Task SetWallpaperAsync(WallpaperAssignment assignment, CancellationToken token = default)

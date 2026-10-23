@@ -115,7 +115,8 @@ public sealed partial class MainWindow
             ("Формат даты", "Date format", date, "Date"), ("Длительность · минуты", "Duration · minutes", focus, "Focus"), ("Интервал монитора · секунды", "Monitor interval · seconds", interval, "Interval"),
             ("Начальный текст новой заметки", "Initial text for a new note", notes, "Notes"), ("Добавить в профиль", "Add to profile", profile, "Profile") }) fields.Children.Add(StudioField(T(ru, en), control, "Studio.Widget." + id));
         fields.Children.Add(alwaysOnTop); fields.Children.Add(clock24); fields.Children.Add(seconds); fields.Children.Add(error);
-        var dialog = Dialog("Widget Lab", new ScrollViewer { Content = fields, MaxHeight = 510 }, s["Save"], s["Cancel"]);
+        var form = new ContentControl { Content = fields, HorizontalContentAlignment = HorizontalAlignment.Stretch };
+        var dialog = Dialog("Widget Lab", new ScrollViewer { Content = form, MaxHeight = 510 }, s["Save"], s["Cancel"]);
         WidgetDefinition? languageDraft = null; WidgetLayout? languageLayout = null; Guid? languageProfile = null; string? nextLanguage = null;
         fields.Children.Insert(0, Button(T("English · сохранить черновик", "Русский · keep draft"), () =>
         {
@@ -134,7 +135,7 @@ public sealed partial class MainWindow
         var saving = false; dialog.Closing += (_, args) => { if (saving) args.Cancel = true; };
         dialog.PrimaryButtonClick += async (_, args) =>
         {
-            saving = true; fields.IsEnabled = false; dialog.IsPrimaryButtonEnabled = false; var deferral = args.GetDeferral();
+            saving = true; dialog.IsSecondaryButtonEnabled = false; form.IsEnabled = false; dialog.IsPrimaryButtonEnabled = false; var deferral = args.GetDeferral();
             try
             {
                 var candidate = Candidate(); var layout = Layout(); StudioValidator.Validate(candidate); StudioValidator.Validate(layout);
@@ -142,7 +143,7 @@ public sealed partial class MainWindow
                 if (profile.SelectedIndex > 0)
                 {
                     var target = studioProfiles[profile.SelectedIndex - 1];
-                    var placed = target.Widgets.FirstOrDefault(w => w.DefinitionId == draft.Id);
+                    var placed = (instanceId is Guid origin ? target.Widgets.FirstOrDefault(w => w.Id == origin) : null) ?? target.Widgets.FirstOrDefault(w => w.DefinitionId == draft.Id);
                     var placement = placed is null ? new WidgetInstance { DefinitionId = draft.Id, Layout = layout } : placed with { Layout = layout };
                     await StudioData.SaveProfileAsync(target with { Widgets = target.Widgets.Where(w => w.Id != placement.Id).Append(placement).ToArray() });
                 }
@@ -150,7 +151,7 @@ public sealed partial class MainWindow
                 // Saving definitions does not silently mutate the active desktop. Apply the profile separately.
             }
             catch (Exception ex) { args.Cancel = true; error.Title = T("Виджет не сохранён полностью", "Widget was not fully saved"); error.Message = s.ErrorDetails(ex); error.IsOpen = true; }
-            finally { saving = false; fields.IsEnabled = true; dialog.IsPrimaryButtonEnabled = true; deferral.Complete(); }
+            finally { saving = false; dialog.IsSecondaryButtonEnabled = true; form.IsEnabled = true; dialog.IsPrimaryButtonEnabled = true; deferral.Complete(); }
         };
         UpdateMockup();
         try { await ShowDialogAsync(dialog); }

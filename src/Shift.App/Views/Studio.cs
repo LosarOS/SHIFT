@@ -159,7 +159,7 @@ public sealed partial class MainWindow
             actions.Children.Add(AsyncButton(s["Duplicate"], async () => { await StudioData.SaveProfileAsync(profile.Duplicate(profile.Name[..Math.Min(profile.Name.Length, 85)] + T(" — копия", " — copy"))); await RefreshStudioAsync(); RenderScreen(); }));
             actions.Children.Add(AsyncButton(s["Delete"], async () =>
             {
-                if (!await ConfirmAsync(s["Delete"], T("Удалить профиль? Текущие обои останутся; журнал восстановления сохранится.", "Delete this profile? Current wallpaper stays; recovery history is retained."), s["Delete"])) return;
+                if (!await ConfirmAsync(s["Delete"], T("Удалить профиль и данные его экземпляров (заметки, таймеры)? Сначала сохраните нужные заметки. Текущие обои и журнал восстановления сохранятся.", "Delete this profile and its instance data (notes, timers)? Export needed notes first. Current wallpaper and recovery history stay."), s["Delete"])) return;
                 if (profile.Id == studioSettings.ActiveProfileId)
                 {
                     await studioRuntime!.StopAsync();
@@ -210,17 +210,24 @@ public sealed partial class MainWindow
         fields.Children.Add(wallpaperRows); fields.Children.Add(changePosition); fields.Children.Add(position);
         fields.Children.Add(Text(T("Виджеты профиля", "Profile widgets"), 18));
         var choices = new Dictionary<Guid, CheckBox>();
+        var visibility = new Dictionary<Guid, CheckBox>();
         foreach (var definition in studioDefinitions)
         {
             var check = new CheckBox { Content = definition.Title, IsChecked = source.Widgets.Any(w => w.DefinitionId == definition.Id) };
             choices[definition.Id] = check; fields.Children.Add(check);
+            foreach (var instance in source.Widgets.Where(w => w.DefinitionId == definition.Id))
+            {
+                var visible = new CheckBox { Content = T("Показывать", "Show") + " · " + definition.Title + " · " + instance.Id.ToString("N")[..6], IsChecked = instance.Visible, Margin = new Thickness(20, 0, 0, 0) };
+                visibility[instance.Id] = visible; fields.Children.Add(visible);
+            }
         }
         var error = new InfoBar { Severity = InfoBarSeverity.Error, IsClosable = false }; fields.Children.Add(error);
-        var dialog = Dialog(T("Визуальный профиль", "Desktop profile"), new ScrollViewer { Content = fields, MaxHeight = 510 }, s["Save"], s["Cancel"]);
+        var form = new ContentControl { Content = fields, HorizontalContentAlignment = HorizontalAlignment.Stretch };
+        var dialog = Dialog(T("Визуальный профиль", "Desktop profile"), new ScrollViewer { Content = form, MaxHeight = 510 }, s["Save"], s["Cancel"]);
         var busy = false; dialog.Closing += (_, args) => { if (busy) args.Cancel = true; };
         dialog.PrimaryButtonClick += async (_, args) =>
         {
-            busy = true; fields.IsEnabled = false; var deferral = args.GetDeferral(); dialog.IsPrimaryButtonEnabled = false;
+            busy = true; form.IsEnabled = false; var deferral = args.GetDeferral(); dialog.IsPrimaryButtonEnabled = false;
             try
             {
                 var linked = workspace.SelectedIndex > 0 ? vm.Workspaces[workspace.SelectedIndex - 1].Id : (Guid?)null;
@@ -228,11 +235,15 @@ public sealed partial class MainWindow
                     ApplyOnWorkspaceLaunch = linked is not null && automatic.IsChecked == true, Enabled = enabled.IsChecked == true,
                     ChangeWallpaperPosition = changePosition.IsChecked == true, WallpaperPosition = (WallpaperPlacement)Math.Max(0, position.SelectedIndex),
                     Wallpapers = wallpapers.Select(pair => new WallpaperAssignment(pair.Key, pair.Value)).ToArray(),
-                    Widgets = choices.Where(pair => pair.Value.IsChecked == true).Select(pair => source.Widgets.FirstOrDefault(w => w.DefinitionId == pair.Key) ?? new WidgetInstance { DefinitionId = pair.Key }).ToArray() };
+                    Widgets = choices.Where(pair => pair.Value.IsChecked == true).SelectMany(pair =>
+                    {
+                        var retained = source.Widgets.Where(w => w.DefinitionId == pair.Key).ToArray();
+                        return retained.Length == 0 ? new[] { new WidgetInstance { DefinitionId = pair.Key } } : retained.Select(w => w with { Visible = visibility[w.Id].IsChecked == true }).ToArray();
+                    }).ToArray() };
                 await StudioData.SaveProfileAsync(candidate); await RefreshStudioAsync();
             }
             catch (Exception ex) { args.Cancel = true; error.Title = T("Профиль не сохранён", "Profile was not saved"); error.Message = s.ErrorDetails(ex); error.IsOpen = true; }
-            finally { busy = false; fields.IsEnabled = true; dialog.IsPrimaryButtonEnabled = true; deferral.Complete(); }
+            finally { busy = false; form.IsEnabled = true; dialog.IsPrimaryButtonEnabled = true; deferral.Complete(); }
         };
         await ShowDialogAsync(dialog); RenderScreen();
     }
@@ -267,7 +278,7 @@ public sealed partial class MainWindow
         if (journal is null) { ShowNotice("SHIFT Studio", T("Нет изменений для восстановления.", "No changes to restore.")); return; }
         var result = await studioEngine.RestoreAsync(journal.Id);
         if (result.Conflicts.Count > 0 && await ConfirmAsync(T("Обои изменены после SHIFT", "Wallpaper changed after SHIFT"),
-            T("Обнаружены более поздние изменения. Перезаписать их исходным оформлением?\n", "Later changes were detected. Overwrite them with the original appearance?\n") + string.Join("\n", result.Conflicts), T("Перезаписать явно", "Explicitly overwrite")))
+            T("Обнаружены более поздние изменения. Продолжайте только при статичных обоях; при Spotlight или слайд-шоу отмените действие. Перезаписать изменения исходным оформлением?\n", "Later changes were detected. Continue only with static wallpapers; cancel for Spotlight or a slideshow. Overwrite the changes with the original appearance?\n") + string.Join("\n", result.Conflicts), T("Перезаписать явно", "Explicitly overwrite")))
             result = await studioEngine.RestoreAsync(journal.Id, overwriteConflicts: true);
         await RefreshStudioAsync(); RenderScreen();
         ShowNotice("SHIFT Studio", result.Restored ? T("Исходное оформление восстановлено.", "Original appearance restored.") : string.Join("\n", result.Errors.Concat(result.Conflicts)), !result.Restored);
@@ -315,12 +326,26 @@ public sealed partial class MainWindow
         var picker = new FileOpenPicker(); picker.FileTypeFilter.Add(".json"); WinRT.Interop.InitializeWithWindow.Initialize(picker, Handle);
         var file = await picker.PickSingleFileAsync(); if (file is null) return;
         var properties = await file.GetBasicPropertiesAsync(); if (properties.Size > 262144) throw new InvalidDataException(T("Лимит файла — 256 КиБ.", "File limit is 256 KiB."));
-        var definition = WidgetTransfer.Import(await File.ReadAllTextAsync(file.Path));
+        byte[] bytes;
+        await using (var input = File.OpenRead(file.Path))
+        {
+            var bounded = new byte[262145]; var count = 0;
+            while (count < bounded.Length)
+            {
+                var read = await input.ReadAsync(bounded.AsMemory(count)); if (read == 0) break; count += read;
+            }
+            if (count > 262144) throw new InvalidDataException(T("Лимит файла — 256 КиБ.", "File limit is256 KiB."));
+            bytes = bounded[..count];
+        }
+        var definition = WidgetTransfer.Import(bytes);
         await StudioData.SaveDefinitionAsync(definition); await RefreshStudioAsync(); RenderScreen();
     }
     private async Task ExportStudioWidgetAsync(WidgetDefinition definition)
     {
         var picker = new FileSavePicker { SuggestedFileName = "SHIFT-widget" }; picker.FileTypeChoices.Add("SHIFT widget", new[] { ".json" }); WinRT.Interop.InitializeWithWindow.Initialize(picker, Handle);
-        var file = await picker.PickSaveFileAsync(); if (file is not null) await File.WriteAllTextAsync(file.Path, WidgetTransfer.Export(definition));
+        var file = await picker.PickSaveFileAsync(); if (file is null) return;
+        var temporary = file.Path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        try { await File.WriteAllTextAsync(temporary, WidgetTransfer.Export(definition)); File.Move(temporary, file.Path, true); }
+        finally { if (File.Exists(temporary)) File.Delete(temporary); }
     }
 }

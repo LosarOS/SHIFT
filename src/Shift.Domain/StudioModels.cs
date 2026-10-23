@@ -10,7 +10,7 @@ public sealed record MonitorIdentity(string DeviceId, string Name, int Left, int
     int WorkLeft, int WorkTop, int WorkWidth, int WorkHeight, double DpiScale = 1, bool Primary = false);
 public sealed record WallpaperAssignment(string MonitorId, string ImagePath);
 public sealed record WallpaperSnapshot(IReadOnlyList<WallpaperAssignment> Wallpapers, WallpaperPlacement Position,
-    bool CanRestore, bool SlideshowActive = false, string? Limitation = null);
+    bool CanRestore, bool SlideshowActive = false, string? Limitation = null, bool CanCompare = true);
 public sealed record WidgetLayout
 {
     public string MonitorId { get; init; } = "";
