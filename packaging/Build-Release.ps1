@@ -71,6 +71,10 @@ try {
         $extractedApp = Join-Path $extracted (Split-Path $portable -Leaf)
         & powershell.exe -NoProfile -File (Join-Path $PSScriptRoot 'Smoke-Windows.ps1') -AppDirectory $extractedApp -ExtractedArchive -DiagnosticsDirectory (Join-Path $out 'diagnostics')
         if ($LASTEXITCODE -ne 0) { throw 'Extracted portable ZIP Windows UI smoke failed.' }
+        if ($env:GITHUB_ACTIONS -eq 'true') {
+            & powershell.exe -NoProfile -File (Join-Path $PSScriptRoot 'Smoke-Studio.ps1') -AppDirectory $extractedApp -DiagnosticsDirectory (Join-Path $out 'diagnostics/studio')
+            if ($LASTEXITCODE -ne 0) { throw 'Studio Windows acceptance failed.' }
+        }
     } finally {
         Remove-Item $extracted -Recurse -Force
     }

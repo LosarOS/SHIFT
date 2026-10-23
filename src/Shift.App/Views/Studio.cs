@@ -178,7 +178,7 @@ public sealed partial class MainWindow
         var automatic = new CheckBox { Content = T("Автоприменение при запуске (профили без обоев)", "Apply on dispatch (profiles without wallpaper)"), IsChecked = source.ApplyOnWorkspaceLaunch };
         var enabled = new CheckBox { Content = T("Профиль включён", "Profile enabled"), IsChecked = source.Enabled };
         var changePosition = new CheckBox { Content = T("Изменить общий режим размещения обоев", "Change the global wallpaper positioning mode"), IsChecked = source.ChangeWallpaperPosition };
-        var position = new ComboBox { ItemsSource = Enum.GetNames<WallpaperPlacement>(), SelectedIndex = (int)source.WallpaperPosition };
+        var position = new ComboBox { ItemsSource = new[] { T("По центру", "Center"), T("Плитка", "Tile"), T("Растянуть", "Stretch"), T("Вписать", "Fit"), T("Заполнить", "Fill"), T("Растянуть на экраны", "Span") }, SelectedIndex = (int)source.WallpaperPosition };
         var fields = Stack(14);
         fields.Children.Add(Text(T("Сохранение не меняет Windows. Режим размещения общий для всех экранов; слайд-шоу не изменяется.", "Saving does not change Windows. Position mode is global across displays; slideshow is not changed."), 13, true));
         fields.Children.Add(StudioField(s["Name"], name, "Studio.Profile.Name")); fields.Children.Add(StudioField(s["Description"], description, "Studio.Profile.Description"));

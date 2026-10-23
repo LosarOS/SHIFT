@@ -227,6 +227,7 @@ public sealed partial class MainWindow : Window, ICommandConsent
     }
     private void BuildShell()
     {
+        if (studioRuntime is not null) studioRuntime.Language = s.Language;
         // Persistent panels must be detached before a theme/language rebuild reparents them.
         if (navigation.Parent is Panel oldSide)
             oldSide.Children.Remove(navigation);

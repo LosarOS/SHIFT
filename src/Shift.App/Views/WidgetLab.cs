@@ -10,7 +10,7 @@ public sealed partial class MainWindow
         var title = new TextBox { Text = draft.Title, MaxLength = 100 };
         var kind = new ComboBox { ItemsSource = Enum.GetValues<WidgetKind>().Select(KindName).ToArray(), SelectedIndex = (int)draft.Kind, IsEnabled = existing is null };
         var template = new ComboBox { ItemsSource = StudioTemplates.All.Select(t => t.TemplateId).ToArray(), SelectedIndex = Math.Max(0, StudioTemplates.All.ToList().FindIndex(t => t.TemplateId == draft.Style.TemplateId)) };
-        var surface = new ComboBox { ItemsSource = Enum.GetNames<WidgetSurface>(), SelectedIndex = (int)draft.Style.Surface };
+        var surface = new ComboBox { ItemsSource = new[] { T("Сплошной", "Solid"), T("Полупрозрачный", "Translucent"), "Acrylic · fallback", "Mica · fallback" }, SelectedIndex = (int)draft.Style.Surface };
         var background = new TextBox { Text = draft.Style.Background, MaxLength = 7 };
         var foreground = new TextBox { Text = draft.Style.Foreground, MaxLength = 7 };
         var accent = new TextBox { Text = draft.Style.Accent, MaxLength = 7 };
