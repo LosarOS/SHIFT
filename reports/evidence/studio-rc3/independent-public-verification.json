@@ -1,0 +1,43 @@
+{
+  "status": "VERIFIED PRERELEASE WITH DISCLOSED LIMITATIONS",
+  "source_commit": "dd9d047d17f395902173c7231d2b2a59fdb843d4",
+  "release_url": "https://github.com/LosarOS/SHIFT/releases/tag/v1.0.0-rc.3",
+  "assets": [
+    {
+      "name": "SHA256SUMS.txt",
+      "size": 207,
+      "sha256": "f37946aa001c0d669f4f3e0be6d12a50a86802bf26fc3fcad3646f0098e59516",
+      "download_verified": true
+    },
+    {
+      "name": "SHIFT-1.0.0-rc.3-win-x64-portable.zip",
+      "size": 106541220,
+      "sha256": "ff154af6a22c1565be5f34c176d104202735328e7c6b1a51cd062b0ff4178cef",
+      "download_verified": true
+    },
+    {
+      "name": "SHIFT-1.0.0-rc.3-win-x64-setup.exe",
+      "size": 72504328,
+      "sha256": "d5cc8d3b9dfaf6c5b05296d3fe8348fb31acfcbeb5dd9152996d624e4e1609cf",
+      "download_verified": true
+    },
+    {
+      "name": "SHIFT-Native-Smoke-Evidence.zip",
+      "size": 3557,
+      "sha256": "b2fa1d8ad19f7a0cbe0ec6d6b6794f407da003015bcf0c8f013b08784e9de2c6",
+      "download_verified": true
+    },
+    {
+      "name": "SHIFT-Windows-UI-Evidence.zip",
+      "size": 1381877,
+      "sha256": "79194245ed8482ab25964fb5298506d9d4a46edc3409dededb95fc3bb108fd54",
+      "download_verified": true
+    },
+    {
+      "name": "WINDOWS-VALIDATION.json",
+      "size": 1126,
+      "sha256": "2f8489be13d6c2cada4216fb292dc2a069239cbc84b495157997871c13044b26",
+      "download_verified": true
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 <div align="center">
 
-> **SHIFT Studio preview:** development in [PR13](https://github.com/LosarOS/SHIFT/pull/13). Studio is opt-in; see [architecture](docs/studio/ARCHITECTURE.md), [migration](docs/studio/MIGRATION.md) and [actual validation journal](reports/SHIFT-STUDIO-ENGINEERING-SESSION.md). Public RC2 remains available until RC3 native release gates pass.
+> **SHIFT Studio RC3:** [Windows prerelease](https://github.com/LosarOS/SHIFT/releases/tag/v1.0.0-rc.3) · [Russian engineering report](reports/SHIFT-STUDIO-VALIDATION-RU.md) · [merged PR13](https://github.com/LosarOS/SHIFT/pull/13). Studio is opt-in; physical Windows/accessibility limits remain disclosed.
 ![SHIFT — Your work. One SHIFT away.](docs/assets/shift-cover.svg)
 
 **A native, local-first workspace launcher for Windows.**
@@ -11,7 +11,7 @@
 
 Bring your apps, folders, documents, projects and links into a workspace. Open your context in one action, see what happened, and move on with your day.
 
-**1.0.0-rc.2 is available as an unsigned Windows prerelease.** [Windows downloads and checksums](https://github.com/LosarOS/SHIFT/releases). Native build, portable/installed UI Automation and installer preservation have passed; publication additionally verifies the extracted distribution and GitHub-downloaded bytes. Manual Windows 10/11, accessibility and DPI acceptance remain required before stable1.0. The exact verified state is recorded in [VALIDATION](docs/VALIDATION.md). A version number is not a substitute for testing.
+**1.0.0-rc.3 is available as an unsigned Windows prerelease.** [Windows downloads and checksums](https://github.com/LosarOS/SHIFT/releases). Native build, portable/installed UI Automation and installer preservation have passed; publication additionally verifies the extracted distribution and GitHub-downloaded bytes. Manual Windows 10/11, accessibility and DPI acceptance remain required before stable1.0. The exact verified state is recorded in [VALIDATION](docs/VALIDATION.md). A version number is not a substitute for testing.
 
 ![SHIFT Overview — actual Windows CI capture](docs/screenshots/rc2/overview.png)
 

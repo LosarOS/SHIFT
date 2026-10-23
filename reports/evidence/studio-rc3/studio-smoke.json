@@ -1,0 +1,25 @@
+{
+    "checks":  [
+                   "lab_preview_cancel_save_no_preview_writes",
+                   "four_real_windows_notes_timer",
+                   "reapply_no_duplicate_windows",
+                   "wallpaper_apply_restore",
+                   "disable_reenable",
+                   "restart_persistence_and_quit"
+               ],
+    "sleep_verified":  false,
+    "environment":  "disposable Windows Server runner, actual extracted SHIFT.exe",
+    "multi_monitor_verified":  false,
+    "alpha_attribute_verified":  true,
+    "not_measured":  [
+                         "actual_sleep_resume",
+                         "widget_lab_open_latency",
+                         "full_profile_apply_latency"
+                     ],
+    "physical_windows11_verified":  false,
+    "manual_acceptance":  false,
+    "source_commit":  "dd9d047d17f395902173c7231d2b2a59fdb843d4",
+    "actual_alpha":  217,
+    "status":  "passed",
+    "wallpaper_verified":  true
+}
