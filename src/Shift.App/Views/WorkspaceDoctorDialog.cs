@@ -27,7 +27,7 @@ public sealed partial class MainWindow
             {
                 var report = await doctor.CheckAsync(workspace, cancellation.Token);
                 if (cancellation.IsCancellationRequested) return;
-                summary.Text = $"{report.Ready} {s["Doctor.Ready"]} · {report.Warnings} {s["Doctor.Warning"]} · {report.Errors} {s["Doctor.Error"]} · {report.Unknown} {s["Doctor.Unknown"]}";
+                summary.Text = string.Format(s["Doctor.Summary"], report.Ready, report.Warnings, report.Errors, report.Unknown);
                 if (report.Items.Count == 0)
                     results.Children.Add(Text(s["NoItemsNote"], 14, true));
                 foreach (var item in report.Items)

@@ -80,4 +80,7 @@ Native [40004559552](https://github.com/LosarOS/SHIFT/actions/runs/40004559552) 
 
 Final canonical packaging now tests the actual extracted portable ZIP, rather than only the directory before archiving. Its JSON records `portable_smoke_archive=true`; release publication requires that evidence. This last distribution gate must pass at the final source before publication.
 
-P2/P3 findings deferred: Russian singular item-count grammar and the enabled-item toggle's state-like action label can be clarified; physical-PC DPI/Narrator/high-contrast acceptance remains open. Optional Quick Setup [PR10](https://github.com/LosarOS/SHIFT/pull/10) is draft:129 core tests and native compilation/standard application smoke passed, but the new wizard-specific Windows acceptance is **NOT VERIFIED**.
+Visual review found two copy issues: singular item counts and an enabled-item toggle using a state-like label. Corrected with label/count formatting and explicit Enable/Disable actions in RU/EN; Doctor summary uses labelled counts. Physical-PC DPI/Narrator/high-contrast acceptance remains open. Optional Quick Setup [PR10](https://github.com/LosarOS/SHIFT/pull/10) is draft:129 core tests and native compilation/standard application smoke passed, but the new wizard-specific Windows acceptance is **NOT VERIFIED**.
+
+
+Exact distribution [40006182259](https://github.com/LosarOS/SHIFT/actions/runs/40006182259) at `64c74b5` passed: portable UI smoke launched the actual extracted ZIP; installed/reinstall/uninstall and SQLite preservation also passed. Final source UI copy polish requires its final native compile/Doctor smoke; no further feature expansion is planned for RC2. Main merge and tag builds remain required before public release.

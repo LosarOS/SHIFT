@@ -103,7 +103,7 @@ public sealed partial class MainWindow
                 });
                 var words = Stack(4);
                 words.Children.Add(Text((workspace.IsFavorite ? "★  " : "↗  ") + workspace.Name, 17, weight: Microsoft.UI.Text.FontWeights.SemiBold));
-                words.Children.Add(Text($"{workspace.Items.Count(i => i.Enabled)} {s["Items"]}", 12, true));
+                words.Children.Add(Text($"{s["ItemsLabel"]}: {workspace.Items.Count(i => i.Enabled)}", 12, true));
                 row.Children.Add(words);
                 var launch = AsyncButton(s["Launch"], async () => { ExitQuickLauncher(); await StartLaunchAsync(workspace); }, true);
                 launch.IsEnabled = !vm.IsLaunching;
