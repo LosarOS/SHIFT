@@ -109,6 +109,8 @@ public sealed record StudioRecoveryJournal
     public Guid Id { get; init; } = Guid.NewGuid();
     public Guid ProfileId { get; init; }
     public Guid? PreviousProfileId { get; init; }
+    public DesktopProfile? PreviousProfileSnapshot { get; init; }
+    public IReadOnlyList<WidgetDefinition> PreviousDefinitions { get; init; } = [];
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
     public StudioApplyStatus Status { get; init; } = StudioApplyStatus.Preparing;
     public WallpaperSnapshot Before { get; init; } = new([], WallpaperPlacement.Fill, true);
