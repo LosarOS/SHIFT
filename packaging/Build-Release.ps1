@@ -60,10 +60,20 @@ try {
     Copy-Item $publish $portable -Recurse
     New-Item (Join-Path $portable 'portable.flag') -ItemType File -Force | Out-Null
     Copy-Item docs/INSTALLATION.md (Join-Path $portable 'INSTALLATION.md')
-    & powershell.exe -NoProfile -File (Join-Path $PSScriptRoot 'Smoke-Windows.ps1') -AppDirectory $portable -DiagnosticsDirectory (Join-Path $out 'diagnostics')
-    if ($LASTEXITCODE -ne 0) { throw 'Windows UI smoke failed.' }
     $zip = Join-Path $out "SHIFT-$Version-win-x64-portable.zip"
     Compress-Archive -Path $portable -DestinationPath $zip -Force
+    # Test bytes extracted from the actual distribution, in a fresh owned directory.
+    $extracted = Join-Path $out ('portable-extracted-' + [guid]::NewGuid().ToString('N'))
+    if (Test-Path $extracted) { throw 'Refusing to reuse an extraction directory.' }
+    New-Item $extracted -ItemType Directory | Out-Null
+    try {
+        Expand-Archive -LiteralPath $zip -DestinationPath $extracted
+        $extractedApp = Join-Path $extracted (Split-Path $portable -Leaf)
+        & powershell.exe -NoProfile -File (Join-Path $PSScriptRoot 'Smoke-Windows.ps1') -AppDirectory $extractedApp -ExtractedArchive -DiagnosticsDirectory (Join-Path $out 'diagnostics')
+        if ($LASTEXITCODE -ne 0) { throw 'Extracted portable ZIP Windows UI smoke failed.' }
+    } finally {
+        Remove-Item $extracted -Recurse -Force
+    }
     $numericVersion=($Version -split '-',2)[0]+'.0'
     & $IsccPath "/DAppVersion=$Version" "/DNumericVersion=$numericVersion" "/DSourceDir=$publish" "/DOutputDir=$out" (Join-Path $PSScriptRoot 'SHIFT.iss')
     if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed.' }

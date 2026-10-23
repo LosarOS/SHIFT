@@ -6,7 +6,8 @@ param(
     [switch]$Installed,
     [guid]$DataOwner = [guid]::Empty,
     [switch]$PreserveData,
-    [switch]$ResumeOwnedData
+    [switch]$ResumeOwnedData,
+    [switch]$ExtractedArchive
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -26,6 +27,7 @@ public static class ShiftWindowProbe {
 $app = (Resolve-Path $AppDirectory).Path
 $exe = Join-Path $app 'SHIFT.exe'
 $data = if ($Installed) { Join-Path $env:LOCALAPPDATA 'SHIFT' } else { Join-Path $app 'data' }
+if ($Installed -and $ExtractedArchive) { throw 'Installed smoke cannot claim portable archive validation.' }
 if ($Installed -and $env:GITHUB_ACTIONS -ne 'true') { throw 'Installed smoke only runs on an isolated GitHub Actions runner.' }
 if (-not $Installed -and -not (Test-Path (Join-Path $app 'portable.flag'))) { throw 'Expected a disposable portable build.' }
 $ownerFile = Join-Path $data '.shift-ci-owner'
@@ -232,7 +234,7 @@ try {
     $checks=@('workspace_persistence','english_persistence','midnight_theme_persistence','command_proof_persistence','graceful_exit')
     if(-not $ResumeOwnedData){$checks+=@('workspace_create','item_create','doctor_read_only','doctor_repeat','command_refusal','command_approval','real_dispatch','compact_search','tray','second_instance_activation','restart')}
     if($DiagnosticsDirectory){
-        @{schema_version=1;status='passed';environment='disposable-windows-ui-automation';mode=$label;resumed=[bool]$ResumeOwnedData;checks=$checks;manual_acceptance=$false;timestamp_utc=[DateTime]::UtcNow.ToString('o')} |
+        @{schema_version=1;status='passed';environment='disposable-windows-ui-automation';mode=$label;resumed=[bool]$ResumeOwnedData;portable_smoke_archive=[bool]$ExtractedArchive;checks=$checks;manual_acceptance=$false;timestamp_utc=[DateTime]::UtcNow.ToString('o')} |
             ConvertTo-Json -Depth 4 | Set-Content (Join-Path $DiagnosticsDirectory "$label-smoke.json")
     }
     Write-Host "UI smoke passed ($label): $($checks -join ', ')."
