@@ -436,6 +436,17 @@ public sealed partial class MainWindow
         try
         {
             var run = await task;
+            // Dispatch and desktop apply have separate results; never retry dispatched applications on a visual failure.
+            try
+            {
+                if ((run.Status is RunStatus.Completed or RunStatus.PartialFailure) && studioReady && studioSettings.Enabled)
+                {
+                    var profiles = await StudioData.ListProfilesAsync();
+                    var linked = profiles.FirstOrDefault(p => p.Enabled && p.WorkspaceId == workspace.Id && p.ApplyOnWorkspaceLaunch);
+                    if (linked is not null) await ApplyStudioProfileAsync(linked);
+                }
+            }
+            catch (Exception ex) { log.Error("Studio apply after dispatch failed", ex); ShowNotice("SHIFT Studio", T("Приложения уже запущены. Оформление не применено: ", "Applications were already dispatched. Desktop apply failed: ") + s.ErrorDetails(ex), true); }
             if (vm.Settings.Notifications)
                 desktop.Notify("SHIFT · " + run.WorkspaceName, s[run.Status.ToString()]);
         }

@@ -250,7 +250,12 @@ public sealed partial class MainWindow
         maintenance = true;
         try
         {
+            await StopStudioAsync();
+            studioReady = false;
             var result = await store.RestoreAsync(path, BackupDirectory);
+            var restoredStudio = await StudioData.LoadStudioSettingsAsync();
+            await StudioData.SaveStudioSettingsAsync(restoredStudio with { Enabled = false, RuntimeWasRunning = false, ConsecutiveRuntimeFailures = 0 });
+            await InitializeStudioAsync();
             vm.Settings = await store.LoadSettingsAsync();
             vm.Settings = vm.Settings with
             {

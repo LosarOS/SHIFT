@@ -40,6 +40,7 @@ public sealed class Strings
         ["Doctor.InvalidPath"] = ("Формат пути недопустим. Откройте редактор элемента.", "Path format is invalid. Open the item editor."),
         ["Doctor.WindowsRequired"] = ("Наличие Windows-оболочки в этой среде не подтверждено.", "Windows shell availability is not verified in this environment."),
         ["Doctor.AssociationUnknown"] = ("Обработчик открытия файла не найден или не подтверждён. Проверьте приложение по умолчанию в Windows.", "A file-open handler was not found or verified. Review default apps in Windows."),
+        ["Studio"] = ("Studio", "Studio"),
         ["Overview"] = ("Обзор", "Overview"),
         ["Workspaces"] = ("Пространства", "Workspaces"),
         ["Favorites"] = ("Избранное", "Favorites"),
