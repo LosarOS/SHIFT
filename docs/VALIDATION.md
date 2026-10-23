@@ -1,4 +1,6 @@
-# Validation — current Studio preview
+# Validation — SHIFT Studio RC3
+
+**VERIFIED PRERELEASE WITH DISCLOSED LIMITATIONS.** [Final Russian report and public-byte proof](../reports/SHIFT-STUDIO-VALIDATION-RU.md). Tagged source `dd9d047d17f395902173c7231d2b2a59fdb843d4`; release and main workflows passed. Physical Windows/accessibility gates remain outstanding.
 
 Current implementation and exact native gate outcomes are tracked in [Studio engineering journal](../reports/SHIFT-STUDIO-ENGINEERING-SESSION.md) and [Studio QA matrix](studio/QA-MATRIX.md). The older report below is retained as historical RC1 evidence; its pending Windows gates are not the current RC2 release status.
 
