@@ -45,9 +45,8 @@ public sealed partial class MainWindow : Window, ICommandConsent
         vm = new(store, new LaunchCoordinator(store, new WindowsItemLauncher(), log));
         Title = "SHIFT";
         idleOperations.SetResult();
-        windowCommands = new(Handle, () => DispatcherQueue.TryEnqueue(OpenQuickLauncher));
+        windowCommands = new(Handle, () => DispatcherQueue.TryEnqueue(OpenQuickLauncher), OnSystemSettingsChanged);
         AddKeyboardShortcuts();
-        accessibility.HighContrastChanged += OnHighContrastChanged;
         AppWindow.Resize(new SizeInt32(1240, 840));
         var icon = Path.Combine(AppContext.BaseDirectory, "Assets", "shift.ico");
         if (File.Exists(icon))
@@ -66,7 +65,7 @@ public sealed partial class MainWindow : Window, ICommandConsent
         Content = root;
         shell.Children.Add(new ProgressRing { IsActive = true, Width = 40, Height = 40, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center });
         AppWindow.Closing += OnClosing;
-        Closed += (_, _) => { accessibility.HighContrastChanged -= OnHighContrastChanged; windowCommands.Dispose(); desktop.Dispose(); store.Dispose(); };
+        Closed += (_, _) => { windowCommands.Dispose(); desktop.Dispose(); store.Dispose(); };
         root.SizeChanged += (_, _) =>
         {
             var columns = root.ActualWidth < 1080 ? 1 : 2;

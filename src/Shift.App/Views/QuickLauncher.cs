@@ -149,5 +149,5 @@ public sealed partial class MainWindow
         var foreground = Hex(systemUi.GetColorValue(UIColorType.Foreground));
         return new(background, background, background, foreground, foreground, foreground, foreground, background);
     }
-    private void OnHighContrastChanged(AccessibilitySettings sender, object args) => DispatcherQueue.TryEnqueue(() => { if (!trayReady) return; ApplyTheme(); BuildShell(); });
+    private void OnSystemSettingsChanged() => DispatcherQueue.TryEnqueue(() => { if (!trayReady) return; ApplyTheme(); BuildShell(); });
 }

@@ -7,14 +7,16 @@ public sealed class WindowCommands : Forms.NativeWindow, IDisposable
 {
     private const int HotkeyId = 0x5348;
     private readonly Action quickLaunch;
+    private readonly Action settingsChanged;
     private bool registered;
     public bool Compact
     {
         get; set;
     }
-    public WindowCommands(nint handle, Action quickLaunch)
+    public WindowCommands(nint handle, Action quickLaunch, Action settingsChanged)
     {
         this.quickLaunch = quickLaunch;
+        this.settingsChanged = settingsChanged;
         AssignHandle(handle);
     }
     public void ConfigureHotkey(bool enabled)
@@ -42,6 +44,10 @@ public sealed class WindowCommands : Forms.NativeWindow, IDisposable
             return;
         }
         base.WndProc(ref message);
+        // Desktop HWND notifications work without the UWP CoreWindow required by
+        // AccessibilitySettings.HighContrastChanged (0x80070490 in unpackaged WinUI).
+        if (message.Msg is 0x001A or 0x031A)
+            settingsChanged();
         if (message.Msg == 0x0024)
         {
             var info = Marshal.PtrToStructure<MinMaxInfo>(message.LParam);
