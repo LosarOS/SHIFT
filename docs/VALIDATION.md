@@ -67,6 +67,6 @@ dotnet build src/Shift.App --no-restore -t:Compile -p:WindowsAppSDKSelfContained
 
 ## GitHub
 
-Аутентификация аккаунта **LosarOS** подтверждена, в том числе через явно разрешённый пользователем GitHub CLI device login. Создание `LosarOS/SHIFT` через GraphQL и REST получает **403 Resource not accessible by integration**. Репозиторий пока не создан/не загружен, Windows Actions не запускались. Для продолжения требуется пустой репозиторий, созданный владельцем через GitHub UI, либо подключение с правом создания. Credentials сохранены вне дерева проекта и не входят в исходники.
+Первоначальное создание через API получало **403 Resource not accessible by integration**. 2026-10-23 владелец создал пустой [LosarOS/SHIFT](https://github.com/LosarOS/SHIFT); доступ к нему и права ADMIN подтверждены. Credentials сохранены вне дерева проекта и не входят в исходники.
 
-После появления репозитория: push → Windows CI → диагностика/исправление фактических ошибок → package hashes → manual QA → stable tag/release. На Windows команда `pwsh ./packaging/Build-Release.ps1 -Version 1.0.0-rc.1` выполняет tests/publish/portable UI smoke/package; отдельный `Smoke-Installer.ps1` предназначен только для disposable GitHub runner.
+Актуальные удалённые проверки публикуются в [GitHub Actions](https://github.com/LosarOS/SHIFT/actions). Этот документ фиксирует локальные результаты; наличие workflow не означает успешного Windows run. Дальнейшие release gates: Windows CI → диагностика/исправление фактических ошибок → package hashes → manual QA → stable tag/release. На Windows команда `pwsh ./packaging/Build-Release.ps1 -Version 1.0.0-rc.1` выполняет tests/publish/portable UI smoke/package; отдельный `Smoke-Installer.ps1` предназначен только для disposable GitHub runner.
