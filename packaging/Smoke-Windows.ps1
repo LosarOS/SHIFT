@@ -21,6 +21,7 @@ public static class ShiftWindowProbe {
   [StructLayout(LayoutKind.Sequential)] public struct Rect { public int Left,Top,Right,Bottom; }
   [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h,out Rect r);
   [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
+  [DllImport("dwmapi.dll")] public static extern int DwmFlush();
 }
 '@
 $app = (Resolve-Path $AppDirectory).Path
@@ -112,6 +113,10 @@ function Select-Choice([string]$Id,[string]$Value) {
 }
 function Capture([string]$Name) {
     if (-not $DiagnosticsDirectory -or $null -eq $process) { return }
+    # UI Automation observes logical state before WinUI/DWM presents the frame.
+    # Wait for short Fluent transitions, then flush composition before reading genuine pixels.
+    Start-Sleep -Milliseconds 750
+    if ([ShiftWindowProbe]::DwmFlush() -lt 0) { throw 'Desktop composition did not flush before screenshot capture.' }
     $process.Refresh()
     if ($process.HasExited -or $process.MainWindowHandle -eq [IntPtr]::Zero) { return }
     $rect = New-Object ShiftWindowProbe+Rect
@@ -255,8 +260,10 @@ try {
         Capture 'quick-launcher'
         Click '' 'Quick.Close'
         Click '' 'Nav.Workspaces'
+        $null=Wait-For { Find-Control 'SHIFT  /  WORKSPACES' ([System.Windows.Automation.ControlType]::Text) } 'workspaces heading'
         Capture 'workspaces'
         Click '' 'Nav.Overview'
+        $null=Wait-For { Find-Control 'SHIFT  /  OVERVIEW' ([System.Windows.Automation.ControlType]::Text) } 'overview heading'
         Capture 'overview'
         $process.CloseMainWindow() | Out-Null
         $null = Wait-For { -not [ShiftWindowProbe]::IsWindowVisible($process.MainWindowHandle) } 'close to tray'
