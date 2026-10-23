@@ -55,7 +55,7 @@ jobs:
         run: ./packaging/Prepare-NativeDiagnostics.ps1
       - name: Build installer and portable
         shell: pwsh
-        run: ./packaging/Build-Release.ps1 -Version 1.0.0-rc.2
+        run: ./packaging/Build-Release.ps1 -Version 1.0.0-rc.2 -QuickSetupSmoke
       - name: Installer smoke
         shell: pwsh
         run: ./packaging/Smoke-Installer.ps1 -Version 1.0.0-rc.2

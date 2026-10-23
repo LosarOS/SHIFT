@@ -6,7 +6,8 @@ param(
     [switch]$Installed,
     [guid]$DataOwner = [guid]::Empty,
     [switch]$PreserveData,
-    [switch]$ResumeOwnedData
+    [switch]$ResumeOwnedData,
+    [switch]$QuickSetup
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -23,6 +24,7 @@ public static class ShiftWindowProbe {
 }
 '@
 $app = (Resolve-Path $AppDirectory).Path
+if ($QuickSetup -and ($env:GITHUB_ACTIONS -ne 'true' -or $Installed -or $ResumeOwnedData)) { throw 'Quick Setup smoke requires a fresh disposable portable CI profile.' }
 $exe = Join-Path $app 'SHIFT.exe'
 $data = if ($Installed) { Join-Path $env:LOCALAPPDATA 'SHIFT' } else { Join-Path $app 'data' }
 if ($Installed -and $env:GITHUB_ACTIONS -ne 'true') { throw 'Installed smoke only runs on an isolated GitHub Actions runner.' }
@@ -46,6 +48,9 @@ $monitor = $null
 $dumpDirectory = $null
 $startedAt = Get-Date
 $label = if ($Installed) { 'installed' } else { 'portable' }
+$shortcutFixture = $null
+$shortcutName = 'SHIFT Wizard Fixture ' + [guid]::NewGuid().ToString('N')
+$wizardMarker = Join-Path $data 'wizard-must-not-execute.txt'
 function Wait-For([scriptblock]$Probe,[string]$Description) {
     $deadline = [DateTime]::UtcNow.AddSeconds(40)
     while ([DateTime]::UtcNow -lt $deadline) {
@@ -120,7 +125,76 @@ function Capture([string]$Name) {
         $bitmap.Save((Join-Path $DiagnosticsDirectory "$label-$Name.png"),[Drawing.Imaging.ImageFormat]::Png)
     } finally { $graphics.Dispose(); $bitmap.Dispose() }
 }
+function Test-QuickSetup([string]$Language) {
+    $ru = $Language -eq 'ru'
+    $next = if ($ru) { 'Далее: название и предпросмотр' } else { 'Next: name and preview' }
+    $back = if ($ru) { 'Назад' } else { 'Back' }
+    $cancel = if ($ru) { 'Отмена' } else { 'Cancel' }
+    $save = if ($ru) { 'Сохранить пространство' } else { 'Save workspace' }
+    $unknown = if ($ru) { 'Ярлык · запуск не проверен' } else { 'Shortcut · launch unverified' }
+    $empty = if ($ru) { 'Ничего не найдено' } else { 'No matches found' }
+    $workspaceName = 'SHIFT wizard ' + $Language
+    Click '' 'Nav.Overview'
+    Click '' 'Workspace.QuickSetup'
+    $null = Wait-For {
+        $state = Find-Control '' ([System.Windows.Automation.ControlType]::Text) 'Setup.Status'
+        if ($state -and $state.Current.Name -match '(Выбрано|Selected)') { $state }
+    } "discovered wizard shortcuts ($Language)"
+    Set-Field 'Setup.Search' $shortcutName
+    $choice = Wait-For { Find-Control ($shortcutName + '. ' + $unknown) ([System.Windows.Automation.ControlType]::CheckBox) } 'owned shortcut choice'
+    $choice.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Toggle()
+    Set-Field 'Setup.Search' ('no-such-shortcut-' + [guid]::NewGuid().ToString('N'))
+    $null = Wait-For { Find-Control $empty ([System.Windows.Automation.ControlType]::Text) } "empty search state ($Language)"
+    Set-Field 'Setup.Search' $shortcutName
+    $choice = Wait-For { Find-Control ($shortcutName + '. ' + $unknown) ([System.Windows.Automation.ControlType]::CheckBox) } 'retained selected shortcut'
+    if ($choice.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Current.ToggleState -ne [System.Windows.Automation.ToggleState]::On) { throw 'Wizard lost selection after search.' }
+    Capture ('wizard-selection-' + $Language)
+    Click $next
+    Set-Field 'Setup.Name' ('SHIFT wizard cancelled ' + $Language)
+    Capture ('wizard-preview-' + $Language)
+    Click $back
+    $choice = Wait-For { Find-Control ($shortcutName + '. ' + $unknown) ([System.Windows.Automation.ControlType]::CheckBox) } 'selection after Back'
+    if ($choice.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Current.ToggleState -ne [System.Windows.Automation.ToggleState]::On) { throw 'Wizard lost selection after Back.' }
+    Click $next
+    Click $cancel
+    Click '' 'Quick.Open'
+    Set-Field 'Quick.Search' ('SHIFT wizard cancelled ' + $Language)
+    $null = Wait-For { Find-Control $empty ([System.Windows.Automation.ControlType]::Text) } 'cancelled wizard did not save'
+    Click '' 'Quick.Close'
+    Click '' 'Nav.Workspaces'
+    Click '' 'Workspace.QuickSetup'
+    $null = Wait-For {
+        $state = Find-Control '' ([System.Windows.Automation.ControlType]::Text) 'Setup.Status'
+        if ($state -and $state.Current.Name -match '(Выбрано|Selected)') { $state }
+    } 'reopened wizard'
+    Set-Field 'Setup.Search' $shortcutName
+    $choice = Wait-For { Find-Control ($shortcutName + '. ' + $unknown) ([System.Windows.Automation.ControlType]::CheckBox) } 'reopened shortcut choice'
+    if ($choice.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Current.ToggleState -ne [System.Windows.Automation.ToggleState]::Off) { throw 'New wizard retained a cancelled selection.' }
+    $choice.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Toggle()
+    Click $next
+    Set-Field 'Setup.Name' $workspaceName
+    Click $save
+    $null = Wait-For { Find-Control $workspaceName ([System.Windows.Automation.ControlType]::Text) } 'saved wizard workspace'
+    $null = Wait-For { Find-Control $shortcutName ([System.Windows.Automation.ControlType]::Text) } 'saved shortcut item'
+    if (Test-Path $wizardMarker) { throw 'Quick Setup executed the shortcut.' }
+    Capture ('wizard-saved-' + $Language)
+    Write-Host "Quick Setup wizard ($Language) passed: discovery, search, empty search, manual selection, preview, Back, cancel, save; no shortcut execution."
+}
 try {
+    if ($QuickSetup) {
+        # Only this newly created folder belongs to this test. Never replace or remove other Start Menu content.
+        $shortcutFixture = Join-Path ([Environment]::GetFolderPath('Programs')) ('SHIFT-Wizard-CI-' + [guid]::NewGuid().ToString('N'))
+        New-Item $shortcutFixture -ItemType Directory | Out-Null
+        $shell = New-Object -ComObject WScript.Shell
+        try {
+            $link = $shell.CreateShortcut((Join-Path $shortcutFixture ($shortcutName + '.lnk')))
+            try {
+                $link.TargetPath = Join-Path $env:SystemRoot 'System32\cmd.exe'
+                $link.Arguments = '/d /c echo unexpected>"' + $wizardMarker + '"'
+                $link.Save()
+            } finally { [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($link) }
+        } finally { [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($shell) }
+    }
     if ($env:GITHUB_ACTIONS -eq 'true' -and $env:SHIFT_CRASH_MONITOR) {
         $dumpDirectory = Join-Path $env:RUNNER_TEMP ('SHIFT-dumps-' + [guid]::NewGuid().ToString('N'))
         New-Item $dumpDirectory -ItemType Directory | Out-Null
@@ -129,6 +203,7 @@ try {
     $process = Start-Process $exe -WorkingDirectory $app -PassThru
     if (-not $ResumeOwnedData) {
         Click 'Начать с чистого листа'
+        if ($QuickSetup) { Test-QuickSetup 'ru'; Click '' 'Nav.Overview' }
         Click '' 'Workspace.New'
         Set-Field 'Field.Name' 'SHIFT smoke workspace'
         Click 'Сохранить'
@@ -173,6 +248,7 @@ try {
         Select-Choice 'Field.Language' 'English'
         Click 'Сохранить'
         $null = Wait-For { Find-Control 'Overview' ([System.Windows.Automation.ControlType]::Button) } 'localized settings rebuild'
+        if ($QuickSetup) { Test-QuickSetup 'en'; Click '' 'Nav.Overview' }
         Click '' 'Quick.Open'
         Set-Field 'Quick.Search' 'SHIFT smoke'
         $null = Wait-For { Find-Control '↗  SHIFT smoke workspace' ([System.Windows.Automation.ControlType]::Text) } 'quick launcher search'
@@ -210,6 +286,15 @@ try {
     Set-Field 'Quick.Search' 'SHIFT smoke'
     $null=Wait-For { Find-Control '↗  SHIFT smoke workspace' ([System.Windows.Automation.ControlType]::Text) } 'persisted workspace after restart'
     Click '' 'Quick.Close'
+    if ($QuickSetup) {
+        foreach ($language in @('ru','en')) {
+            Click '' 'Quick.Open'
+            Set-Field 'Quick.Search' ('SHIFT wizard ' + $language)
+            $null = Wait-For { Find-Control ('↗  SHIFT wizard ' + $language) ([System.Windows.Automation.ControlType]::Text) } 'wizard workspace survived restart'
+            Click '' 'Quick.Close'
+        }
+        if (Test-Path $wizardMarker) { throw 'Wizard shortcut executed during restart.' }
+    }
     Click '' 'Nav.Settings'
     $theme=Wait-For { Find-Control '' ([System.Windows.Automation.ControlType]::ComboBox) 'Field.Theme' } 'persisted theme'
     $selected=$theme.GetCurrentPattern([System.Windows.Automation.SelectionPattern]::Pattern).Current.GetSelection()
@@ -224,6 +309,7 @@ try {
     if($errors){throw 'Application logged an unexpected error during UI smoke.'}
     $checks=@('workspace_persistence','english_persistence','midnight_theme_persistence','command_proof_persistence','graceful_exit')
     if(-not $ResumeOwnedData){$checks+=@('workspace_create','item_create','doctor_read_only','doctor_repeat','command_refusal','command_approval','real_dispatch','compact_search','tray','second_instance_activation','restart')}
+    if($QuickSetup){$checks+=@('quick_setup_ru','quick_setup_en','quick_setup_discovery','quick_setup_search','quick_setup_empty_search','quick_setup_selection_retained','quick_setup_preview_back','quick_setup_cancel_without_save','quick_setup_save','quick_setup_no_dispatch','quick_setup_restart_persistence')}
     if($DiagnosticsDirectory){
         @{schema_version=1;status='passed';environment='disposable-windows-ui-automation';mode=$label;resumed=[bool]$ResumeOwnedData;checks=$checks;manual_acceptance=$false;timestamp_utc=[DateTime]::UtcNow.ToString('o')} |
             ConvertTo-Json -Depth 4 | Set-Content (Join-Path $DiagnosticsDirectory "$label-smoke.json")
@@ -265,4 +351,5 @@ try {
     }
     if ($null -ne $monitor) { if (-not $monitor.HasExited) { $monitor.Kill();$monitor.WaitForExit() };$monitor.Dispose() }
     if (-not $PreserveData -and (Test-Path $data)) { Remove-Item $data -Recurse -Force }
+    if ($shortcutFixture -and (Test-Path $shortcutFixture)) { Remove-Item $shortcutFixture -Recurse -Force }
 }

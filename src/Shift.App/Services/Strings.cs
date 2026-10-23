@@ -46,6 +46,7 @@ public sealed class Strings
         ["Setup.Search"] = ("Поиск приложений и групп", "Search apps and groups"),
         ["Setup.Next"] = ("Далее: название и предпросмотр", "Next: name and preview"),
         ["Setup.Save"] = ("Сохранить пространство", "Save workspace"),
+        ["Setup.Back"] = ("Назад", "Back"),
         ["Setup.SelectionCount"] = ("Выбрано {0} из {1} · шаг 1 из 2", "Selected {0} of {1} · step 1 of 2"),
         ["Setup.PreviewCount"] = ("{0} приложений · шаг 2 из 2", "{0} apps · step 2 of 2"),
         ["Setup.Unknown"] = ("Запуск не проверен. Цель и встроенные параметры ярлыков не разрешались. Сохранение ничего не запускает; перед первым запуском проверьте свойства ярлыков и пространство.", "Launch is unverified. Shortcut targets and embedded parameters were not resolved. Saving launches nothing; review shortcut properties and inspect the workspace before its first launch."),

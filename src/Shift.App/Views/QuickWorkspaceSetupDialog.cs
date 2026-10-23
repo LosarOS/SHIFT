@@ -145,7 +145,7 @@ public sealed partial class MainWindow
                     previewItems.Children.Add(Card(item, 12));
                 }
                 dialog.PrimaryButtonText = s["Setup.Save"];
-                dialog.SecondaryButtonText = s["Back"];
+                dialog.SecondaryButtonText = s["Setup.Back"];
                 UpdateStatus();
                 name.Focus(FocusState.Programmatic);
                 name.SelectAll();

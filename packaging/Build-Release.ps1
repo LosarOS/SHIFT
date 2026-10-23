@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [ValidatePattern('^\d+\.\d+\.\d+(?:-rc\.\d+)?$')][string]$Version = '1.0.0-rc.2',
-    [string]$IsccPath = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+    [string]$IsccPath = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+    [switch]$QuickSetupSmoke
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -60,7 +61,9 @@ try {
     Copy-Item $publish $portable -Recurse
     New-Item (Join-Path $portable 'portable.flag') -ItemType File -Force | Out-Null
     Copy-Item docs/INSTALLATION.md (Join-Path $portable 'INSTALLATION.md')
-    & powershell.exe -NoProfile -File (Join-Path $PSScriptRoot 'Smoke-Windows.ps1') -AppDirectory $portable -DiagnosticsDirectory (Join-Path $out 'diagnostics')
+    $extraSmoke = @()
+    if ($QuickSetupSmoke) { $extraSmoke += '-QuickSetup' }
+    & powershell.exe -NoProfile -File (Join-Path $PSScriptRoot 'Smoke-Windows.ps1') -AppDirectory $portable -DiagnosticsDirectory (Join-Path $out 'diagnostics') @extraSmoke
     if ($LASTEXITCODE -ne 0) { throw 'Windows UI smoke failed.' }
     $zip = Join-Path $out "SHIFT-$Version-win-x64-portable.zip"
     Compress-Archive -Path $portable -DestinationPath $zip -Force
