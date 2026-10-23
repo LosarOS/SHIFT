@@ -5,7 +5,7 @@
 #include <vector>
 #include <string>
 
-struct Output : IDebugOutputCallbacks {
+struct DebugOutput : IDebugOutputCallbacks {
     STDMETHOD(QueryInterface)(REFIID id, void** value) override {
         if (id == __uuidof(IUnknown) || id == __uuidof(IDebugOutputCallbacks)) { *value=this; return S_OK; }
         *value=nullptr;return E_NOINTERFACE;
@@ -23,7 +23,7 @@ int main(int argc,char** argv) {
     client->QueryInterface(__uuidof(IDebugControl),reinterpret_cast<void**>(&control));
     client->QueryInterface(__uuidof(IDebugDataSpaces),reinterpret_cast<void**>(&memory));
     client->QueryInterface(__uuidof(IDebugSymbols),reinterpret_cast<void**>(&symbols));
-    Output output;client->SetOutputCallbacks(&output);
+    DebugOutput output;client->SetOutputCallbacks(&output);
     symbols->SetSymbolPath("srv*https://msdl.microsoft.com/download/symbols");
     if(FAILED(hr=client->OpenDumpFile(argv[1])) || FAILED(hr=control->WaitForEvent(0,15000))) {std::printf("Open dump: %08lx\n",hr);return 4;}
     control->Execute(DEBUG_OUTCTL_THIS_CLIENT,".exr -1; .ecxr; k 12",DEBUG_EXECUTE_DEFAULT);
