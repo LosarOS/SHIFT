@@ -97,3 +97,11 @@ Known limits: view updates still rebuild native control trees; performance of la
 ## Выбор LTS runtime
 
 Проект использует .NET 10 LTS в рамках требования .NET 8+. Поддержка .NET 8 заканчивается 10 ноября 2026 года, поэтому для нового приложения осенью 2026 выбран более длительный горизонт поддержки .NET 10. Слои и WinUI 3 остаются прежними. Обновление зависимостей подтверждается core tests и отдельной Windows QA.
+
+## Workspace Doctor
+
+`IWorkspaceDoctor` / `WorkspaceDoctor` owns a cancellable read-only pass over the saved item snapshot and reuses `WorkspaceValidator`. `IItemInspection` is the infrastructure boundary; `LocalItemInspection` performs filesystem/access/PE-header/shortcut-header and Windows association observations on a worker thread. It never depends on `IItemLauncher`, a process executor or HTTP client.
+
+Mapped network drives, reparse points (including ancestors), offline/cloud objects and unresolved shortcut targets are reported as unverified instead of being followed. The scan has bounded item counts and executable-header offsets. Command text is never parsed as trusted code; consent remains mandatory in the existing LaunchCoordinator. Arguments are checked only against the supported data model.
+
+The WinUI dialog owns scan cancellation and waits for its current task on closure. Results are temporary observations, not persisted safety approvals. LaunchRequestFactory independently revalidates the path at dispatch time; a successful observation cannot authorize a removed/replaced file. Closing the dialog or selecting an editor never launches an item.

@@ -1,3 +1,7 @@
+# Current RC2 session
+
+2026-10-23: [engineering session report](../reports/engineering-session-2026-10-23.md) tracks the current Windows work and release gates. Linux .NET10 core suite now **110 passed, 0 failed, 0 skipped**. Native Windows publish is confirmed; runtime inspection identified additional WinUI resource blockers, so no downloadable verified RC2 release is claimed here. The following section is preserved as historical RC1 evidence.
+
 # Фактическая валидация 1.0.0-rc.1
 
 2026-10-21 · Linux x64 / Debian 13 · .NET SDK 10.0.402 / runtime 10.0.13.

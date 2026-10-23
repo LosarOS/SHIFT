@@ -10,12 +10,13 @@
 
 Bring your apps, folders, documents, projects and links into a workspace. Open your context in one action, see what happened, and move on with your day.
 
-**1.0.0-rc.1 is a release candidate.** Core checks are automated; a stable 1.0 release requires Windows build, UI, installer and manual acceptance checks. The exact verified state is recorded in [VALIDATION](docs/VALIDATION.md). A version number is not a substitute for testing.
+**1.0.0-rc.2 is undergoing release validation.** Core checks are automated; a stable 1.0 release requires Windows build, UI, installer and manual acceptance checks. The exact verified state is recorded in [VALIDATION](docs/VALIDATION.md). A version number is not a substitute for testing.
 
 ## Designed for your working day
 
 - **Workspaces that stay yours.** Create, edit, clone, tag, search and favorite. Sort by recency, name or frequency of use.
 - **One visible launch queue.** Set order and delays; disable optional steps; cancel remaining steps. One failure does not stop the other items.
+- **Inspect before launching.** Workspace Doctor checks local paths, executable headers, URL format and shell availability without opening targets. Review warnings and jump directly to the item editor. Shortcut targets, arbitrary arguments and application readiness are explicitly unverified.
 - **A compact launcher.** Press Ctrl+K in SHIFT or opt into the Ctrl+Alt+Space global shortcut. Search a workspace and press Enter.
 - **History with useful detail.** Results per item, Unicode search, failure filtering, pagination, retry and local usage counts across the full database.
 - **Control over executable actions.** Review and confirm commands on every launch. Importing a workspace never starts it.
@@ -49,7 +50,7 @@ dotnet test tests/Shift.Tests -c Release
 Create the Windows distribution with PowerShell 7 and Inno Setup 6:
 
 ```powershell
-pwsh ./packaging/Build-Release.ps1 -Version 1.0.0-rc.1
+pwsh ./packaging/Build-Release.ps1 -Version 1.0.0-rc.2
 ```
 
 The script runs locked restore, core tests, self-contained publish and UI Automation smoke, then creates a portable ZIP, per-user installer and SHA-256 checksums in `artifacts/`. Windows CI additionally tests the installed app and uninstall. The UI smoke includes an explicitly approved harmless command that writes a marker into its disposable test profile; it also verifies refusal does not execute it. Diagnostics and real-window screenshots are saved for failed CI.

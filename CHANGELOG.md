@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.0-rc.2 — candidate under validation
+
+- Added cancellable Workspace Doctor with Ready / Warning / Error / Unknown observations, RU/EN guidance and direct item editing.
+- Local probes reject damaged PE/shortcut headers and report missing paths, access failures, unavailable associations and unverified targets without execution or network probes.
+- Fixed duplicate WinUI icon PRI entries and conflicting WindowsDesktop XAML targets; added generated application metadata.
+- Replaced the unsupported unpackaged accessibility event subscription with desktop HWND notifications.
+- Added safe HRESULT/method-frame logging and bounded disposable CI native crash diagnostics.
+- Added 47 Doctor/logging regression cases; 110 core tests pass on Linux. Native runtime and installer gates remain tracked in the session report.
+
 ## 1.0.0-rc.1 — 2026-10-20
 
 ### Added
