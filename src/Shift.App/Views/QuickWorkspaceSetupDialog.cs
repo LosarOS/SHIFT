@@ -34,8 +34,9 @@ public sealed partial class MainWindow
         var preview = Stack(12);
         preview.Visibility = Visibility.Collapsed;
         var name = new TextBox { Text = s["Untitled"], MaxLength = 100 };
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(name, "Setup.Name");
         preview.Children.Add(Field(s["Name"], name));
+        // Field assigns the generic Field.Name identity; preserve this wizard-specific identity afterwards.
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(name, "Setup.Name");
         preview.Children.Add(Text(s["Setup.Unknown"], 13, true));
         var previewItems = Stack(8);
         preview.Children.Add(new ScrollViewer { Content = previewItems, MaxHeight = 250, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled });
