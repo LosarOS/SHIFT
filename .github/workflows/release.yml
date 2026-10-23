@@ -46,6 +46,11 @@ jobs:
           [xml]$trx = Get-Content $reports[0].FullName -Raw
           $counts = $trx.TestRun.ResultSummary.Counters
           if ([int]$counts.total -le 0 -or [int]$counts.failed -ne 0 -or [int]$counts.passed -ne [int]$counts.total) { throw 'Native core tests are empty, skipped or failed.' }
+          $nativeChecks = @('artifacts/diagnostics/portable-smoke.json', 'artifacts/diagnostics/installed-smoke.json', 'artifacts/diagnostics/installer-smoke.json', 'artifacts/diagnostics-reinstall/installed-smoke.json')
+          foreach ($path in $nativeChecks) {
+            $evidence = Get-Content $path -Raw | ConvertFrom-Json
+            if ($evidence.schema_version -ne 1 -or $evidence.status -ne 'passed' -or $evidence.manual_acceptance -ne $false -or @($evidence.checks).Count -eq 0) { throw "Invalid native smoke evidence: $path" }
+          }
           $report = [ordered]@{
             schema_version = 1; version = $env:SHIFT_VERSION; source_commit = $env:GITHUB_SHA
             workflow_run = "https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
@@ -61,6 +66,7 @@ jobs:
           $screenshots = @(Get-ChildItem artifacts/diagnostics -Filter '*.png' -File)
           if ($screenshots.Count -eq 0) { throw 'Actual Windows UI screenshots are missing.' }
           Compress-Archive -LiteralPath $screenshots.FullName -DestinationPath artifacts/SHIFT-Windows-UI-Evidence.zip
+          Compress-Archive -LiteralPath $nativeChecks -DestinationPath artifacts/SHIFT-Native-Smoke-Evidence.zip
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: SHIFT-release-candidate
@@ -70,8 +76,8 @@ jobs:
             artifacts/SHA256SUMS.txt
             artifacts/WINDOWS-VALIDATION.json
             artifacts/test-results/*.trx
-            artifacts/diagnostics/**/*.png
-            artifacts/diagnostics-reinstall/**/*.png
+            artifacts/diagnostics/**
+            artifacts/diagnostics-reinstall/**
       - name: Publish after verifying GitHub-downloaded bytes
         if: github.ref_type == 'tag'
         shell: pwsh
@@ -86,7 +92,7 @@ jobs:
           $tagged = gh api "repos/$env:GITHUB_REPOSITORY/commits/$tag" --jq '.sha'
           if ($LASTEXITCODE -ne 0 -or $tagged -ne $env:GITHUB_SHA) { throw 'Tag/source mismatch.' }
           foreach ($name in $files) { if ((Get-Item "artifacts/$name").Length -le 0) { throw 'Empty binary.' } }
-          gh release create $tag "artifacts/$($files[0])" "artifacts/$($files[1])" artifacts/SHA256SUMS.txt artifacts/WINDOWS-VALIDATION.json artifacts/SHIFT-Windows-UI-Evidence.zip --draft --prerelease --verify-tag --title "SHIFT $env:SHIFT_VERSION · Windows x64" --notes-file docs/RELEASE_NOTES.md
+          gh release create $tag "artifacts/$($files[0])" "artifacts/$($files[1])" artifacts/SHA256SUMS.txt artifacts/WINDOWS-VALIDATION.json artifacts/SHIFT-Windows-UI-Evidence.zip artifacts/SHIFT-Native-Smoke-Evidence.zip --draft --prerelease --verify-tag --title "SHIFT $env:SHIFT_VERSION · Windows x64" --notes-file docs/RELEASE_NOTES.md
           if ($LASTEXITCODE -ne 0) { throw 'Draft release creation failed.' }
           $download = Join-Path $env:RUNNER_TEMP 'SHIFT-published-verification'
           New-Item $download -ItemType Directory | Out-Null
