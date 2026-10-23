@@ -45,8 +45,10 @@ public class StudioApplicationTests
     private sealed class Images : IStudioImageLibrary
     {
         public string? ResolvedPath;
-        public Task<string> ImportAsync(string path, CancellationToken token = default) => Task.FromResult(ResolvedPath ?? path);
-        public Task ValidateAsync(string path, CancellationToken token = default) { if (path.EndsWith("missing.png")) throw new FileNotFoundException(); return Task.CompletedTask; }
+        public Dictionary<string, string> ImportPaths = [];
+        public HashSet<string> InvalidPaths = [];
+        public Task<string> ImportAsync(string path, CancellationToken token = default) => Task.FromResult(ImportPaths.GetValueOrDefault(path, ResolvedPath ?? path));
+        public Task ValidateAsync(string path, CancellationToken token = default) { if (InvalidPaths.Contains(path) || path.EndsWith("missing.png")) throw new FileNotFoundException(); return Task.CompletedTask; }
     }
     private sealed class Runtime : IWidgetRuntime
     {
@@ -173,6 +175,40 @@ public class StudioApplicationTests
         var f = new Fixture(); await f.Service.ApplyAsync(f.Profile.Id, true);
         await Assert.ThrowsAsync<InvalidOperationException>(() => f.Service.ApplyAsync(f.Profile.Id, false));
         Assert.Equal(1, f.Wallpaper.Sets);
+    }
+    [Fact] public async Task DeletedOriginalUsesCapturedManagedCopy()
+    {
+        var f = new Fixture(); var original = f.Wallpaper.Values["A"]; var copy = @"C:\managed\captured-a.png";
+        f.Images.ImportPaths[original] = copy;
+        var result = await f.Service.ApplyAsync(f.Profile.Id, true);
+        var journal = f.Store.Journals[result.JournalId];
+        Assert.Equal(original, journal.Before.Wallpapers.Single(w => w.MonitorId == "A").ImagePath);
+        Assert.Equal(copy, journal.RecoveryWallpapers.Single(w => w.MonitorId == "A").ImagePath);
+        f.Images.InvalidPaths.Add(original);
+        Assert.True((await f.Service.RestoreAsync(result.JournalId)).Restored);
+        Assert.Equal(copy, f.Wallpaper.Values["A"]);
+        var sets = f.Wallpaper.Sets; Assert.True((await f.Service.RestoreAsync(result.JournalId)).Restored); Assert.Equal(sets, f.Wallpaper.Sets);
+    }
+    [Fact] public async Task PartialRestoreRecognizesPreviouslyAppliedRecoveryCopy()
+    {
+        var f = new Fixture(); var original = f.Wallpaper.Values["A"]; var copy = @"C:\managed\captured-a.png";
+        f.Images.ImportPaths[original] = copy;
+        f.Store.Profiles[0] = f.Profile with { Wallpapers = [new("A", @"C:\a.png"), new("B", @"C:\b.png")] };
+        var result = await f.Service.ApplyAsync(f.Profile.Id, true);
+        f.Images.InvalidPaths.Add(original); f.Wallpaper.FailMonitor = "B";
+        Assert.False((await f.Service.RestoreAsync(result.JournalId)).Restored); Assert.Equal(copy, f.Wallpaper.Values["A"]);
+        f.Wallpaper.FailMonitor = null; var sets = f.Wallpaper.Sets;
+        var retry = await f.Service.RestoreAsync(result.JournalId);
+        Assert.True(retry.Restored); Assert.Empty(retry.Conflicts); Assert.Equal(sets + 1, f.Wallpaper.Sets); Assert.Equal(copy, f.Wallpaper.Values["A"]);
+    }
+    [Fact] public async Task OriginalAndBackupFailureDoesNotApplyAnUnrelatedImage()
+    {
+        var f = new Fixture(); var original = f.Wallpaper.Values["A"]; var copy = @"C:\managed\captured-a.png";
+        f.Images.ImportPaths[original] = copy;
+        var result = await f.Service.ApplyAsync(f.Profile.Id, true);
+        f.Images.InvalidPaths.UnionWith([original, copy]);
+        var restore = await f.Service.RestoreAsync(result.JournalId);
+        Assert.False(restore.Restored); Assert.NotEmpty(restore.Errors); Assert.Equal(@"C:\selected.png", f.Wallpaper.Values["A"]);
     }
     [Fact] public async Task StartupPendingInspectionIsReadOnlyAndNeverReapplies()
     {

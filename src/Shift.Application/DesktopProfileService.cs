@@ -56,13 +56,21 @@ public sealed class DesktopProfileService(IStudioStore store, IWallpaperService 
                 throw new InvalidOperationException(before.Limitation ?? "The current wallpaper configuration cannot be restored safely.");
             foreach (var assignment in profile.Wallpapers)
                 if (!before.Wallpapers.Any(w => w.MonitorId == assignment.MonitorId)) throw new InvalidOperationException("A selected display is no longer available.");
+            var recoveryWallpapers = new List<WallpaperAssignment>();
+            if (changesWindows)
+                foreach (var assignment in before.Wallpapers)
+                {
+                    var copy = await images.ImportAsync(assignment.ImagePath, token);
+                    await images.ValidateAsync(copy, token);
+                    recoveryWallpapers.Add(assignment with { ImagePath = copy });
+                }
             var previous = profiles.FirstOrDefault(p => p.Id == settings.ActiveProfileId);
             journal = new StudioRecoveryJournal
             {
                 ProfileId = profile.Id, PreviousProfileId = settings.ActiveProfileId,
                 PreviousProfileSnapshot = previous,
                 PreviousDefinitions = previous is null ? [] : definitions.Where(d => previous.Widgets.Any(w => w.DefinitionId == d.Id)).ToArray(),
-                Before = before,
+                Before = before, RecoveryWallpapers = recoveryWallpapers,
                 Intended = new(profile.Wallpapers.ToArray(), profile.ChangeWallpaperPosition ? profile.WallpaperPosition : before.Position, true),
                 Status = StudioApplyStatus.Applying
             };
@@ -157,6 +165,20 @@ public sealed class DesktopProfileService(IStudioStore store, IWallpaperService 
             if (journal.Status == StudioApplyStatus.Restored) return new(true, [], []);
             if (journal.Status == StudioApplyStatus.Kept) return new(false, [], ["This operation was explicitly acknowledged as kept."]);
             var hasWindowsChanges = journal.AttemptedMonitorIds.Count > 0 || journal.PositionAttempted;
+            var recoveryCopies = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var copy in journal.RecoveryWallpapers)
+            {
+                try
+                {
+                    var resolved = await images.ImportAsync(copy.ImagePath, token);
+                    await images.ValidateAsync(resolved, token);
+                    recoveryCopies[copy.MonitorId] = resolved;
+                }
+                catch (OperationCanceledException) { throw; }
+                catch (Exception ex) { log.Error("Studio recovery copy unavailable; original will be checked", ex); }
+            }
+            bool AlreadyRestored(string monitorId, string actual, string original) => Same(actual, original)
+                || recoveryCopies.TryGetValue(monitorId, out var copy) && Same(actual, copy);
             var current = hasWindowsChanges ? await wallpapers.CaptureAsync(token) : journal.Before;
             if (hasWindowsChanges && (!current.CanRestore || current.SlideshowActive)) return new(false, [current.Limitation ?? "Windows wallpaper state cannot be compared safely."], []);
             foreach (var id in journal.AttemptedMonitorIds.Distinct())
@@ -165,7 +187,7 @@ public sealed class DesktopProfileService(IStudioStore store, IWallpaperService 
                 var before = journal.Before.Wallpapers.FirstOrDefault(w => w.MonitorId == id);
                 var expected = journal.Intended.Wallpapers.FirstOrDefault(w => w.MonitorId == id);
                 if (actual is null || before is null || expected is null) conflicts.Add("Display unavailable or recovery snapshot incomplete: " + id);
-                else if (!Same(actual.ImagePath, expected.ImagePath) && !Same(actual.ImagePath, before.ImagePath)) conflicts.Add("Wallpaper changed after SHIFT: " + id);
+                else if (!Same(actual.ImagePath, expected.ImagePath) && !AlreadyRestored(id, actual.ImagePath, before.ImagePath)) conflicts.Add("Wallpaper changed after SHIFT: " + id);
             }
             if (journal.PositionAttempted && current.Position != journal.Intended.Position && current.Position != journal.Before.Position) conflicts.Add("Wallpaper placement changed after SHIFT.");
             var settings = await store.LoadStudioSettingsAsync(token);
@@ -185,9 +207,21 @@ public sealed class DesktopProfileService(IStudioStore store, IWallpaperService 
                 if (!freshSnapshot.CanRestore || freshSnapshot.SlideshowActive) { conflicts.Add("Windows wallpaper state changed during restore: " + id); continue; }
                 var fresh = freshSnapshot.Wallpapers.FirstOrDefault(w => w.MonitorId == id);
                 if (before is null || expected is null || fresh is null) { errors.Add("Display unavailable: " + id); continue; }
-                if (Same(fresh.ImagePath, before.ImagePath)) continue;
+                if (AlreadyRestored(id, fresh.ImagePath, before.ImagePath)) continue;
                 if (!overwriteConflicts && !Same(fresh.ImagePath, expected.ImagePath)) { conflicts.Add("Wallpaper changed during restore: " + id); continue; }
-                try { await wallpapers.SetWallpaperAsync(before, token); }
+                try
+                {
+                    var target = before;
+                    try { await images.ValidateAsync(before.ImagePath, token); }
+                    catch (OperationCanceledException) { throw; }
+                    catch
+                    {
+                        if (!recoveryCopies.TryGetValue(id, out var copy)) throw new IOException("Original wallpaper and managed recovery copy are unavailable: " + id);
+                        await images.ValidateAsync(copy, token);
+                        target = before with { ImagePath = copy };
+                    }
+                    await wallpapers.SetWallpaperAsync(target, token);
+                }
                 catch (OperationCanceledException) { throw; }
                 catch (Exception ex) { errors.Add(Error(ex)); log.Error("Studio wallpaper restore failed", ex); }
             }

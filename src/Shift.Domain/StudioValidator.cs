@@ -80,6 +80,11 @@ public static class StudioValidator
             Require(snapshot.Wallpapers.Select(w => w.MonitorId).Distinct(StringComparer.OrdinalIgnoreCase).Count() == snapshot.Wallpapers.Count, "Journal", "Duplicate snapshot display IDs.");
         }
         Require(journal.Errors!.All(e => e is not null && e.Length <= 2000), "Journal", "Recovery error exceeds limits.");
+        Require(journal.RecoveryWallpapers is not null && journal.RecoveryWallpapers.Count <= 32
+            && journal.RecoveryWallpapers.All(w => w is not null && Name(w.MonitorId, 2048) && LocalPath(w.ImagePath)
+                && journal.Before.Wallpapers.Any(before => before.MonitorId == w.MonitorId))
+            && journal.RecoveryWallpapers.Select(w => w.MonitorId).Distinct(StringComparer.OrdinalIgnoreCase).Count() == journal.RecoveryWallpapers.Count,
+            "Journal", "Managed recovery copies are invalid.");
         if (journal.PreviousProfileSnapshot is not null) Validate(journal.PreviousProfileSnapshot);
         Require(journal.PreviousDefinitions is not null && journal.PreviousDefinitions.Count <= 128, "Journal", "Recovery definitions exceed limits.");
         foreach (var definition in journal.PreviousDefinitions!) Validate(definition);
