@@ -84,3 +84,20 @@ Visual review found two copy issues: singular item counts and an enabled-item to
 
 
 Exact distribution [40006182259](https://github.com/LosarOS/SHIFT/actions/runs/40006182259) at `64c74b5` passed: portable UI smoke launched the actual extracted ZIP; installed/reinstall/uninstall and SQLite preservation also passed. Final source UI copy polish requires its final native compile/Doctor smoke; no further feature expansion is planned for RC2. Main merge and tag builds remain required before public release.
+
+## Public RC2 release — final checkpoint
+
+Status:**VERIFIED PRERELEASE WITH DISCLOSED LIMITATIONS**. [Release v1.0.0-rc.2](https://github.com/LosarOS/SHIFT/releases/tag/v1.0.0-rc.2), binary/tag commit `7557c6e84732df26e2d1578d2c7662dc058bd870`. PR9 merged. PR11 test-protocol fix merged as169b3e4; no application source or original binary asset changed. Quick Setup PR10 retargeted to main and remains draft.
+
+Original tag build40007797394 passed. Parallel main CI40007747403 failed a graceful-close timeout: its existing Overview-button wait did not synchronize with asynchronous Save. Code-supported mechanism is close using the previous persisted minimize-to-tray preference; the exact hidden/destroyed state was not measured in that failed run. Publication was temporarily held as draft during diagnosis.
+
+The fixed smoke awaits fresh Save/tray peers and persisted Off state, closes once, and retains the original timeout. Fixed-script CI40008965322 passed. Original release binaries—not rebuilt replacements—were fetched, hash-verified and passed all corrected native gates in40008979283; additive proof attached. Tag and binary assets were never replaced. The release was then made public again.
+
+| Asset | Bytes | SHA256 |
+|---|---:|---|
+| SHIFT-1.0.0-rc.2-win-x64-portable.zip |106392214|928545e13ec3f6b22e584723c4c3c292beb043074e7eca8f990503ed68c10a4e|
+| SHIFT-1.0.0-rc.2-win-x64-setup.exe |72401163|4254cfbb8cb4638ec23269444bae8c87486a0c02ef5edd5bed08c7dcf245563b|
+
+Both public binary URLs and SHA256SUMS returned HTTP200 with expected nonzero content lengths. Original-byte revalidation confirms16 portable/16 installed/9 installer/5 reopened-profile checks; these are grouped automation assertions, not separate unit-test counts. Core suite remains110 passed on each OS with zero skips. Real raw screenshots from that revalidation are in docs/screenshots/rc2; they contain only synthetic CI data. No generated imagery was substituted.
+
+Remaining manual gates: physical Windows10/11, startup after actual user logon, full DPI/text scaling, Narrator/high contrast/reduced-motion and signing/SmartScreen. Same-version repair is not exhaustive older-release migration. Doctor Ready is local inspection, not application readiness. Live Codex Team development remains auth-blocked as recorded above.

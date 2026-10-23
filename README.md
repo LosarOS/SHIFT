@@ -10,7 +10,11 @@
 
 Bring your apps, folders, documents, projects and links into a workspace. Open your context in one action, see what happened, and move on with your day.
 
-**1.0.0-rc.2 is a Windows prerelease candidate.** [Windows downloads and checksums](https://github.com/LosarOS/SHIFT/releases). Native build, portable/installed UI Automation and installer preservation have passed; publication additionally verifies the extracted distribution and GitHub-downloaded bytes. Manual Windows 10/11, accessibility and DPI acceptance remain required before stable1.0. The exact verified state is recorded in [VALIDATION](docs/VALIDATION.md). A version number is not a substitute for testing.
+**1.0.0-rc.2 is available as an unsigned Windows prerelease.** [Windows downloads and checksums](https://github.com/LosarOS/SHIFT/releases). Native build, portable/installed UI Automation and installer preservation have passed; publication additionally verifies the extracted distribution and GitHub-downloaded bytes. Manual Windows 10/11, accessibility and DPI acceptance remain required before stable1.0. The exact verified state is recorded in [VALIDATION](docs/VALIDATION.md). A version number is not a substitute for testing.
+
+![SHIFT Overview — actual Windows CI capture](docs/screenshots/rc2/overview.png)
+
+Actual Windows runner capture with synthetic acceptance data. [Doctor and other native views](docs/screenshots/rc2/README.md).
 
 ## Designed for your working day
 

@@ -1,3 +1,16 @@
+# Published RC2 — final evidence
+
+**VERIFIED PRERELEASE WITH DISCLOSED LIMITATIONS** · [Download](https://github.com/LosarOS/SHIFT/releases/tag/v1.0.0-rc.2).
+
+- Binary/tag source:`7557c6e84732df26e2d1578d2c7662dc058bd870`; release build [40007797394](https://github.com/LosarOS/SHIFT/actions/runs/40007797394) passed all canonical gates and verified downloaded GitHub hashes.
+- Core:**110 passed,0failed,0skipped**, Windows and Linux. Real extracted portable ZIP, installed UI, Doctor without dispatch, command consent, restart/persistence, same-version repair/uninstall/reinstall and SQLite preservation passed.
+- Parallel main CI exposed a smoke synchronization defect: an existing navigation button did not acknowledge asynchronous settings save. [PR11](https://github.com/LosarOS/SHIFT/pull/11) waits for rebuilt saved controls; no application code changed.
+- The unchanged original ZIP/EXE were downloaded and revalidated using corrected scripts, [40008979283](https://github.com/LosarOS/SHIFT/actions/runs/40008979283). Additive proof `WINDOWS-REVALIDATION-40008979283.json` records both binary SHA256 values, original source and verification-script source. [Fixed-script CI40008965322](https://github.com/LosarOS/SHIFT/actions/runs/40008965322) also passed.
+- Public setup/portable/checksum links returned **HTTP200**, nonzero expected sizes. Release is public, prerelease=true, unsigned.
+- [Six raw native captures](screenshots/rc2/README.md) were reviewed. Environment: disposable Windows Server2025 x64 runner. No physical Windows10/11,100–200% DPI,Narrator/high contrast or signing acceptance is claimed. Stable1.0 remains blocked on these gates.
+
+The following sections preserve earlier session checkpoints; their pending statuses are historical, not the final public RC2 status.
+
 # Current RC2 session — 2026-10-23
 
 [Engineering report](../reports/engineering-session-2026-10-23.md) records the current source and remaining gates. Native Windows [run39955142632](https://github.com/LosarOS/SHIFT/actions/runs/39955142632) at `b900ab60fa1891008df02c129b52e4d56872eb79` **passed**:

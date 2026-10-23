@@ -8,7 +8,7 @@
 
 Соберите приложения, папки, файлы, ссылки и команды в пространство под задачу. Запускайте по порядку, смотрите результаты, возвращайтесь к следующему контексту одним действием. Без аккаунта, облака, телеметрии и платных API.
 
-> **1.0.0-rc.2 — Windows prerelease-кандидат.** [Скачать Windows-сборки и SHA256](https://github.com/LosarOS/SHIFT/releases). Нативная сборка, UI Automation portable/installed и сохранность данных установщика проверены. Публикация дополнительно требует проверки извлечённого ZIP и скачанных GitHub-файлов. До stable1.0 остаётся ручная приёмка Windows 10/11, accessibility и DPI. Результаты проверок и оставшиеся release gates: [VALIDATION](docs/VALIDATION.md).
+> **1.0.0-rc.2 опубликован как неподписанный Windows prerelease.** [Скачать Windows-сборки и SHA256](https://github.com/LosarOS/SHIFT/releases). Нативная сборка, UI Automation portable/installed и сохранность данных установщика проверены. Публикация дополнительно требует проверки извлечённого ZIP и скачанных GitHub-файлов. До stable1.0 остаётся ручная приёмка Windows 10/11, accessibility и DPI. Результаты проверок и оставшиеся release gates: [VALIDATION](docs/VALIDATION.md).
 
 ## Реализовано
 
