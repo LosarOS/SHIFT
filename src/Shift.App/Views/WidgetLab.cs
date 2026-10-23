@@ -3,12 +3,12 @@ namespace Shift.App;
 
 public sealed partial class MainWindow
 {
-    private async Task EditStudioWidgetAsync(WidgetDefinition? existing, Guid? instanceId = null)
+    private async Task EditStudioWidgetAsync(WidgetDefinition? existing, Guid? instanceId = null, WidgetLayout? retainedLayout = null, Guid? retainedProfileId = null)
     {
         if (studioRuntime is null) return;
         var draft = existing ?? new WidgetDefinition { Title = T("Мой виджет", "My widget") };
         var title = new TextBox { Text = draft.Title, MaxLength = 100 };
-        var kind = new ComboBox { ItemsSource = Enum.GetValues<WidgetKind>().Select(KindName).ToArray(), SelectedIndex = (int)draft.Kind, IsEnabled = existing is null };
+        var kind = new ComboBox { ItemsSource = Enum.GetValues<WidgetKind>().Select(KindName).ToArray(), SelectedIndex = (int)draft.Kind, IsEnabled = existing is null || existing.Revision == 0 };
         var template = new ComboBox { ItemsSource = StudioTemplates.All.Select(t => t.TemplateId).ToArray(), SelectedIndex = Math.Max(0, StudioTemplates.All.ToList().FindIndex(t => t.TemplateId == draft.Style.TemplateId)) };
         var surface = new ComboBox { ItemsSource = new[] { T("Сплошной", "Solid"), T("Полупрозрачный", "Translucent"), "Acrylic · fallback", "Mica · fallback" }, SelectedIndex = (int)draft.Style.Surface };
         var background = new TextBox { Text = draft.Style.Background, MaxLength = 7 };
@@ -36,6 +36,12 @@ public sealed partial class MainWindow
             width.Value = instance.Layout.Width; height.Value = instance.Layout.Height; x.Value = instance.Layout.X; y.Value = instance.Layout.Y; alwaysOnTop.IsChecked = instance.Layout.AlwaysOnTop;
             monitor.SelectedIndex = Math.Max(0, studioMonitors.ToList().FindIndex(m => m.DeviceId == instance.Layout.MonitorId) + 1);
         }
+        if (retainedLayout is not null)
+        {
+            width.Value = retainedLayout.Width; height.Value = retainedLayout.Height; x.Value = retainedLayout.X; y.Value = retainedLayout.Y; alwaysOnTop.IsChecked = retainedLayout.AlwaysOnTop;
+            monitor.SelectedIndex = Math.Max(0, studioMonitors.ToList().FindIndex(m => m.DeviceId == retainedLayout.MonitorId) + 1);
+        }
+        if (retainedProfileId is Guid retained) profile.SelectedIndex = Math.Max(0, studioProfiles.ToList().FindIndex(p => p.Id == retained) + 1);
         var fields = Stack(12); var preview = new Border { Height = 150, CornerRadius = new CornerRadius(16), Padding = new Thickness(16) };
         var previewText = new TextBlock { TextWrapping = TextWrapping.Wrap }; preview.Child = previewText;
         var error = new InfoBar { Severity = InfoBarSeverity.Error, IsClosable = false };
@@ -110,10 +116,25 @@ public sealed partial class MainWindow
             ("Начальный текст новой заметки", "Initial text for a new note", notes, "Notes"), ("Добавить в профиль", "Add to profile", profile, "Profile") }) fields.Children.Add(StudioField(T(ru, en), control, "Studio.Widget." + id));
         fields.Children.Add(alwaysOnTop); fields.Children.Add(clock24); fields.Children.Add(seconds); fields.Children.Add(error);
         var dialog = Dialog("Widget Lab", new ScrollViewer { Content = fields, MaxHeight = 510 }, s["Save"], s["Cancel"]);
+        WidgetDefinition? languageDraft = null; WidgetLayout? languageLayout = null; Guid? languageProfile = null; string? nextLanguage = null;
+        fields.Children.Insert(0, Button(T("English · сохранить черновик", "Русский · keep draft"), () =>
+        {
+            // Validate before reopening so invalid partial values remain in this form for correction.
+            var candidate = Candidate(); var layout = Layout(); StudioValidator.Validate(candidate); StudioValidator.Validate(layout);
+            languageDraft = candidate; languageLayout = layout; languageProfile = profile.SelectedIndex > 0 ? studioProfiles[profile.SelectedIndex - 1].Id : null;
+            nextLanguage = s.Language == "ru" ? "en" : "ru"; dialog.Hide();
+        }, false, "Studio.Widget.Language"));
+        dialog.SecondaryButtonText = T("Сбросить оформление", "Reset appearance");
+        dialog.SecondaryButtonClick += (_, args) =>
+        {
+            args.Cancel = true; var style = StudioTemplates.For(StudioTemplates.All[Math.Max(0, template.SelectedIndex)].TemplateId);
+            background.Text = style.Background; foreground.Text = style.Foreground; accent.Text = style.Accent; opacity.Value = style.Opacity;
+            surface.SelectedIndex = (int)style.Surface; fontSize.Value = style.FontSize; corners.Value = style.CornerRadius; padding.Value = style.Padding; Changed();
+        };
         var saving = false; dialog.Closing += (_, args) => { if (saving) args.Cancel = true; };
         dialog.PrimaryButtonClick += async (_, args) =>
         {
-            saving = true; dialog.IsPrimaryButtonEnabled = false; var deferral = args.GetDeferral();
+            saving = true; fields.IsEnabled = false; dialog.IsPrimaryButtonEnabled = false; var deferral = args.GetDeferral();
             try
             {
                 var candidate = Candidate(); var layout = Layout(); StudioValidator.Validate(candidate); StudioValidator.Validate(layout);
@@ -129,11 +150,19 @@ public sealed partial class MainWindow
                 // Saving definitions does not silently mutate the active desktop. Apply the profile separately.
             }
             catch (Exception ex) { args.Cancel = true; error.Title = T("Виджет не сохранён полностью", "Widget was not fully saved"); error.Message = s.ErrorDetails(ex); error.IsOpen = true; }
-            finally { saving = false; dialog.IsPrimaryButtonEnabled = true; deferral.Complete(); }
+            finally { saving = false; fields.IsEnabled = true; dialog.IsPrimaryButtonEnabled = true; deferral.Complete(); }
         };
         UpdateMockup();
         try { await ShowDialogAsync(dialog); }
         finally { timer.Stop(); lifetime.Cancel(); await previewTask; await studioRuntime.ClosePreviewAsync(); }
-        RenderScreen();
+        if (nextLanguage is not null && languageDraft is not null)
+        {
+            var settings = vm.Settings with { Language = nextLanguage };
+            try { await store.SaveSettingsAsync(settings); vm.Settings = settings; }
+            catch (Exception ex) { log.Error("Editor language could not be saved; draft retained", ex); ShowNotice("Widget Lab", T("Язык не сохранён; черновик сохранён в редакторе.", "Language was not saved; your editor draft is retained."), true); }
+            s.Language = nextLanguage; BuildShell();
+            await EditStudioWidgetAsync(languageDraft, instanceId, languageLayout, languageProfile);
+        }
+        else RenderScreen();
     }
 }

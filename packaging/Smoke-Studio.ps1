@@ -68,6 +68,10 @@ function Capture([string]$Name){
  Start-Sleep -Milliseconds 500
  [void][StudioProbe]::DwmFlush()
  $bounds=[System.Windows.Forms.SystemInformation]::VirtualScreen
+ if($Name -notlike 'desktop-*' -and $main){
+  $window=New-Object StudioProbe+Rect
+  if([StudioProbe]::GetWindowRect([intptr]$main.Current.NativeWindowHandle,[ref]$window)){$bounds=New-Object Drawing.Rectangle($window.Left,$window.Top,($window.Right-$window.Left),($window.Bottom-$window.Top))}
+ }
  $bitmap=New-Object Drawing.Bitmap($bounds.Width,$bounds.Height)
  $graphics=[Drawing.Graphics]::FromImage($bitmap)
  try{$graphics.CopyFromScreen($bounds.Left,$bounds.Top,0,0,$bitmap.Size);$bitmap.Save((Join-Path $DiagnosticsDirectory ('studio-'+$Name+'.png')),[Drawing.Imaging.ImageFormat]::Png)}finally{$graphics.Dispose();$bitmap.Dispose()}
@@ -138,7 +142,11 @@ try {
  [void][StudioProbe]::GetWindowRect([intptr]$clock.Current.NativeWindowHandle,[ref]$rect)
  [void][StudioProbe]::SetWindowPos([intptr]$clock.Current.NativeWindowHandle,[intptr]::Zero,80,90,300,220,0x0014)
  Click 'Studio.Gather';Click 'Studio.EditMode';Start-Sleep -Seconds 2
- Apply 4;$checks+='reapply_no_duplicate_windows'
+ Apply 4
+ $notes=Wait-For {@(Widgets | Where-Object {$_.Current.Name -like '*Notes'}) | Select-Object -First 1} 'reapplied Notes window'
+ $editor=Wait-For {Find '' 'Note text, autosave' $notes} 'reapplied note editor'
+ if($editor.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value -ne 'Native CI note — Unicode'){throw 'Reapply displayed stale pre-flush note text.'}
+ $checks+='reapply_no_duplicate_windows'
  Click 'Studio.Restore';Click 'Studio.Restore'
  $null=Wait-For {@(Widgets).Count -eq 0} 'widget rollback'
  $wallpaperVerified=$false
@@ -162,9 +170,10 @@ try {
  [void][StudioProbe]::PostMessage([intptr]$main.Current.NativeWindowHandle,0x0010,[intptr]::Zero,[intptr]::Zero)
  if(-not $process.WaitForExit(15000)){throw 'Restarted SHIFT did not exit cleanly.'}
  $raw | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $DiagnosticsDirectory 'studio-performance-raw.json')
- @{status='passed';source_commit=$env:GITHUB_SHA;environment='disposable Windows Server runner, actual extracted SHIFT.exe';checks=$checks;wallpaper_verified=$wallpaperVerified;alpha_attribute_verified=[bool]$layered;actual_alpha=[int]$alpha;manual_acceptance=$false;multi_monitor_verified=$false;sleep_verified=$false;physical_windows11_verified=$false} | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $DiagnosticsDirectory 'studio-smoke.json')
+ @{status='passed';source_commit=$env:GITHUB_SHA;environment='disposable Windows Server runner, actual extracted SHIFT.exe';checks=$checks;wallpaper_verified=$wallpaperVerified;alpha_attribute_verified=[bool]$layered;actual_alpha=[int]$alpha;manual_acceptance=$false;multi_monitor_verified=$false;sleep_verified=$false;physical_windows11_verified=$false;not_measured=@('actual_sleep_resume','widget_lab_open_latency','full_profile_apply_latency')} | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $DiagnosticsDirectory 'studio-smoke.json')
 } catch {
  try{if($main){Capture 'failure'}}catch{}
+ if(Test-Path (Join-Path $data 'logs')){Copy-Item (Join-Path $data 'logs') (Join-Path $DiagnosticsDirectory 'studio-app-logs') -Recurse}
  throw
 } finally {
  if($process){$process.Refresh();if(-not $process.HasExited){$process.Kill();$process.WaitForExit()};$process.Dispose()}

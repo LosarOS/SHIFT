@@ -71,6 +71,7 @@ public sealed partial class MainWindow
                 ShowNotice("SHIFT Studio", T("Обнаружено незавершённое изменение оформления. Откройте Studio → Восстановление. Автоповтора нет.", "An unfinished desktop change was found. Open Studio → Recovery. It was not retried."), true);
         }
         catch (Exception ex) { log.Error("Studio initialization failed", ex); studioProblem = s.ErrorDetails(ex); studioReady = false; }
+        finally { if (vm.Section == "Studio") RenderScreen(); }
     }
     private async Task RefreshStudioAsync()
     {
@@ -120,7 +121,7 @@ public sealed partial class MainWindow
         screen.Children.Add(safety);
         if (!studioReady)
         {
-            screen.Children.Add(Text(T("Studio недоступен. Существующие пространства доступны независимо.", "Studio is unavailable. Existing workspaces remain independent."), 18));
+            screen.Children.Add(Text(studioProblem.Length == 0 ? T("Загрузка локальных профилей Studio…", "Loading local Studio profiles…") : T("Studio недоступен. Существующие пространства доступны независимо.", "Studio is unavailable. Existing workspaces remain independent."), 18));
             if (studioProblem.Length > 0) screen.Children.Add(Text(studioProblem, 13, true));
             return;
         }
@@ -219,7 +220,7 @@ public sealed partial class MainWindow
         var busy = false; dialog.Closing += (_, args) => { if (busy) args.Cancel = true; };
         dialog.PrimaryButtonClick += async (_, args) =>
         {
-            busy = true; var deferral = args.GetDeferral(); dialog.IsPrimaryButtonEnabled = false;
+            busy = true; fields.IsEnabled = false; var deferral = args.GetDeferral(); dialog.IsPrimaryButtonEnabled = false;
             try
             {
                 var linked = workspace.SelectedIndex > 0 ? vm.Workspaces[workspace.SelectedIndex - 1].Id : (Guid?)null;
@@ -231,7 +232,7 @@ public sealed partial class MainWindow
                 await StudioData.SaveProfileAsync(candidate); await RefreshStudioAsync();
             }
             catch (Exception ex) { args.Cancel = true; error.Title = T("Профиль не сохранён", "Profile was not saved"); error.Message = s.ErrorDetails(ex); error.IsOpen = true; }
-            finally { busy = false; dialog.IsPrimaryButtonEnabled = true; deferral.Complete(); }
+            finally { busy = false; fields.IsEnabled = true; dialog.IsPrimaryButtonEnabled = true; deferral.Complete(); }
         };
         await ShowDialogAsync(dialog); RenderScreen();
     }

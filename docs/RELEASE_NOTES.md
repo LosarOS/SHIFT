@@ -1,36 +1,25 @@
-# SHIFT 1.0.0-rc.2 — проверка пространств и первый Windows-кандидат
+# SHIFT1.0.0-rc.3 — SHIFT Studio experimental preview
 
-SHIFT — локальный менеджер рабочих пространств: приложения, папки, файлы, ссылки и явно подтверждаемые команды одним запуском. Windows 10 build 19041+ / Windows 11 x64. Учётная запись, облако и платные API не нужны.
+SHIFT Studio — One workspace. One environment. Windows10 build19041+ / Windows11 x64; локально, без регистрации, телеметрии и платных API. Подсистема по умолчанию выключена.
 
-## Новое
+- Визуальные профили с отдельной привязкой к пространствам, управляемыми копиями статичных обоев и журналом восстановления.
+- Четыре собственных виджета: Clock, System Monitor, Focus Timer и Notes. Локальные значения, заметки с CAS/recovery drafts, таймер с monotonic/deadline моделью.
+- Widget Lab: черновик, внешний предпросмотр, отмена, сохранение, шесть шаблонов и строгий декларативный JSON.
+- Обязательные действия: отключить Studio, восстановить оформление и собрать виджеты на доступном экране.
+- SQLitev2: backup перед миграцией, сохранение пространств/истории, проверка восстановления на приватном снимке. RC2 отказывается открывать новую схему; для возврата используйте сохранённую v1-копию и резервную копию всей папки данных.
 
-- **Проверка пространства / Workspace Doctor:** действие «Проверить» на странице пространства. Асинхронная отменяемая проверка, состояния Ready / Warning / Error / Unknown, объяснения RU/EN, повторная проверка и переход к редактору элемента.
-- Анализ локальных путей, доступа, рабочих каталогов, заголовков EXE/ярлыков и HTTP(S)-адресов без запуска элементов и сетевых запросов. Подтверждение команд по-прежнему требуется при каждом запуске.
-- Исправлены блокировавшие Windows-запуск проблемы: дублирование ресурсов иконки, конфликт XAML-компиляторов, неподдерживаемая подписка на системное событие и отсутствие application `resources.pri` в publish.
-- Диагностика ошибок сохраняет HRESULT и имена методов без аргументов или исходных приватных путей.
+## Ограничения безопасности
 
-Существующие CRUD, теги, поиск, избранное, клонирование, очередь/отмена, история, JSON, SQLite backup/restore, RU/EN, Dark / Light / Midnight / Forest, трей, компактный launcher и горячая клавиша сохранены.
+Обои изменяются только после текущего подтверждения статичных изображений. Windows Spotlight/provider configuration не восстанавливается; слайд-шоу, пустые/недоступные обои и неподдерживаемые remote-состояния отклоняются. Автоприменение при запуске пространства пока поддерживает профили без обоев. Команды пространства сохраняют отдельное подтверждение; ошибка оформления не запускает приложения повторно.
 
-## Скачать и установить
+Виджеты — обычные управляемые окна, без внедрения в Explorer. Always on Top выключен по умолчанию. Mica/Acrylic используют явно обозначенный fallback; native alpha не равен Acrylic. Ручная Windows10/11/DPI/Narrator/fullscreen/sleep/RDP-приёмка остаётся отдельным этапом. Исчерпывающая матрица installed widgets и ресурсных измерений не заявляется.
 
-- `SHIFT-1.0.0-rc.2-win-x64-setup.exe` — установка для текущего пользователя, без elevation.
-- `SHIFT-1.0.0-rc.2-win-x64-portable.zip` — распакуйте **всю** папку и запустите `SHIFT.exe`; `portable.flag` должен оставаться рядом с EXE. Данные хранятся в `data` внутри portable-папки.
-- `SHA256SUMS.txt` — сверяйте SHA-256 с файлами из этого же релиза (`Get-FileHash <file> -Algorithm SHA256`).
+## Установка
 
-Установленная версия хранит данные в `%LOCALAPPDATA%\SHIFT`. Перед обновлением выйдите через трей и создайте backup. Uninstall сохраняет пользовательскую базу. Инструкции: [installation](https://github.com/LosarOS/SHIFT/blob/v1.0.0-rc.2/docs/INSTALLATION.md).
-
-**Бинарники не подписаны.** SmartScreen может показать предупреждение; отсутствие такого предупреждения не проверено.
-
-## Проверки и ограничения
-
-Релиз допускается только после locked restore, core suite, настоящего self-contained Windows publish, автоматического запуска portable и установленного приложения, проверок установщика и проверки скачанных GitHub-файлов по SHA-256. Точный source SHA и выполненные проверки записываются в `WINDOWS-VALIDATION.json`; подробности — в [engineering report](https://github.com/LosarOS/SHIFT/blob/v1.0.0-rc.2/reports/engineering-session-2026-10-23.md) и [Actions](https://github.com/LosarOS/SHIFT/actions).
-
-Это **prerelease**, не stable 1.0.0. UI Automation на одноразовом Windows runner не заменяет ручную приёмку на физических Windows 10/11, Narrator, high contrast, 100–200% DPI и увеличенного текста. Не подтверждается запуск каждого стороннего приложения или каждой конфигурации компьютера.
-
-Doctor проверяет доступные локальные признаки. Ready не обещает успешную работу приложения; цели ярлыков и произвольный текст команд не оцениваются как безопасные. Между проверкой и запуском файл может измениться. Quick Workspace Setup развивается отдельным PR и не входит в этот релиз.
-
-Success в истории означает принятие запроса Windows, а не готовность приложения или код завершения команды. Отмена не закрывает уже открытые программы. Захват сессий, расположение окон и расписания остаются в roadmap. Данные, exports и backups не зашифрованы; SHIFT не является sandbox.
+Скачайте SHIFT-1.0.0-rc.3-win-x64-setup.exe либо распакуйте весь SHIFT-1.0.0-rc.3-win-x64-portable.zip. Проверьте SHA256SUMS.txt из того же выпуска. Бинарники неподписанные; возможны предупреждения SmartScreen. Перед обновлением закройте SHIFT и сохраните всю папку данных, включая Studio/Images и Studio/RecoveryNotes. SQLite-only backup содержит ссылки на изображения, не архив всех ресурсов. Старый workspace JSON по-прежнему переносит приложения; определения виджетов имеют отдельный форматv1.
 
 ## English
 
-This unsigned Windows x64 prerelease adds cancellable Workspace Doctor with local-only diagnostics, RU/EN explanations and item editing. It fixes confirmed native WinUI startup/publish blockers and preserves existing local data contracts. Commands still require explicit consent on every run; Doctor never executes them. Install per user or extract the entire portable ZIP; verify the matching SHA256SUMS. Native automated evidence and exact source commit accompany the release. Interactive Windows 10/11, accessibility and physical DPI acceptance remain unverified; this is not stable 1.0.0.
+Experimental opt-in Studio adds desktop profiles, staged static-wallpaper apply/recovery, four owned native widgets, a draft/preview/save Lab and transactional RC2→SQLitev2 migration. No Explorer injection, scripts, cloud or elevated changes. Current static-image confirmation is mandatory; Spotlight/provider restoration is unsupported and automatic workspace apply initially supports widgets only. Acrylic/Mica use an explicit fallback. Artifacts are unsigned. Read the engineering report/native evidence for exact verified gates and remaining physical Windows/accessibility acceptance.
+
+Evidence: reports/SHIFT-STUDIO-ENGINEERING-SESSION.md, docs/studio/QA-MATRIX.md, WINDOWS-VALIDATION.json and SHIFT-Native-Smoke-Evidence.zip. Do not interpret this note as proof of a pending native gate; publication requires completed evidence.

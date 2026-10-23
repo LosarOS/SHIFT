@@ -1,5 +1,6 @@
 <div align="center">
 
+> **SHIFT Studio preview:** development in [PR13](https://github.com/LosarOS/SHIFT/pull/13). Studio is opt-in; see [architecture](docs/studio/ARCHITECTURE.md), [migration](docs/studio/MIGRATION.md) and [actual validation journal](reports/SHIFT-STUDIO-ENGINEERING-SESSION.md). Public RC2 remains available until RC3 native release gates pass.
 ![SHIFT — Your work. One SHIFT away.](docs/assets/shift-cover.svg)
 
 **A native, local-first workspace launcher for Windows.**

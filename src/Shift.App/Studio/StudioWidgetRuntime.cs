@@ -34,12 +34,9 @@ public sealed class StudioWidgetRuntime : IWidgetRuntime
                 throw new InvalidDataException("Invalid widget instance list.");
             var monitors = await topology.GetMonitorsAsync(token).ConfigureAwait(false);
             if (monitors.Count == 0 && profile.Widgets.Any(w => w.Visible)) throw new InvalidOperationException("No display is available.");
-            var states = new Dictionary<Guid, WidgetRuntimeState?>();
-            foreach (var instance in profile.Widgets.Where(w => w.Visible))
-                states[instance.Id] = await store.GetWidgetStateAsync(instance.Id, token).ConfigureAwait(false);
             var current = await EnsureHostAsync().ConfigureAwait(false);
             token.ThrowIfCancellationRequested();
-            await current.InvokeAsync(() => current.ApplyAsync(profile, definitions, states, monitors)).ConfigureAwait(false);
+            await current.InvokeAsync(() => current.ApplyAsync(profile, definitions, monitors)).ConfigureAwait(false);
         }
         finally { operations.Release(); }
     }
@@ -216,9 +213,13 @@ internal sealed class WidgetHost
         return result.Task;
     }
     public async Task ApplyAsync(DesktopProfile next, IReadOnlyList<WidgetDefinition> definitions,
-        IReadOnlyDictionary<Guid, WidgetRuntimeState?> states, IReadOnlyList<MonitorIdentity> topologySnapshot)
+        IReadOnlyList<MonitorIdentity> topologySnapshot)
     {
         await FlushAsync();
+        // Read after flush: reapplying must not recreate a note from the pre-flush revision.
+        var states = new Dictionary<Guid, WidgetRuntimeState?>();
+        foreach (var instance in next.Widgets.Where(w => w.Visible))
+            states[instance.Id] = await store.GetWidgetStateAsync(instance.Id);
         var dictionary = definitions.ToDictionary(d => d.Id);
         foreach (var instance in next.Widgets.Where(w => w.Visible))
         {
