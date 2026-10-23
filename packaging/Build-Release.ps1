@@ -20,7 +20,7 @@ Push-Location $repo
 try {
     dotnet restore SHIFT.sln --locked-mode --nologo
     if ($LASTEXITCODE -ne 0) { throw 'Locked dependency restore failed.' }
-    dotnet test tests/Shift.Tests/Shift.Tests.csproj -c Release --no-restore --nologo
+    dotnet test tests/Shift.Tests/Shift.Tests.csproj -c Release --no-restore --nologo --logger trx --results-directory (Join-Path $out 'test-results')
     if ($LASTEXITCODE -ne 0) { throw 'Core tests failed.' }
     $effective=dotnet msbuild src/Shift.App/Shift.App.csproj -getProperty:WindowsAppSDKSelfContained,WindowsAppSdkBootstrapInitialize | Out-String | ConvertFrom-Json
     if($LASTEXITCODE -ne 0){throw 'Cannot inspect app runtime initialization.'}

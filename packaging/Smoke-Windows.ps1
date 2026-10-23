@@ -3,7 +3,10 @@
 param(
     [Parameter(Mandatory=$true)][string]$AppDirectory,
     [string]$DiagnosticsDirectory = '',
-    [switch]$Installed
+    [switch]$Installed,
+    [guid]$DataOwner = [guid]::Empty,
+    [switch]$PreserveData,
+    [switch]$ResumeOwnedData
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -24,7 +27,19 @@ $exe = Join-Path $app 'SHIFT.exe'
 $data = if ($Installed) { Join-Path $env:LOCALAPPDATA 'SHIFT' } else { Join-Path $app 'data' }
 if ($Installed -and $env:GITHUB_ACTIONS -ne 'true') { throw 'Installed smoke only runs on an isolated GitHub Actions runner.' }
 if (-not $Installed -and -not (Test-Path (Join-Path $app 'portable.flag'))) { throw 'Expected a disposable portable build.' }
-if (Test-Path $data) { throw 'Refusing to use or remove existing user data.' }
+$ownerFile = Join-Path $data '.shift-ci-owner'
+if ($PreserveData -or $ResumeOwnedData) {
+    if ($env:GITHUB_ACTIONS -ne 'true' -or $DataOwner -eq [guid]::Empty) { throw 'Data reuse requires an explicit owner token on a disposable CI runner.' }
+}
+if (Test-Path $data) {
+    if (-not $ResumeOwnedData -or -not (Test-Path $ownerFile) -or (Get-Content $ownerFile -Raw).Trim() -ne $DataOwner.ToString()) {
+        throw 'Refusing to use or remove existing user data.'
+    }
+} elseif ($ResumeOwnedData) { throw 'Owned data to resume is missing.' }
+else {
+    New-Item $data -ItemType Directory | Out-Null
+    if ($DataOwner -ne [guid]::Empty) { $DataOwner.ToString() | Set-Content $ownerFile }
+}
 if ($DiagnosticsDirectory) { New-Item $DiagnosticsDirectory -ItemType Directory -Force | Out-Null }
 $process = $null
 $monitor = $null
@@ -94,53 +109,108 @@ try {
         $monitor = Start-Process $env:SHIFT_CRASH_MONITOR -ArgumentList @('-accepteula','-e','-ma','-w','SHIFT.exe',"`"$dumpDirectory`"") -PassThru -RedirectStandardOutput (Join-Path $dumpDirectory 'monitor.log') -RedirectStandardError (Join-Path $dumpDirectory 'monitor-error.log')
     }
     $process = Start-Process $exe -WorkingDirectory $app -PassThru
-    Click 'Начать с чистого листа'
-    Click '' 'Workspace.New'
-    Set-Field 'Field.Name' 'SHIFT smoke workspace'
-    Click 'Сохранить'
-    $null = Wait-For { Find-Control 'SHIFT smoke workspace' ([System.Windows.Automation.ControlType]::Text) } 'saved workspace'
-    Click '' 'Item.New'
-    Set-Field 'Field.Name' 'Explicit command proof'
-    Select-Choice 'Field.Kind' 'Команда ⚠'
-    $marker = Join-Path $data 'dispatch-proof.txt'
-    $escaped = $marker.Replace("'","''")
-    Set-Field 'Field.Target' "[System.IO.File]::WriteAllText('$escaped', 'SHIFT smoke')"
-    Click 'Сохранить'
-    $null = Wait-For { $null -eq (Find-Control 'Сохранить' ([System.Windows.Automation.ControlType]::Button)) } 'item dialog closed'
-    $null = Wait-For { Find-Control 'Explicit command proof' ([System.Windows.Automation.ControlType]::Text) } 'saved item detail'
-    Click '' 'Workspace.Launch'
-    $null = Wait-For { Find-Control 'Разрешить и запустить' ([System.Windows.Automation.ControlType]::Button) } 'command consent'
-    Capture 'command-consent'
-    Click 'Отмена'
-    $null = Wait-For { Find-Control 'Команды отклонены' ([System.Windows.Automation.ControlType]::Text) } 'declined queue'
-    if (Test-Path $marker) { throw 'Command executed after consent was declined.' }
-    Click '' 'Launch.Retry'
-    Click 'Разрешить и запустить'
-    $null = Wait-For { Test-Path $marker } 'explicitly approved command marker'
-    if ((Get-Content $marker -Raw) -ne 'SHIFT smoke') { throw 'Command marker content mismatch.' }
-    $null = Wait-For { Find-Control 'Запросы отправлены' ([System.Windows.Automation.ControlType]::Text) } 'completed queue'
-    Click '' 'Nav.Settings'
-    Select-Choice 'Field.Theme' 'Полночь'
-    Select-Choice 'Field.Language' 'English'
-    Click 'Сохранить'
-    $null = Wait-For { Find-Control 'Overview' ([System.Windows.Automation.ControlType]::Button) } 'localized settings rebuild'
+    if (-not $ResumeOwnedData) {
+        Click 'Начать с чистого листа'
+        Click '' 'Workspace.New'
+        Set-Field 'Field.Name' 'SHIFT smoke workspace'
+        Click 'Сохранить'
+        $null = Wait-For { Find-Control 'SHIFT smoke workspace' ([System.Windows.Automation.ControlType]::Text) } 'saved workspace'
+        Click '' 'Item.New'
+        Set-Field 'Field.Name' 'Explicit command proof'
+        Select-Choice 'Field.Kind' 'Команда ⚠'
+        $marker = Join-Path $data 'dispatch-proof.txt'
+        $escaped = $marker.Replace("'","''")
+        Set-Field 'Field.Target' "[System.IO.File]::WriteAllText('$escaped', 'SHIFT smoke')"
+        Click 'Сохранить'
+        $null = Wait-For { $null -eq (Find-Control 'Сохранить' ([System.Windows.Automation.ControlType]::Button)) } 'item dialog closed'
+        $null = Wait-For { Find-Control 'Explicit command proof' ([System.Windows.Automation.ControlType]::Text) } 'saved item detail'
+        Capture 'workspace-detail'
+        Click '' 'Workspace.Doctor'
+        $null = Wait-For {
+            $summary=Find-Control '' ([System.Windows.Automation.ControlType]::Text) 'Doctor.Summary'
+            if($summary -and $summary.Current.Name -match 'проверено локально'){$summary}
+        } 'read-only workspace diagnosis'
+        if (Test-Path $marker) { throw 'Doctor executed the command.' }
+        Capture 'workspace-doctor'
+        Click 'Проверить снова'
+        $null = Wait-For {
+            $summary=Find-Control '' ([System.Windows.Automation.ControlType]::Text) 'Doctor.Summary'
+            if($summary -and $summary.Current.Name -match 'проверено локально'){$summary}
+        } 'repeated workspace diagnosis'
+        if (Test-Path $marker) { throw 'Doctor executed the command on repeat.' }
+        Click 'Закрыть'
+        Click '' 'Workspace.Launch'
+        $null = Wait-For { Find-Control 'Разрешить и запустить' ([System.Windows.Automation.ControlType]::Button) } 'command consent'
+        Capture 'command-consent'
+        Click 'Отмена'
+        $null = Wait-For { Find-Control 'Команды отклонены' ([System.Windows.Automation.ControlType]::Text) } 'declined queue'
+        if (Test-Path $marker) { throw 'Command executed after consent was declined.' }
+        Click '' 'Launch.Retry'
+        Click 'Разрешить и запустить'
+        $null = Wait-For { Test-Path $marker } 'explicitly approved command marker'
+        if ((Get-Content $marker -Raw) -ne 'SHIFT smoke') { throw 'Command marker content mismatch.' }
+        $null = Wait-For { Find-Control 'Запросы отправлены' ([System.Windows.Automation.ControlType]::Text) } 'completed queue'
+        Click '' 'Nav.Settings'
+        Select-Choice 'Field.Theme' 'Полночь'
+        Select-Choice 'Field.Language' 'English'
+        Click 'Сохранить'
+        $null = Wait-For { Find-Control 'Overview' ([System.Windows.Automation.ControlType]::Button) } 'localized settings rebuild'
+        Click '' 'Quick.Open'
+        Set-Field 'Quick.Search' 'SHIFT smoke'
+        $null = Wait-For { Find-Control '↗  SHIFT smoke workspace' ([System.Windows.Automation.ControlType]::Text) } 'quick launcher search'
+        Capture 'quick-launcher'
+        Click '' 'Quick.Close'
+        Click '' 'Nav.Workspaces'
+        Capture 'workspaces'
+        Click '' 'Nav.Overview'
+        Capture 'overview'
+        $process.CloseMainWindow() | Out-Null
+        $null = Wait-For { -not [ShiftWindowProbe]::IsWindowVisible($process.MainWindowHandle) } 'close to tray'
+        $second = Start-Process $exe -WorkingDirectory $app -PassThru
+        try { if (-not $second.WaitForExit(10000)) { $second.Kill();throw 'Second instance did not exit.' } }
+        finally { $second.Dispose() }
+        $null = Wait-For { $process.Refresh();$process.MainWindowHandle -ne [IntPtr]::Zero -and [ShiftWindowProbe]::IsWindowVisible($process.MainWindowHandle) } 'instance activation'
+        # Exercise graceful exit, then confirm the saved workspace/settings after restart.
+        Click '' 'Nav.Settings'
+        $tray = Wait-For {
+            $scope=[System.Windows.Automation.AutomationElement]::FromHandle($process.MainWindowHandle)
+            $condition=New-Object System.Windows.Automation.PropertyCondition -ArgumentList @([System.Windows.Automation.AutomationElement]::AutomationIdProperty,'Settings.MinimizeToTray')
+            $scope.FindFirst([System.Windows.Automation.TreeScope]::Descendants,$condition)
+        } 'tray setting'
+        $toggle=$tray.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern)
+        if($toggle.Current.ToggleState -eq [System.Windows.Automation.ToggleState]::On){$toggle.Toggle()}
+        Click 'Save'
+        $null=Wait-For { Find-Control 'Overview' ([System.Windows.Automation.ControlType]::Button) } 'saved close behavior'
+        $process.CloseMainWindow() | Out-Null
+        if(-not $process.WaitForExit(15000)){throw 'Graceful application exit timed out.'}
+        if($process.ExitCode -ne 0){throw "Graceful exit failed ($($process.ExitCode))."}
+        $process.Dispose()
+        $process=Start-Process $exe -WorkingDirectory $app -PassThru
+    }
+    $null=Wait-For { Find-Control 'Overview' ([System.Windows.Automation.ControlType]::Button) } 'persisted English language after restart'
     Click '' 'Quick.Open'
     Set-Field 'Quick.Search' 'SHIFT smoke'
-    $null = Wait-For { Find-Control '↗  SHIFT smoke workspace' ([System.Windows.Automation.ControlType]::Text) } 'quick launcher search'
-    Capture 'quick-launcher'
+    $null=Wait-For { Find-Control '↗  SHIFT smoke workspace' ([System.Windows.Automation.ControlType]::Text) } 'persisted workspace after restart'
     Click '' 'Quick.Close'
-    Click '' 'Nav.Overview'
-    Capture 'overview'
+    Click '' 'Nav.Settings'
+    $theme=Wait-For { Find-Control '' ([System.Windows.Automation.ControlType]::ComboBox) 'Field.Theme' } 'persisted theme'
+    $selected=$theme.GetCurrentPattern([System.Windows.Automation.SelectionPattern]::Pattern).Current.GetSelection()
+    if($selected.Count -ne 1 -or $selected[0].Current.Name -ne 'Midnight'){throw 'Theme did not survive restart.'}
+    Capture 'settings-restored'
+    if(-not(Test-Path (Join-Path $data 'dispatch-proof.txt'))){throw 'Command proof data did not survive restart.'}
     $process.CloseMainWindow() | Out-Null
-    $null = Wait-For { -not [ShiftWindowProbe]::IsWindowVisible($process.MainWindowHandle) } 'close to tray'
-    $second = Start-Process $exe -WorkingDirectory $app -PassThru
-    try { if (-not $second.WaitForExit(10000)) { $second.Kill();throw 'Second instance did not exit.' } }
-    finally { $second.Dispose() }
-    $null = Wait-For { $process.Refresh();$process.MainWindowHandle -ne [IntPtr]::Zero -and [ShiftWindowProbe]::IsWindowVisible($process.MainWindowHandle) } 'instance activation'
+    if(-not $process.WaitForExit(15000)){throw 'Restarted application did not exit gracefully.'}
+    if($process.ExitCode -ne 0){throw "Restarted application exited with $($process.ExitCode)."}
     if (-not (Test-Path (Join-Path $data 'shift.db'))) { throw 'SQLite database missing.' }
     $errors=Get-ChildItem (Join-Path $data 'logs') -Filter '*.log' -ErrorAction SilentlyContinue | Select-String -Pattern '\sERROR\s'
     if($errors){throw 'Application logged an unexpected error during UI smoke.'}
-    Write-Host "UI smoke passed ($label): CRUD, command decline/approval, real dispatch, theme/language, compact search, tray, second-instance activation."
+    $checks=@('workspace_persistence','english_persistence','midnight_theme_persistence','command_proof_persistence','graceful_exit')
+    if(-not $ResumeOwnedData){$checks+=@('workspace_create','item_create','doctor_read_only','doctor_repeat','command_refusal','command_approval','real_dispatch','compact_search','tray','second_instance_activation','restart')}
+    if($DiagnosticsDirectory){
+        @{schema_version=1;status='passed';environment='disposable-windows-ui-automation';mode=$label;resumed=[bool]$ResumeOwnedData;checks=$checks;manual_acceptance=$false;timestamp_utc=[DateTime]::UtcNow.ToString('o')} |
+            ConvertTo-Json -Depth 4 | Set-Content (Join-Path $DiagnosticsDirectory "$label-smoke.json")
+    }
+    Write-Host "UI smoke passed ($label): $($checks -join ', ')."
 } catch {
     try { Capture 'failure' } catch { Write-Warning 'Screenshot capture failed.' }
     if ($null -ne $monitor -and $dumpDirectory) {
@@ -176,5 +246,5 @@ try {
         $process.Dispose()
     }
     if ($null -ne $monitor) { if (-not $monitor.HasExited) { $monitor.Kill();$monitor.WaitForExit() };$monitor.Dispose() }
-    if (Test-Path $data) { Remove-Item $data -Recurse -Force }
+    if (-not $PreserveData -and (Test-Path $data)) { Remove-Item $data -Recurse -Force }
 }
