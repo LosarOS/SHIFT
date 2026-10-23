@@ -66,7 +66,13 @@ jobs:
           $screenshots = @(Get-ChildItem artifacts/diagnostics -Filter '*.png' -File)
           if ($screenshots.Count -eq 0) { throw 'Actual Windows UI screenshots are missing.' }
           Compress-Archive -LiteralPath $screenshots.FullName -DestinationPath artifacts/SHIFT-Windows-UI-Evidence.zip
-          Compress-Archive -LiteralPath $nativeChecks -DestinationPath artifacts/SHIFT-Native-Smoke-Evidence.zip
+          $evidenceRoot = Join-Path $env:RUNNER_TEMP ('SHIFT-evidence-' + [guid]::NewGuid().ToString('N'))
+          New-Item $evidenceRoot -ItemType Directory | Out-Null
+          Copy-Item $nativeChecks[0] (Join-Path $evidenceRoot 'portable-smoke.json')
+          Copy-Item $nativeChecks[1] (Join-Path $evidenceRoot 'installed-smoke.json')
+          Copy-Item $nativeChecks[2] (Join-Path $evidenceRoot 'installer-smoke.json')
+          Copy-Item $nativeChecks[3] (Join-Path $evidenceRoot 'reinstalled-smoke.json')
+          Compress-Archive -Path (Join-Path $evidenceRoot '*') -DestinationPath artifacts/SHIFT-Native-Smoke-Evidence.zip
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: SHIFT-release-candidate

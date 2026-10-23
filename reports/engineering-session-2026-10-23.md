@@ -61,3 +61,9 @@ Additional Doctor UI, graceful restart, data preservation and repair/reinstall g
 Optional Quick Workspace Setup commit `3c0bcff` passed independent source review and **129 core tests** (19 new) in a separate worktree. It will remain a separate P2 PR until native wizard validation, rather than expanding this release's unverified surface.
 
 Release workflow now stages exact source/test evidence, refuses stable versions and existing releases, verifies nonempty downloaded GitHub binary assets against SHA-256 while draft, then publishes only a prerelease. Release notes disclose all manual acceptance and signing limits.
+
+## Cross-project authentication regression
+
+A second bounded real Engine experiment used SHIFT `e054cd00e3d73cf815bae2b1280b98d8d45f01ea` and Codex Team `ced1aecac1569150cb0d9f1dfabf5979eaaac246`. Task: uppercase EXE/LNK Doctor regression cases, Implement/standard/isolated, no auto-commit, 4-call/1200-second/80000-token ceiling.
+
+Run `run_3f8712c9e45e` created its isolated worktree. Actual first official SDK turn hit the same stale refresh-token error and now correctly stopped as **AUTH_REQUIRED**, rather than generic FAILED. One attempted coordinator call, recorded elapsed1.684s/wall1.74s; no developer/QA/reviewer stage, changed files or token metrics available. No paid API fallback. Live AI development remains **NOT VERIFIED**; only the real auth-stop classification and static Project Doctor integration are confirmed.
