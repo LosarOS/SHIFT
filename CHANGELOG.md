@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.0-rc.3 — Studio experimental preview (pending native gates)
+## 1.0.0-rc.3 — Studio experimental preview
 
 - Added opt-in desktop profiles, separate workspace associations and staged static-wallpaper recovery with managed originals.
 - Added four owned native widget types, centralized updates, normalized layout, notes recovery drafts and deadline-based focus timers.

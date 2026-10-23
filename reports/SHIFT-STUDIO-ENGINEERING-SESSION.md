@@ -48,3 +48,43 @@ Additional review retained multiple instances per definition, exposed hidden-ins
 CI40031121387 at291df690f88f57978eff4ad1fceccabbc0462055:190 tests passed on Windows and Linux; real publish/resources and base portable passed. Actual RC2 download/owned v1 upgrade, Studio Lab preview/cancel/save, four native windows, Unicode Notes persistence and real3-second timer completion reached. The test then timed out holding a stale UIA Notes root after reapply: count4 matched old windows before replacement completed. Test now waits for entirely new HWNDs and reacquires the Notes root. No application error was logged. Cleanup proof is WALLPAPER_RESTORED. These are partial observations, not a passed Studio gate. Actual screenshots were reviewed; runner console obscured the desktop view, so disposable console windows are now minimized before recording. Native alpha is now an enforced .85 HWND-attribute gate, separate from the unverified full compositor/accessibility matrix. Raw samples are saved incrementally even if a later check fails.
 
 Dependency audit: Shift.Infrastructure direct/transitive NuGet audit reported no known vulnerable packages from current nuget.org feed. Source hygiene passed123text files; this is not an exhaustive security proof.
+
+## Scope and status by subsystem
+
+| Subsystem | Implementation | Evidence boundary |
+|---|---|---|
+| Profiles / recovery | Separate profiles, opt-in workspace links, per-monitor static image references, staged intent/ack, managed originals, conflict-aware restore | Core tests and partial native observations; final smoke pending |
+| Widget runtime | Four real types on one owned STA, mode/layout persistence, centralized scheduler, notes recovery, timer deadline | Four real Windows windows/notes/timer observed; complete lifecycle smoke pending |
+| Widget Lab | Validated draft, live mockup plus native preview, cancel/save, six immutable style templates, JSON import/export | Native preview/cancel/save observed; full accessibility/manual acceptance pending |
+| Workspace integration | Existing dispatch/command consent retained; explicit visual apply; automatic widget-only rule defaults off | Application tests/source review; complete manual scenarios pending |
+| Migration | Schema2, online v1 snapshot before transaction, FK/revision guards, private restore validation | Persistence tests; real RC2-generated v1 workspace/history upgraded on disposable Windows |
+| Visual effects | Solid/whole-window alpha implemented; Mica/Acrylic fallback disclosed | HWND alpha gate enforced in final native smoke; full compositor matrix pending |
+| Multi-monitor / DPI | Normalized work-area placement, device-ID fallback, display/power events and Gather | Domain tests; physical mixed-DPI/RDP/sleep NOT VERIFIED |
+| Security | Strict bounded declarations, local image decode/copies, no scripts/elevation/Explorer injection | Source review, core/native tests and NuGet audit; no claim of exhaustive security certification |
+
+P2/P3 deferred: Quick Links, visual preset packs, separate user-style CRUD beyond saved definitions, HTML/JS/WebView2, system taskbar/accent/Widgets Board. No decorative no-op buttons added for these. Wallpaper-only profile thumbnail is not a live Windows preview. Lab is a compact scrollable property editor, not a complete Figma-style canvas.
+
+## Manual acceptance still required
+
+Windows11 and Windows10 build19041+ physical/user VM; DPI100/125/150/200%; mixed monitors/unplug/reconnect; primary switch; RDP; actual sleep/resume; Narrator/high contrast/system transparency/reduced motion; fullscreen/Windows+D and z-order; installed Studio widgets and older installer upgrade; removable/offline media. All NOT VERIFIED until actually executed. Automated Server desktop UIA is useful evidence but does not substitute for these.
+
+## Release policy
+
+Experimental RC3 only after190 matching native tests, publish/resources, actual extracted portable, Studio native recovery/lifecycle, installed startup/repair/uninstall/preservation and published-byte checksum verification. Main/RC2 is retained until gates pass. No stable1.0 claim. Binaries remain unsigned; SmartScreen behavior is not certified.
+
+## First complete native Studio acceptance
+
+[CI40032159983](https://github.com/LosarOS/SHIFT/actions/runs/40032159983), feature headbc21112ae7f2a65cbfce8e30293a44c2aed91179, actual synthetic PR merge/source6522e1b8d4002bc1a29e5d9986066cc5c2a10e06: all4jobs SUCCESS.190tests pass on each platform,0failed/0skipped. Native publish/resources, extracted portable, real RC2 v1→v2 data upgrade, Lab preview/cancel/save, four windows/Notes/timer, reapply without stale notes/duplicates, wallpaper apply/exact restore, disable/enable,1/5/10windows, restart/quit, installer/reinstall/uninstall/data preservation passed. Downloaded artifact12535428536 and independently inspected JSON/screenshots. Actual HWND alpha217 confirms .85 whole-window alpha, not Acrylic/Mica. Cleanup WALLPAPER_RESTORED.
+
+Raw short2s process samples (one disposable Server2025 desktop, one monitor; no physical benchmark claim):
+
+| Windows | Working set bytes | Private bytes | CPU % of whole machine |
+|---|---:|---:|---:|
+|0|161861632|58896384|0 observed|
+|1|254107648|128487424|0 observed|
+|5|257286144|130482176|0 observed|
+|10|263442432|135196672|0.19520341057400073|
+
+Widget Lab open latency, complete profile-apply latency and real sleep/resume: NOT MEASURED. Short zero CPU observations reflect sampling resolution, not a guarantee of zero resource use.
+
+Visual review found a pre-existing disposable VM paging-file warning behind the minimized runner console; it is unrelated to SHIFT. Final capture preparation minimizes that specific System Properties window without changing system settings. Four-widget fixture positions are now a readable2×2 arrangement on the single1024×768runner. Raw screenshots are never retouched. Final script additionally requires clean process exit codes and no ERROR log entries, and saves logs on success. PS5 download progress rendering is suppressed to reduce CI overhead. These final acceptance-only changes will be checked again before merge/release.

@@ -45,7 +45,7 @@ if (stage == "seed")
     {
         var profile = new DesktopProfile { Id = Id(100 + count), Name = "Studio CI " + count,
             Widgets = Enumerable.Range(0, count).Select(i => new WidgetInstance { Id = Id(count * 1000 + i), DefinitionId = definitions[i % 4].Id,
-                Layout = new WidgetLayout { MonitorId = monitors[0].DeviceId, Width = 280, Height = 210, X = (i % 4) * .24, Y = (i / 4) * .32 } }).ToArray() };
+                Layout = new WidgetLayout { MonitorId = monitors[0].DeviceId, Width = 280, Height = 210, X = count == 4 ? .15 + (i % 2) * .48 : (i % 4) * .24, Y = count == 4 ? .04 + (i / 2) * .48 : (i / 4) * .32 } }).ToArray() };
         if (count == 4 && original?.CanRestore == true) profile = profile with { Wallpapers = original.Wallpapers.Select(w => new WallpaperAssignment(w.MonitorId, managed)).ToArray(), ChangeWallpaperPosition = true, WallpaperPosition = WallpaperPlacement.Fill };
         await store.SaveProfileAsync(profile);
         foreach (var instance in profile.Widgets.Where(w => w.DefinitionId == definitions[(int)WidgetKind.FocusTimer].Id))

@@ -2,6 +2,7 @@
 [CmdletBinding()]
 param([Parameter(Mandatory=$true)][string]$AppDirectory,[Parameter(Mandatory=$true)][string]$DiagnosticsDirectory)
 $ErrorActionPreference='Stop'
+$ProgressPreference='SilentlyContinue' # PS5 progress rendering is expensive for the verified RC2 binary download.
 Set-StrictMode -Version Latest
 if($env:GITHUB_ACTIONS -ne 'true'){throw 'Studio smoke requires disposable GitHub Actions Windows.'}
 $app=(Resolve-Path $AppDirectory).Path
@@ -114,7 +115,7 @@ try {
  Copy-Item (Join-Path $data 'studio-ci.json') (Join-Path $DiagnosticsDirectory 'studio-native-environment.json')
  # Hide only disposable runner console windows; keep real widget screenshots unobstructed.
  foreach($window in [System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children,[System.Windows.Automation.Condition]::TrueCondition)){
-  if($window.Current.ClassName -in @('CASCADIA_HOSTING_WINDOW_CLASS','ConsoleWindowClass')){[void][StudioProbe]::ShowWindow([intptr]$window.Current.NativeWindowHandle,6)}
+  if($window.Current.ClassName -in @('CASCADIA_HOSTING_WINDOW_CLASS','ConsoleWindowClass') -or ($window.Current.ClassName -eq '#32770' -and $window.Current.Name -eq 'System Properties')){[void][StudioProbe]::ShowWindow([intptr]$window.Current.NativeWindowHandle,6)}
  }
  $process=Start-Process (Join-Path $app 'SHIFT.exe') -WorkingDirectory $app -PassThru
  $main=Wait-For {
@@ -171,6 +172,7 @@ try {
  $checks+='disable_reenable'
  [void][StudioProbe]::PostMessage([intptr]$main.Current.NativeWindowHandle,0x0010,[intptr]::Zero,[intptr]::Zero)
  if(-not $process.WaitForExit(15000)){throw 'SHIFT/widget host did not exit.'}
+ if($process.ExitCode -ne 0){throw "SHIFT/widget host exited with $($process.ExitCode)."}
  $process.Dispose();$process=Start-Process (Join-Path $app 'SHIFT.exe') -WorkingDirectory $app -PassThru
  $null=Wait-For {@(Widgets).Count -eq 10} 'widget restart without duplicate windows'
  $checks+='restart_persistence_and_quit'
@@ -181,6 +183,10 @@ try {
  } 'restarted main window'
  [void][StudioProbe]::PostMessage([intptr]$main.Current.NativeWindowHandle,0x0010,[intptr]::Zero,[intptr]::Zero)
  if(-not $process.WaitForExit(15000)){throw 'Restarted SHIFT did not exit cleanly.'}
+ if($process.ExitCode -ne 0){throw "Restarted SHIFT exited with $($process.ExitCode)."}
+ $errors=Get-ChildItem (Join-Path $data 'logs') -Filter '*.log' | Select-String -Pattern '\sERROR\s'
+ if($errors){throw 'Unexpected application ERROR during native Studio acceptance.'}
+ Copy-Item (Join-Path $data 'logs') (Join-Path $DiagnosticsDirectory 'studio-app-logs') -Recurse -Force
  $raw | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $DiagnosticsDirectory 'studio-performance-raw.json')
  @{status='passed';source_commit=$env:GITHUB_SHA;environment='disposable Windows Server runner, actual extracted SHIFT.exe';checks=$checks;wallpaper_verified=$wallpaperVerified;alpha_attribute_verified=[bool]$layered;actual_alpha=[int]$alpha;manual_acceptance=$false;multi_monitor_verified=$false;sleep_verified=$false;physical_windows11_verified=$false;not_measured=@('actual_sleep_resume','widget_lab_open_latency','full_profile_apply_latency')} | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $DiagnosticsDirectory 'studio-smoke.json')
 } catch {
