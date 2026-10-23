@@ -194,12 +194,13 @@ internal sealed class WidgetWindow : Forms.Form
         return captured with { AlwaysOnTop = Instance.Layout.AlwaysOnTop };
     }
     public void LayoutSaved() { Instance = Instance with { Layout = CaptureLayout() }; LayoutDirty = false; }
-    public bool MetricsDue(DateTimeOffset now) => definition.Kind == WidgetKind.SystemMonitor && Visible && now >= nextUpdate;
+    private bool DisplayActive => Visible && WindowState != Forms.FormWindowState.Minimized;
+    public bool MetricsDue(DateTimeOffset now) => definition.Kind == WidgetKind.SystemMonitor && DisplayActive && now >= nextUpdate;
     public async Task TickAsync(DateTimeOffset now, SystemMetrics? metrics)
     {
         if (IsDisposed) return;
         if (Forms.SystemInformation.HighContrast && Opacity != 1) { Opacity = 1; ApplyStyle(); }
-        if (Visible && now >= nextUpdate)
+        if (DisplayActive && now >= nextUpdate)
         {
             nextUpdate = now.AddSeconds(definition.Kind == WidgetKind.Clock ? definition.Content.ShowSeconds ? 1 : Math.Max(1, 60 - now.Second) : definition.Content.UpdateIntervalSeconds);
             switch (definition.Kind)
@@ -221,7 +222,7 @@ internal sealed class WidgetWindow : Forms.Form
         if (definition.Kind == WidgetKind.FocusTimer)
         {
             var completed = timer.Tick();
-            if (Visible) value.Text = FormatDuration(timer.State.RemainingSeconds);
+            if (DisplayActive) value.Text = FormatDuration(timer.State.RemainingSeconds);
             if (completed)
             {
                 if (!preview) { MarkDirty(); await FlushAsync(); notify(L("Фокус-сессия завершена", "Focus session complete")); }
@@ -355,7 +356,16 @@ internal sealed class WidgetWindow : Forms.Form
     {
         var menu = new Forms.ContextMenuStrip();
         menu.Closed += (_, _) => menu.Dispose();
-        void Add(string text, Action action) { var item = menu.Items.Add(text); item.Click += (_, _) => action(); }
+        void Add(string text, Action action)
+        {
+            var item = menu.Items.Add(text);
+            item.Click += (_, _) => { try { action(); } catch (Exception ex) { ShowError(ex); log.Error("Widget action failed", ex); } };
+        }
+        void AddAsync(string text, Func<Task> action)
+        {
+            var item = menu.Items.Add(text);
+            item.Click += async (_, _) => { try { await action(); } catch (Exception ex) { ShowError(ex); log.Error("Widget action failed", ex); } };
+        }
         Add(L("Редактировать в SHIFT", "Edit in SHIFT"), edit);
         Add(L("Режим редактирования", "Edit mode"), () => SetInteraction(WidgetInteraction.Edit));
         Add(L("Закрепить", "Desktop mode"), () => SetInteraction(WidgetInteraction.Desktop));
@@ -363,19 +373,19 @@ internal sealed class WidgetWindow : Forms.Form
         Add(L("Всегда поверх: ", "Always on top: ") + (TopMost ? L("да", "on") : L("нет", "off")), () => { TopMost = !TopMost; Instance = Instance with { Layout = Instance.Layout with { AlwaysOnTop = TopMost } }; if (!preview) LayoutDirty = true; });
         if (!preview)
         {
-            Add(L("Сохранить сейчас", "Save now"), async () => { try { await FlushAsync(); } catch (Exception ex) { ShowError(ex); } });
+            AddAsync(L("Сохранить сейчас", "Save now"), async () => { try { await FlushAsync(); } catch (Exception ex) { ShowError(ex); } });
             if (definition.Kind == WidgetKind.Notes)
             {
                 Add(L("Сохранить текст в файл…", "Save text copy…"), ExportNote);
                 if (saveConflict)
                 {
-                    Add(L("Использовать текст этого окна…", "Use this window's text…"), async () =>
+                    AddAsync(L("Использовать текст этого окна…", "Use this window's text…"), async () =>
                     {
                         if (Forms.MessageBox.Show(this, L("Заменить сохранённый текст текущим черновиком?", "Replace the saved text with this draft?"), "SHIFT", Forms.MessageBoxButtons.YesNo, Forms.MessageBoxIcon.Warning) != Forms.DialogResult.Yes) return;
                         state = await store.GetWidgetStateAsync(Instance.Id) ?? state; saveConflict = false; conflictBaseRevision = null;
                         try { await FlushAsync(); } catch (Exception ex) { ShowError(ex); }
                     });
-                    Add(L("Оставить текст из базы…", "Keep database text…"), async () =>
+                    AddAsync(L("Оставить текст из базы…", "Keep database text…"), async () =>
                     {
                         if (Forms.MessageBox.Show(this, L("Отбросить локальный черновик? Сначала можно сохранить копию.", "Discard this local draft? You can save a copy first."), "SHIFT", Forms.MessageBoxButtons.YesNo, Forms.MessageBoxIcon.Warning) != Forms.DialogResult.Yes) return;
                         state = await store.GetWidgetStateAsync(Instance.Id) ?? state; saveConflict = false; conflictBaseRevision = null;
