@@ -214,6 +214,7 @@ public sealed partial class MainWindow
         launch.IsEnabled = !vm.IsLaunching;
         actions.Children.Add(launch);
         actions.Children.Add(AsyncButton(s["Edit"], () => EditWorkspaceAsync(workspace)));
+        actions.Children.Add(AsyncButton(s["Doctor.Check"], () => OpenDoctorAsync(workspace), false, "Workspace.Doctor"));
         var more = new DropDownButton { Content = "···", Padding = new Thickness(15, 9, 15, 9) };
         var menu = new MenuFlyout();
         void Menu(string label, Func<Task> action)
