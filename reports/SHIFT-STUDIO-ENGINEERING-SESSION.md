@@ -21,3 +21,20 @@ Independent agent branches will implement persistence/migration, native adapters
 5. Publish RC3 only after required gates; otherwise retain reviewable preview PR with blockers.
 
 Current state: implementation started; no Studio Windows runtime or performance PASS claimed. Benchmarks: NOT MEASURED.
+
+## Integrated foundation checkpoint
+
+Integration branch `feature/shift-studio-desktop-engine`, current implementation SHA `211788a69b8881ec3f951a4541dbced70ae878ad`; [draft PR13](https://github.com/LosarOS/SHIFT/pull/13). Existing main/RC2 unchanged. Target experimental RC3. User later constrained remaining weekly quota to26%; P2/P3 and new agent groups deferred. Four independent agent branches reviewed/cherry-picked; root owns shell, preview UI, CI and release.
+
+Implemented: Domain contracts/validation/6templates, staged application service and durable per-action intent, managed originals and conflict-aware partial recovery, transactional SQLitev2 and private-snapshot restore migration, strict declaration JSON, native COM/image/topology/CPU/RAM adapters, four owned Forms/Win32 widget windows on one STA with centralized1s scheduler, notes CAS/recovery drafts, monotonic/deadline timer, draft Lab/profile/gallery/recovery UI and separate workspace integration. Main shell remains WinUI3. Studio defaults off.
+
+Safety restriction: IDesktopWallpaper cannot guarantee Spotlight-provider restoration. Every wallpaper apply requires current explicit static-image confirmation; slideshow/empty/remote/unrestorable configurations are refused. Automatic workspace profiles currently support widgets only. No Explorer integration, arbitrary JS, elevated/system-policy changes or paid API.
+
+Evidence reviewed:
+- RC2 baseline Linux110passed.
+- Initial combined Linux185passed; recovery-copy followup added3tests.
+- [Native baseline CI40027655276](https://github.com/LosarOS/SHIFT/actions/runs/40027655276), source8fcb985: **188passed/0failed/0skipped** on Linux and Windows; native WinUI publish, standard portable and installer/reinstall/preservation smoke passed. This establishes existing UI with Studio disabled, not four-widget acceptance.
+- Whole App Windows-reference metadata compilation0errors/0warnings, Linux. A temporary XAML stub was used only in scratch; this is not Windows runtime evidence. Final native baseline above compiled real XAML/resources.
+- New `packaging/Smoke-Studio.ps1` runs actual extracted SHIFT.exe; `tools/Shift.StudioAcceptance` prepares/inspects owned data only on disposable Windows CI. It downloads/verifies actual RC2, creates real v1 data, snapshots/migrates it, then exercises Lab preview/cancel/save, four real windows, Notes/timer, reapply, restoration,1/5/10windows and restart. [CI40028855636](https://github.com/LosarOS/SHIFT/actions/runs/40028855636) pending. PowerShell parser and tool build passed locally. No result is assumed.
+
+Remaining gates: actual Studio UI/alpha/wallpaper/notes/timer/lifecycle smoke, real raw screenshots, metrics, release workflow Studio proof enforcement, final regression and PR review. Until success, release status BLOCKED. Physical Win10/11, mixed DPI, actual sleep/RDP, Narrator/highcontrast and original-provider restoration are NOT VERIFIED; benchmarks NOT MEASURED until raw CI artifacts exist.
