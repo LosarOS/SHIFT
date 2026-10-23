@@ -20,7 +20,7 @@ jobs:
       - run: python tools/audit_source.py
       - run: dotnet restore tests/Shift.Tests --locked-mode --nologo
       - run: dotnet test tests/Shift.Tests -c Release --no-restore --nologo --logger trx --results-directory TestResults
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: tests-${{ matrix.os }}
@@ -34,7 +34,7 @@ jobs:
           dotnet-version: 10.0.x
       - run: dotnet restore tools/Shift.Diagnostics --locked-mode --nologo
       - run: dotnet run --project tools/Shift.Diagnostics -c Release --no-restore -- --output artifacts/core-diagnostics.json
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: core-diagnostics
           path: artifacts/core-diagnostics.json
@@ -60,7 +60,7 @@ jobs:
       - name: Installer smoke
         shell: pwsh
         run: ./packaging/Smoke-Installer.ps1 -Version 1.0.0-rc.3
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: SHIFT-Windows-candidate
