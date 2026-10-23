@@ -8,10 +8,19 @@ on:
         description: 'Release candidate version; manual dispatch builds artifacts without publishing'
         required: true
         default: '1.0.0-rc.2'
+      verify_existing:
+        description: 'Revalidate unchanged existing release bytes using corrected smoke; does not publish'
+        type: boolean
+        default: false
+      expected_source_commit:
+        description: 'Original binary/tag SHA, required only for existing release verification'
+        type: string
+        default: ''
 permissions:
   contents: read
 jobs:
   package:
+    if: github.event_name != 'workflow_dispatch' || !inputs.verify_existing
     runs-on: windows-latest
     permissions:
       contents: write
@@ -123,3 +132,27 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Publishing verified prerelease failed.' }
           gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$tag" --jq '{tag_name,draft,prerelease,assets:[.assets[]|{name,size,digest,browser_download_url}]}'
           if ($LASTEXITCODE -ne 0) { throw 'Cannot confirm published release metadata.' }
+
+  verify-existing:
+    if: github.event_name == 'workflow_dispatch' && inputs.verify_existing
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Revalidate original downloaded binaries without rebuilding
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          INPUT_VERSION: ${{ inputs.version }}
+          ORIGINAL_COMMIT: ${{ inputs.expected_source_commit }}
+        run: ./packaging/Verify-ExistingRelease.ps1 -Version $env:INPUT_VERSION -ExpectedSourceCommit $env:ORIGINAL_COMMIT
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: SHIFT-original-release-revalidation
+          path: |
+            artifacts/WINDOWS-REVALIDATION-*.json
+            artifacts/diagnostics/**
+            artifacts/diagnostics-reinstall/**
