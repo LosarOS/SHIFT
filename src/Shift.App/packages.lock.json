@@ -4,9 +4,9 @@
     "net10.0-windows10.0.19041": {
       "Microsoft.Windows.SDK.BuildTools": {
         "type": "Direct",
-        "requested": "[10.0.26100.4654, )",
-        "resolved": "10.0.26100.4654",
-        "contentHash": "2mgcOlj/t2RfSyyw+pVESfO+Tk1RkfQzto9Vrq42M1lUQIfQEwbi8QLha9GXWIOj+TFzeHIEJckIoF25mgiM8A=="
+        "requested": "[10.0.28000.2705, )",
+        "resolved": "10.0.28000.2705",
+        "contentHash": "TZQ96xtu7+fyFsyJCgj6Hazru0H8G1kiE1CeZLGpsqT4xKQmkxWu9yRuxYLeHJECjqEHN7duZUTcdbt8zlQ8OQ=="
       },
       "Microsoft.WindowsAppSDK": {
         "type": "Direct",
@@ -168,7 +168,7 @@
       "shift.application": {
         "type": "Project",
         "dependencies": {
-          "Shift.Domain": "[1.0.0, )"
+          "Shift.Domain": "[1.0.0-rc.2, )"
         }
       },
       "shift.domain": {
@@ -179,7 +179,7 @@
         "dependencies": {
           "Microsoft.Data.Sqlite": "[10.0.13, )",
           "SQLitePCLRaw.bundle_e_sqlite3": "[2.1.14, )",
-          "Shift.Application": "[1.0.0, )"
+          "Shift.Application": "[1.0.0-rc.2, )"
         }
       }
     },
