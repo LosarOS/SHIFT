@@ -81,11 +81,29 @@ function Set-Field([string]$Id,[string]$Value) {
     $control.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($Value)
 }
 function Select-Choice([string]$Id,[string]$Value) {
-    $control = Wait-For { Find-Control '' ([System.Windows.Automation.ControlType]::ComboBox) $Id } "choice $Id"
-    $control.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand()
-    $choice = Wait-For { Find-Control $Value ([System.Windows.Automation.ControlType]::ListItem) '' -Desktop } "option $Value"
-    $choice.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()
-    $control.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Collapse()
+    Write-Host "Select $Id = $Value"
+    # WinUI can replace automation peers while laying out a just-opened dialog.
+    # Expansion/selection are idempotent; reacquire stale peers inside the bounded wait.
+    $null = Wait-For {
+        $control=Find-Control '' ([System.Windows.Automation.ControlType]::ComboBox) $Id
+        if($control -and $control.Current.IsEnabled){
+            $pattern=$control.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern)
+            if($pattern.Current.ExpandCollapseState -ne [System.Windows.Automation.ExpandCollapseState]::Expanded){$pattern.Expand()}
+            $true
+        }
+    } "expanded choice $Id"
+    $null = Wait-For {
+        $choice=Find-Control $Value ([System.Windows.Automation.ControlType]::ListItem) '' -Desktop
+        if($choice -and $choice.Current.IsEnabled){$choice.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select();$true}
+    } "selected option $Id = $Value"
+    $null = Wait-For {
+        $control=Find-Control '' ([System.Windows.Automation.ControlType]::ComboBox) $Id
+        if($control){
+            $pattern=$control.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern)
+            if($pattern.Current.ExpandCollapseState -ne [System.Windows.Automation.ExpandCollapseState]::Collapsed){$pattern.Collapse()}
+            $true
+        }
+    } "collapsed choice $Id"
 }
 function Capture([string]$Name) {
     if (-not $DiagnosticsDirectory -or $null -eq $process) { return }
