@@ -479,6 +479,7 @@ public sealed partial class MainWindow
         behavior.Children.Add(startup);
         behavior.Children.Add(Text(s[paths.Portable ? "PortableStartup" : "StartupMismatch"], 12, true));
         var tray = new ToggleSwitch { Header = s["Tray"], IsOn = vm.Settings.MinimizeToTray, OnContent = s["Enabled"], OffContent = s["Disabled"] };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(tray, "Settings.MinimizeToTray");
         behavior.Children.Add(tray);
         var notifications = new ToggleSwitch { Header = s["Notifications"], IsOn = vm.Settings.Notifications, OnContent = s["Enabled"], OffContent = s["Disabled"] };
         behavior.Children.Add(notifications);
