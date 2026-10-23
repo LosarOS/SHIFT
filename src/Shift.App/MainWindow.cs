@@ -88,6 +88,7 @@ public sealed partial class MainWindow : Window, ICommandConsent
     }
     private async Task InitializeAsync()
     {
+        log.Info("Initializing local state.");
         try
         {
             var existing = File.Exists(paths.DatabasePath);
@@ -100,8 +101,10 @@ public sealed partial class MainWindow : Window, ICommandConsent
                 StartWithWindows = !paths.Portable && desktop.IsStartupEnabled()
             };
             await vm.RefreshAsync();
+            log.Info("Local state loaded; building shell.");
             ApplyTheme();
             BuildShell();
+            log.Info("Shell built; configuring desktop integration.");
             ConfigureTray();
             try
             {
