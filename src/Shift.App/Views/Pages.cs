@@ -175,7 +175,7 @@ public sealed partial class MainWindow
         {
             Width = GridLength.Auto
         });
-        footer.Children.Add(Text($"{workspace.Items.Count(i => i.Enabled)} / {workspace.Items.Count} {s["Items"]}", 11, true));
+        footer.Children.Add(Text($"{s["ItemsLabel"]}: {workspace.Items.Count(i => i.Enabled)} / {workspace.Items.Count}", 11, true));
         var actions = new FlowPanel();
         actions.Children.Add(Button("↗", () => OpenWorkspace(workspace)));
         ToolTipService.SetToolTip(actions.Children[0], s["Review"]);
@@ -214,6 +214,7 @@ public sealed partial class MainWindow
         launch.IsEnabled = !vm.IsLaunching;
         actions.Children.Add(launch);
         actions.Children.Add(AsyncButton(s["Edit"], () => EditWorkspaceAsync(workspace)));
+        actions.Children.Add(AsyncButton(s["Doctor.Check"], () => OpenDoctorAsync(workspace), false, "Workspace.Doctor"));
         var more = new DropDownButton { Content = "···", Padding = new Thickness(15, 9, 15, 9) };
         var menu = new MenuFlyout();
         void Menu(string label, Func<Task> action)
@@ -240,7 +241,7 @@ public sealed partial class MainWindow
         {
             Width = GridLength.Auto
         });
-        itemsHeading.Children.Add(Text($"{workspace.Items.Count} {s["Items"]}", 19, weight: Microsoft.UI.Text.FontWeights.SemiBold));
+        itemsHeading.Children.Add(Text($"{s["ItemsLabel"]}: {workspace.Items.Count}", 19, weight: Microsoft.UI.Text.FontWeights.SemiBold));
         var add = AsyncButton("+  " + s["AddItem"], () => EditItemAsync(workspace, null), false, "Item.New");
         Grid.SetColumn(add, 1);
         itemsHeading.Children.Add(add);
@@ -297,7 +298,7 @@ public sealed partial class MainWindow
             ToolTipService.SetToolTip(down, s["MoveDown"]);
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(down, s["MoveDown"]);
             controls.Children.Add(down);
-            controls.Children.Add(AsyncButton(s[item.Enabled ? "Disabled" : "Enabled"], async () => { await vm.SaveAsync(workspace with { Items = workspace.Items.Select(i => i.Id == item.Id ? i with { Enabled = !i.Enabled } : i).ToArray() }); RenderScreen(); }));
+            controls.Children.Add(AsyncButton(s[item.Enabled ? "DisableAction" : "EnableAction"], async () => { await vm.SaveAsync(workspace with { Items = workspace.Items.Select(i => i.Id == item.Id ? i with { Enabled = !i.Enabled } : i).ToArray() }); RenderScreen(); }));
             controls.Children.Add(AsyncButton(s["Delete"], async () => { if (await ConfirmAsync(s["DeleteItem"], item.Name, s["Delete"])) { await vm.SaveAsync(workspace with { Items = workspace.Items.Where(i => i.Id != item.Id).ToArray() }); RenderScreen(); } }));
             content.Children.Add(controls);
             var card = Card(content, 18);
@@ -478,6 +479,7 @@ public sealed partial class MainWindow
         behavior.Children.Add(startup);
         behavior.Children.Add(Text(s[paths.Portable ? "PortableStartup" : "StartupMismatch"], 12, true));
         var tray = new ToggleSwitch { Header = s["Tray"], IsOn = vm.Settings.MinimizeToTray, OnContent = s["Enabled"], OffContent = s["Disabled"] };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(tray, "Settings.MinimizeToTray");
         behavior.Children.Add(tray);
         var notifications = new ToggleSwitch { Header = s["Notifications"], IsOn = vm.Settings.Notifications, OnContent = s["Enabled"], OffContent = s["Disabled"] };
         behavior.Children.Add(notifications);

@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidatePattern('^\d+\.\d+\.\d+(?:-rc\.\d+)?$')][string]$Version = '1.0.0-rc.1',
+    [ValidatePattern('^\d+\.\d+\.\d+(?:-rc\.\d+)?$')][string]$Version = '1.0.0-rc.2',
     [string]$IsccPath = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
 )
 $ErrorActionPreference = 'Stop'
@@ -20,7 +20,7 @@ Push-Location $repo
 try {
     dotnet restore SHIFT.sln --locked-mode --nologo
     if ($LASTEXITCODE -ne 0) { throw 'Locked dependency restore failed.' }
-    dotnet test tests/Shift.Tests/Shift.Tests.csproj -c Release --no-restore --nologo
+    dotnet test tests/Shift.Tests/Shift.Tests.csproj -c Release --no-restore --nologo --logger trx --results-directory (Join-Path $out 'test-results')
     if ($LASTEXITCODE -ne 0) { throw 'Core tests failed.' }
     $effective=dotnet msbuild src/Shift.App/Shift.App.csproj -getProperty:WindowsAppSDKSelfContained,WindowsAppSdkBootstrapInitialize | Out-String | ConvertFrom-Json
     if($LASTEXITCODE -ne 0){throw 'Cannot inspect app runtime initialization.'}
@@ -29,6 +29,12 @@ try {
     }
     dotnet publish src/Shift.App/Shift.App.csproj -c Release -r win-x64 --self-contained true -p:WindowsAppSDKSelfContained=true "-p:Version=$Version" -o $publish --no-restore --nologo
     if ($LASTEXITCODE -ne 0) { throw 'Windows publish failed.' }
+    if (-not (Test-Path (Join-Path $publish 'resources.pri'))) { throw 'Published WinUI application resource index is missing.' }
+    # Inspect the actual published resource payload when diagnosing native startup in CI.
+    if ($env:SHIFT_STARTUP_TRACE -eq '1') {
+        Get-ChildItem $publish -Recurse -File | Where-Object { $_.Extension -in @('.pri', '.xbf', '.xaml') } |
+            ForEach-Object { Write-Host ('Published resource: ' + $_.FullName.Substring($publish.Length + 1) + ' (' + $_.Length + ' bytes)') }
+    }
     Copy-Item LICENSE (Join-Path $publish 'SHIFT-LICENSE.txt')
     Copy-Item THIRD-PARTY-NOTICES.md $publish
     $licenses = Join-Path $publish 'licenses'
@@ -54,10 +60,20 @@ try {
     Copy-Item $publish $portable -Recurse
     New-Item (Join-Path $portable 'portable.flag') -ItemType File -Force | Out-Null
     Copy-Item docs/INSTALLATION.md (Join-Path $portable 'INSTALLATION.md')
-    & powershell.exe -NoProfile -File (Join-Path $PSScriptRoot 'Smoke-Windows.ps1') -AppDirectory $portable -DiagnosticsDirectory (Join-Path $out 'diagnostics')
-    if ($LASTEXITCODE -ne 0) { throw 'Windows UI smoke failed.' }
     $zip = Join-Path $out "SHIFT-$Version-win-x64-portable.zip"
     Compress-Archive -Path $portable -DestinationPath $zip -Force
+    # Test bytes extracted from the actual distribution, in a fresh owned directory.
+    $extracted = Join-Path $out ('portable-extracted-' + [guid]::NewGuid().ToString('N'))
+    if (Test-Path $extracted) { throw 'Refusing to reuse an extraction directory.' }
+    New-Item $extracted -ItemType Directory | Out-Null
+    try {
+        Expand-Archive -LiteralPath $zip -DestinationPath $extracted
+        $extractedApp = Join-Path $extracted (Split-Path $portable -Leaf)
+        & powershell.exe -NoProfile -File (Join-Path $PSScriptRoot 'Smoke-Windows.ps1') -AppDirectory $extractedApp -ExtractedArchive -DiagnosticsDirectory (Join-Path $out 'diagnostics')
+        if ($LASTEXITCODE -ne 0) { throw 'Extracted portable ZIP Windows UI smoke failed.' }
+    } finally {
+        Remove-Item $extracted -Recurse -Force
+    }
     $numericVersion=($Version -split '-',2)[0]+'.0'
     & $IsccPath "/DAppVersion=$Version" "/DNumericVersion=$numericVersion" "/DSourceDir=$publish" "/DOutputDir=$out" (Join-Path $PSScriptRoot 'SHIFT.iss')
     if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed.' }

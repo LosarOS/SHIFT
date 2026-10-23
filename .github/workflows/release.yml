@@ -1,13 +1,13 @@
-name: Draft release
+name: Verified Windows prerelease
 on:
   push:
     tags: ['v[0-9]*']
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to build (x.y.z); workflow dispatch only uploads artifacts'
+        description: 'Release candidate version; manual dispatch builds artifacts without publishing'
         required: true
-        default: '1.0.0-rc.1'
+        default: '1.0.0-rc.2'
 permissions:
   contents: read
 jobs:
@@ -26,7 +26,7 @@ jobs:
           INPUT_VERSION: ${{ inputs.version }}
         run: |
           $version = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME.TrimStart('v') } else { $env:INPUT_VERSION }
-          if ($version -notmatch '^\d+\.\d+\.\d+(?:-rc\.\d+)?$') { throw 'Expected x.y.z or x.y.z-rc.n version' }
+          if ($version -notmatch '^\d+\.\d+\.\d+-rc\.\d+$') { throw 'This workflow only publishes explicitly labelled release candidates.' }
           "SHIFT_VERSION=$version" >> $env:GITHUB_ENV
       - name: Ensure Inno Setup
         shell: pwsh
@@ -38,6 +38,44 @@ jobs:
       - name: Installer smoke
         shell: pwsh
         run: ./packaging/Smoke-Installer.ps1 -Version $env:SHIFT_VERSION
+      - name: Record actual Windows validation
+        shell: pwsh
+        run: |
+          $reports = @(Get-ChildItem artifacts/test-results -Filter '*.trx' -File)
+          if ($reports.Count -ne 1) { throw 'Expected exactly one native core test report.' }
+          [xml]$trx = Get-Content $reports[0].FullName -Raw
+          $counts = $trx.TestRun.ResultSummary.Counters
+          if ([int]$counts.total -le 0 -or [int]$counts.failed -ne 0 -or [int]$counts.passed -ne [int]$counts.total) { throw 'Native core tests are empty, skipped or failed.' }
+          $nativeChecks = @('artifacts/diagnostics/portable-smoke.json', 'artifacts/diagnostics/installed-smoke.json', 'artifacts/diagnostics/installer-smoke.json', 'artifacts/diagnostics-reinstall/installed-smoke.json')
+          foreach ($path in $nativeChecks) {
+            $evidence = Get-Content $path -Raw | ConvertFrom-Json
+            if ($evidence.schema_version -ne 1 -or $evidence.status -ne 'passed' -or $evidence.manual_acceptance -ne $false -or @($evidence.checks).Count -eq 0) { throw "Invalid native smoke evidence: $path" }
+          }
+          $portableEvidence = Get-Content $nativeChecks[0] -Raw | ConvertFrom-Json
+          if ($portableEvidence.portable_smoke_archive -ne $true) { throw 'Portable smoke did not use the extracted distribution ZIP.' }
+          $report = [ordered]@{
+            schema_version = 1; version = $env:SHIFT_VERSION; source_commit = $env:GITHUB_SHA
+            workflow_run = "https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
+            environment = 'GitHub Actions disposable Windows x64 runner'; signature = 'unsigned'
+            core_tests = @{ total = [int]$counts.total; passed = [int]$counts.passed; failed = [int]$counts.failed; skipped = [int]$counts.notExecuted }
+            locked_restore = 'passed'; windows_self_contained_publish = 'passed'
+            portable_smoke_archive = $true
+            portable_ui_smoke = 'passed'; installed_ui_smoke = 'passed'; installer_preservation_smoke = 'passed'
+            interactive_physical_windows_acceptance = 'not_verified'
+            dpi_narrator_high_contrast_matrix = 'not_verified'
+            limits = @('UI Automation is not manual acceptance.', 'Same-version repair is not every older-version migration.', 'Dispatch success is not third-party application readiness.')
+          }
+          $report | ConvertTo-Json -Depth 5 | Set-Content artifacts/WINDOWS-VALIDATION.json -Encoding utf8
+          $screenshots = @(Get-ChildItem artifacts/diagnostics -Filter '*.png' -File)
+          if ($screenshots.Count -eq 0) { throw 'Actual Windows UI screenshots are missing.' }
+          Compress-Archive -LiteralPath $screenshots.FullName -DestinationPath artifacts/SHIFT-Windows-UI-Evidence.zip
+          $evidenceRoot = Join-Path $env:RUNNER_TEMP ('SHIFT-evidence-' + [guid]::NewGuid().ToString('N'))
+          New-Item $evidenceRoot -ItemType Directory | Out-Null
+          Copy-Item $nativeChecks[0] (Join-Path $evidenceRoot 'portable-smoke.json')
+          Copy-Item $nativeChecks[1] (Join-Path $evidenceRoot 'installed-smoke.json')
+          Copy-Item $nativeChecks[2] (Join-Path $evidenceRoot 'installer-smoke.json')
+          Copy-Item $nativeChecks[3] (Join-Path $evidenceRoot 'reinstalled-smoke.json')
+          Compress-Archive -Path (Join-Path $evidenceRoot '*') -DestinationPath artifacts/SHIFT-Native-Smoke-Evidence.zip
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: SHIFT-release-candidate
@@ -45,11 +83,43 @@ jobs:
             artifacts/*.zip
             artifacts/*setup.exe
             artifacts/SHA256SUMS.txt
-      - name: Create draft GitHub release
+            artifacts/WINDOWS-VALIDATION.json
+            artifacts/test-results/*.trx
+            artifacts/diagnostics/**
+            artifacts/diagnostics-reinstall/**
+      - name: Publish after verifying GitHub-downloaded bytes
         if: github.ref_type == 'tag'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          gh release create $env:GITHUB_REF_NAME "artifacts/SHIFT-$env:SHIFT_VERSION-win-x64-portable.zip" "artifacts/SHIFT-$env:SHIFT_VERSION-win-x64-setup.exe" artifacts/SHA256SUMS.txt --draft --title "SHIFT $env:SHIFT_VERSION" --notes-file docs/RELEASE_NOTES.md
+          $tag = $env:GITHUB_REF_NAME
+          $files = @("SHIFT-$env:SHIFT_VERSION-win-x64-portable.zip", "SHIFT-$env:SHIFT_VERSION-win-x64-setup.exe")
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) { throw 'Refusing to replace an existing release.' }
+          $tagged = gh api "repos/$env:GITHUB_REPOSITORY/commits/$tag" --jq '.sha'
+          if ($LASTEXITCODE -ne 0 -or $tagged -ne $env:GITHUB_SHA) { throw 'Tag/source mismatch.' }
+          foreach ($name in $files) { if ((Get-Item "artifacts/$name").Length -le 0) { throw 'Empty binary.' } }
+          gh release create $tag "artifacts/$($files[0])" "artifacts/$($files[1])" artifacts/SHA256SUMS.txt artifacts/WINDOWS-VALIDATION.json artifacts/SHIFT-Windows-UI-Evidence.zip artifacts/SHIFT-Native-Smoke-Evidence.zip --draft --prerelease --verify-tag --title "SHIFT $env:SHIFT_VERSION · Windows x64" --notes-file docs/RELEASE_NOTES.md
           if ($LASTEXITCODE -ne 0) { throw 'Draft release creation failed.' }
+          $download = Join-Path $env:RUNNER_TEMP 'SHIFT-published-verification'
+          New-Item $download -ItemType Directory | Out-Null
+          gh release download $tag --dir $download --pattern $files[0] --pattern $files[1] --pattern 'SHA256SUMS.txt'
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot download draft assets for verification.' }
+          if ([IO.File]::ReadAllText((Join-Path $download 'SHA256SUMS.txt')) -cne [IO.File]::ReadAllText((Join-Path $PWD 'artifacts/SHA256SUMS.txt'))) { throw 'Published checksum list differs.' }
+          $lines = @([IO.File]::ReadAllLines((Join-Path $download 'SHA256SUMS.txt')))
+          if ($lines.Count -ne 2) { throw 'Unexpected checksum count.' }
+          $seen = @{}
+          foreach ($line in $lines) {
+            if ($line -cnotmatch '^([0-9a-f]{64})  ([A-Za-z0-9.\-]+)$') { throw 'Invalid checksum entry.' }
+            $digest = $Matches[1]; $name = $Matches[2]
+            if ($name -notin $files -or $seen.ContainsKey($name)) { throw 'Unexpected or duplicate binary name.' }
+            $seen[$name] = $true
+            $path = Join-Path $download $name
+            if ((Get-Item $path).Length -le 0 -or (Get-FileHash $path -Algorithm SHA256).Hash.ToLowerInvariant() -cne $digest) { throw "Published hash mismatch: $name" }
+          }
+          gh release edit $tag --draft=false --prerelease
+          if ($LASTEXITCODE -ne 0) { throw 'Publishing verified prerelease failed.' }
+          gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$tag" --jq '{tag_name,draft,prerelease,assets:[.assets[]|{name,size,digest,browser_download_url}]}'
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot confirm published release metadata.' }

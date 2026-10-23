@@ -55,3 +55,7 @@ CRUD, 5 item types, tags/favorites/search, sequential launch and cancel, command
 - Более полный Windows UI/installer smoke с diagnostics/screenshots и source hygiene gate.
 
 Код этих возможностей включён в RC. «Реализовано» не означает «подтверждено на Windows»; текущая валидация фиксируется отдельно. Stable 1.0 требует закрытия release gates, а session capture/layouts/schedules остаются следующими версиями.
+
+## RC2 engineering session
+
+Workspace Doctor is implemented with bounded local-only checks and explicit Unknown states. Quick Workspace Setup is being developed independently and will be integrated only after its own review/native validation; it does not replace full session capture. The primary release gate remains actual Windows startup and preservation checks. See [session evidence](../reports/engineering-session-2026-10-23.md).

@@ -39,6 +39,8 @@ jobs:
           path: artifacts/core-diagnostics.json
   windows-app:
     runs-on: windows-latest
+    env:
+      SHIFT_STARTUP_TRACE: '1'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
@@ -48,12 +50,15 @@ jobs:
         shell: pwsh
         run: |
           if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup --yes --no-progress }
+      - name: Prepare isolated native crash diagnostics
+        shell: pwsh
+        run: ./packaging/Prepare-NativeDiagnostics.ps1
       - name: Build installer and portable
         shell: pwsh
-        run: ./packaging/Build-Release.ps1 -Version 1.0.0-rc.1
+        run: ./packaging/Build-Release.ps1 -Version 1.0.0-rc.2
       - name: Installer smoke
         shell: pwsh
-        run: ./packaging/Smoke-Installer.ps1 -Version 1.0.0-rc.1
+        run: ./packaging/Smoke-Installer.ps1 -Version 1.0.0-rc.2
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
