@@ -59,6 +59,11 @@ public sealed partial class SqliteStore
     }
     private static void TextLimit(string? value, int max, bool required = false) => Require(value is not null && value.Length <= max
         && (!required || !string.IsNullOrWhiteSpace(value)), "Studio text is missing or exceeds its limit.");
+    private static void ValidateShared(Action validation)
+    {
+        try { validation(); }
+        catch (ValidationException ex) { throw new InvalidDataException("Studio model violates the supported declaration schema.", ex); }
+    }
     private static void ValidateLayout(WidgetLayout l)
     {
         Require(l is not null, "Widget layout is missing.");
@@ -66,6 +71,7 @@ public sealed partial class SqliteStore
         Require(double.IsFinite(l.X) && double.IsFinite(l.Y) && l.X is >= 0 and <= 1 && l.Y is >= 0 and <= 1
             && double.IsFinite(l.Width) && double.IsFinite(l.Height) && l.Width is >= 80 and <= 2000 && l.Height is >= 60 and <= 2000,
             "Widget layout is outside supported bounds.");
+        ValidateShared(() => StudioValidator.Validate(l));
     }
     private static void ValidateDefinition(WidgetDefinition d)
     {
@@ -83,6 +89,7 @@ public sealed partial class SqliteStore
         Require(d.Content.FocusMinutes is >= 1 and <= 1440 && d.Content.UpdateIntervalSeconds is >= 1 and <= 3600, "Widget timing is invalid.");
         try { _ = DateTimeOffset.UtcNow.ToString(d.Content.DateFormat, System.Globalization.CultureInfo.InvariantCulture); }
         catch (FormatException ex) { throw new InvalidDataException("Widget date format is invalid.", ex); }
+        ValidateShared(() => StudioValidator.Validate(d));
     }
     private static void ValidateProfile(DesktopProfile p)
     {
@@ -93,17 +100,20 @@ public sealed partial class SqliteStore
         Require(p.Wallpapers.Select(w => w.MonitorId).Distinct(StringComparer.Ordinal).Count() == p.Wallpapers.Count && p.Widgets.Select(w => w.Id).Distinct().Count() == p.Widgets.Count, "Studio profile contains duplicate identities.");
         foreach (var w in p.Wallpapers) { TextLimit(w.MonitorId, 2048); TextLimit(w.ImagePath, 32768, true); }
         foreach (var w in p.Widgets) { Require(w is not null && w.Id != Guid.Empty && w.DefinitionId != Guid.Empty && Enum.IsDefined(w.Interaction), "Widget instance is invalid."); ValidateLayout(w.Layout); }
+        ValidateShared(() => StudioValidator.Validate(p));
     }
     private static void ValidateState(WidgetRuntimeState s)
     {
         Require(s is not null && s.InstanceId != Guid.Empty && s.Revision >= 0 && s.Timer is not null, "Widget state is invalid.");
         TextLimit(s.Notes, 100000);
         Require(double.IsFinite(s.Timer.RemainingSeconds) && s.Timer.RemainingSeconds is >= 0 and <= 86400 && (!s.Timer.Running || s.Timer.EndsAtUtc is not null), "Focus timer state is invalid.");
+        ValidateShared(() => StudioValidator.Validate(s));
     }
     private static void ValidateSettings(StudioSettings s)
     {
         Require(s is not null && s.ActiveProfileId != Guid.Empty && s.ConsecutiveRuntimeFailures is >= 0 and <= 100, "Studio settings are invalid.");
         TextLimit(s.Palette, 64, true);
+        ValidateShared(() => StudioValidator.Validate(s));
     }
     private static void ValidateJournal(StudioRecoveryJournal j)
     {
@@ -120,6 +130,7 @@ public sealed partial class SqliteStore
         foreach (var id in j.AttemptedMonitorIds.Concat(j.AppliedMonitorIds)) TextLimit(id, 2048);
         foreach (var error in j.Errors) TextLimit(error, 4000);
         Require(Encode(j).Length <= 2_097_152, "Studio recovery journal exceeds its size limit.");
+        ValidateShared(() => StudioValidator.Validate(j));
     }
 
     public async Task<IReadOnlyList<DesktopProfile>> ListProfilesAsync(CancellationToken token = default)
