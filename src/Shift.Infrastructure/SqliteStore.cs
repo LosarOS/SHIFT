@@ -4,7 +4,7 @@ using Shift.Domain;
 using System.Text.Json;
 namespace Shift.Infrastructure;
 
-public sealed class SqliteStore : IWorkspaceStore, IRunStore, ISettingsStore, IHistoryQueries
+public sealed partial class SqliteStore : IWorkspaceStore, IRunStore, ISettingsStore, IHistoryQueries, IStudioStore
 {
     private readonly string connectionString;
     public string DatabasePath
@@ -49,8 +49,21 @@ public sealed class SqliteStore : IWorkspaceStore, IRunStore, ISettingsStore, IH
         using var versionCmd = db.CreateCommand();
         versionCmd.CommandText = "PRAGMA user_version";
         var version = Convert.ToInt32(await versionCmd.ExecuteScalarAsync(token));
-        if (version > 1)
+        if (version is < 0 or > 2)
             throw new InvalidOperationException("This database belongs to a newer SHIFT version. Update SHIFT before opening it.");
+        if (version == 0)
+        {
+            using var existingSchema = db.CreateCommand();
+            existingSchema.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE name NOT GLOB 'sqlite_*'";
+            if (Convert.ToInt64(await existingSchema.ExecuteScalarAsync(token)) != 0)
+                throw new InvalidDataException("Unversioned nonempty databases cannot be initialized as SHIFT data.");
+        }
+        if (version == 1)
+        {
+            // Snapshot committed WAL contents before the first migration schema mutation.
+            LastMigrationBackupPath = await BackupAsync(Path.Combine(Path.GetDirectoryName(DatabasePath)!, "migration-backups"), token);
+            await ValidateBackupAsync(LastMigrationBackupPath, token);
+        }
         await ExecuteAsync(db, null, "PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;", token);
         using var tx = db.BeginTransaction();
         await ExecuteAsync(db, tx, """
@@ -78,10 +91,14 @@ public sealed class SqliteStore : IWorkspaceStore, IRunStore, ISettingsStore, IH
               Name TEXT NOT NULL, Kind INTEGER NOT NULL, SortOrder INTEGER NOT NULL,
               Status INTEGER NOT NULL, Error TEXT, StartedAt TEXT, FinishedAt TEXT, PRIMARY KEY(RunId, ItemId));
             CREATE TABLE IF NOT EXISTS AppSettings (Id INTEGER PRIMARY KEY CHECK(Id=1), Json TEXT NOT NULL);
-            PRAGMA user_version=1;
+
             """, token);
+        if (version < 2)
+            await ExecuteAsync(db, tx, StudioSchema, token);
+        await ExecuteAsync(db, tx, "PRAGMA user_version=2", token);
         tx.Commit();
     }
+    public string? LastMigrationBackupPath { get; private set; }
     public async Task SaveAsync(Workspace workspace, CancellationToken token = default)
     {
         WorkspaceValidator.Validate(workspace);
@@ -154,7 +171,7 @@ public sealed class SqliteStore : IWorkspaceStore, IRunStore, ISettingsStore, IH
     {
         await using var db = await OpenAsync(token);
         using var tx = db.BeginTransaction();
-        await ExecuteAsync(db, tx, "DELETE FROM Workspaces WHERE Id=$id; DELETE FROM Tags WHERE Name NOT IN (SELECT TagName FROM WorkspaceTagLinks)", token, ("$id", id.ToString()));
+        await ExecuteAsync(db, tx, "UPDATE StudioProfiles SET AutoApply=0,Revision=Revision+1 WHERE WorkspaceId=$id; DELETE FROM Workspaces WHERE Id=$id; DELETE FROM Tags WHERE Name NOT IN (SELECT TagName FROM WorkspaceTagLinks)", token, ("$id", id.ToString()));
         tx.Commit();
     }
     public async Task SaveRunAsync(LaunchRun run, CancellationToken token = default)
@@ -328,8 +345,12 @@ public sealed class SqliteStore : IWorkspaceStore, IRunStore, ISettingsStore, IH
         check.CommandText = "PRAGMA quick_check";
         if (!string.Equals(await check.ExecuteScalarAsync(token) as string, "ok", StringComparison.Ordinal))
             throw new InvalidDataException("Backup failed SQLite integrity validation.");
+        check.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type IN ('trigger','view')";
+        if (Convert.ToInt64(await check.ExecuteScalarAsync(token)) != 0)
+            throw new InvalidDataException("SHIFT backups cannot contain executable triggers or views.");
         check.CommandText = "PRAGMA user_version";
-        if (Convert.ToInt32(await check.ExecuteScalarAsync(token)) != 1)
+        var backupVersion = Convert.ToInt32(await check.ExecuteScalarAsync(token));
+        if (backupVersion is not (1 or 2))
             throw new InvalidDataException("Unsupported backup database version.");
         foreach (var table in new[] { "Workspaces", "WorkspaceItems", "Tags", "WorkspaceTagLinks", "LaunchRuns", "LaunchRunItems", "AppSettings" })
         {
@@ -369,6 +390,8 @@ public sealed class SqliteStore : IWorkspaceStore, IRunStore, ISettingsStore, IH
         var candidate = new SqliteStore(path, readOnly: true);
         foreach (var workspace in await candidate.ListAsync(token))
             WorkspaceValidator.Validate(workspace);
+        if (backupVersion == 2)
+            await candidate.ValidateStudioBackupAsync(token);
         for (var offset = 0; ; offset += 200)
         {
             var page = await candidate.QueryHistoryAsync(new(Offset: offset, PageSize: 200), token);
