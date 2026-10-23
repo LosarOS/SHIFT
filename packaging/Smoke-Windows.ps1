@@ -162,6 +162,7 @@ function Test-QuickSetup([string]$Language) {
     if ($choice.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Current.ToggleState -ne [System.Windows.Automation.ToggleState]::On) { throw 'Wizard lost selection after Back.' }
     Click $next
     Click $cancel
+    $null = Wait-For { $null -eq (Find-Control '' ([System.Windows.Automation.ControlType]::Edit) 'Setup.Name') } 'cancelled wizard closed'
     Click '' 'Quick.Open'
     Set-Field 'Quick.Search' ('SHIFT wizard cancelled ' + $Language)
     $null = Wait-For { Find-Control $empty ([System.Windows.Automation.ControlType]::Text) } 'cancelled wizard did not save'
