@@ -13,7 +13,7 @@ public sealed class LocalItemInspection : IItemInspection
     private static IReadOnlyList<DoctorFinding> Inspect(WorkspaceItem item, CancellationToken token)
     {
         var findings = new List<DoctorFinding>();
-        void Probe(string path, bool folder, bool shortcut = false)
+        void Probe(string path, bool folder, bool shortcut = false, bool executable = false)
         {
             token.ThrowIfCancellationRequested();
             try
@@ -54,6 +54,30 @@ public sealed class LocalItemInspection : IItemInspection
                         else
                             findings.Add(new(DoctorState.Unknown, "Doctor.ShortcutTarget"));
                     }
+                    else if (executable)
+                    {
+                        Span<byte> header = stackalloc byte[64];
+                        var count = stream.ReadAtLeast(header, 64, throwOnEndOfStream: false);
+                        if (count < 64 || header[0] != 'M' || header[1] != 'Z')
+                            findings.Add(new(DoctorState.Error, "Doctor.BrokenExecutable"));
+                        else
+                        {
+                            var offset = System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(header[60..]);
+                            if (offset < 64 || offset > stream.Length - 4)
+                                findings.Add(new(DoctorState.Error, "Doctor.BrokenExecutable"));
+                            else if (offset > 1024 * 1024)
+                                findings.Add(new(DoctorState.Unknown, "Doctor.ExecutableUnknown"));
+                            else
+                            {
+                                token.ThrowIfCancellationRequested();
+                                stream.Position = offset;
+                                Span<byte> signature = stackalloc byte[4];
+                                if (stream.ReadAtLeast(signature, 4, throwOnEndOfStream: false) != 4
+                                    || !signature.SequenceEqual("PE\0\0"u8))
+                                    findings.Add(new(DoctorState.Error, "Doctor.BrokenExecutable"));
+                            }
+                        }
+                    }
                 }
             }
             catch (FileNotFoundException) { findings.Add(new(DoctorState.Error, "Doctor.Missing")); }
@@ -79,7 +103,10 @@ public sealed class LocalItemInspection : IItemInspection
         }
         if (item.Kind is ItemKind.App or ItemKind.File or ItemKind.Folder)
         {
-            Probe(item.Target, item.Kind == ItemKind.Folder, item.Kind == ItemKind.App && Path.GetExtension(item.Target).Equals(".lnk", StringComparison.OrdinalIgnoreCase));
+            var extension = Path.GetExtension(Environment.ExpandEnvironmentVariables(item.Target));
+            Probe(item.Target, item.Kind == ItemKind.Folder,
+                item.Kind == ItemKind.App && extension.Equals(".lnk", StringComparison.OrdinalIgnoreCase),
+                item.Kind == ItemKind.App && extension.Equals(".exe", StringComparison.OrdinalIgnoreCase));
             if (item.Kind == ItemKind.File && findings.Count == 0)
             {
                 if (!OperatingSystem.IsWindows()) findings.Add(new(DoctorState.Unknown, "Doctor.AssociationUnknown"));
