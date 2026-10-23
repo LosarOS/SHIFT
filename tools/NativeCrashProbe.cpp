@@ -35,6 +35,24 @@ int main(int argc,char** argv) {
             ULONG64 address=0; Stowed stowed{};
             if(FAILED(memory->ReadVirtual(list+i*8,&address,sizeof(address),nullptr))||FAILED(memory->ReadVirtual(address,&stowed,sizeof(stowed),nullptr)))continue;
             std::printf("STOWED %llu: HRESULT=0x%08lx form=%lu size=%lu signature=%08lx nested=%08lx\n",i,stowed.result,stowed.flags&3,stowed.size,stowed.signature,stowed.nestedType);
+            // WinUI's nested ErrorContext contains bounded diagnostic strings. The release
+            // x64 layout is ContextBase: FILETIME/DWORD/USHORT + 512 addresses + vector.
+            // Read only validated vector/string ranges; malformed dumps are not trusted.
+            if(stowed.nestedType==0x4c4d4158 && stowed.nested) {
+                ULONG64 bounds[3]{};
+                if(SUCCEEDED(memory->ReadVirtual(stowed.nested+4112,bounds,sizeof(bounds),nullptr)) &&
+                   bounds[0] && bounds[1]>=bounds[0] && bounds[1]<=bounds[2] &&
+                   (bounds[1]-bounds[0])%32==0 && bounds[1]-bounds[0]<=32*32) {
+                    for(ULONG64 pos=bounds[0];pos<bounds[1];pos+=32) {
+                        ULONG64 value[4]{};
+                        if(FAILED(memory->ReadVirtual(pos,value,sizeof(value),nullptr)) || value[2]>4096 || value[2]>value[3])continue;
+                        const auto start=value[3]<8?pos:value[0];
+                        std::vector<wchar_t> text(static_cast<size_t>(value[2])+1,0);
+                        if(value[2] && SUCCEEDED(memory->ReadVirtual(start,text.data(),static_cast<ULONG>(value[2]*2),nullptr)))
+                            std::printf("XAML context: %ls\n",text.data());
+                    }
+                }
+            }
             if((stowed.flags&3)==2) { wchar_t text[1024]{};memory->ReadVirtual(stowed.address,text,sizeof(text)-sizeof(wchar_t),nullptr);std::printf("Error text: %ls\n",text); }
             if((stowed.flags&3)==1&&stowed.wordSize==8) {
                 ULONG64 frames[32]{};ULONG bytes=0;memory->ReadVirtual(stowed.trace,frames,sizeof(ULONG64)*(stowed.words<32?stowed.words:32),&bytes);

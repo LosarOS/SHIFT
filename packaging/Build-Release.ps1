@@ -29,6 +29,11 @@ try {
     }
     dotnet publish src/Shift.App/Shift.App.csproj -c Release -r win-x64 --self-contained true -p:WindowsAppSDKSelfContained=true "-p:Version=$Version" -o $publish --no-restore --nologo
     if ($LASTEXITCODE -ne 0) { throw 'Windows publish failed.' }
+    # Inspect the actual published resource payload when diagnosing native startup in CI.
+    if ($env:SHIFT_STARTUP_TRACE -eq '1') {
+        Get-ChildItem $publish -Recurse -File | Where-Object { $_.Extension -in @('.pri', '.xbf', '.xaml') } |
+            ForEach-Object { Write-Host ('Published resource: ' + $_.FullName.Substring($publish.Length + 1) + ' (' + $_.Length + ' bytes)') }
+    }
     Copy-Item LICENSE (Join-Path $publish 'SHIFT-LICENSE.txt')
     Copy-Item THIRD-PARTY-NOTICES.md $publish
     $licenses = Join-Path $publish 'licenses'
