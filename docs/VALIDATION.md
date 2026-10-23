@@ -1,3 +1,15 @@
+# Validation — current Studio preview
+
+Current implementation and exact native gate outcomes are tracked in [Studio engineering journal](../reports/SHIFT-STUDIO-ENGINEERING-SESSION.md) and [Studio QA matrix](studio/QA-MATRIX.md). The older report below is retained as historical RC1 evidence; its pending Windows gates are not the current RC2 release status.
+
+- Published RC2 has real portable/installed Windows smoke evidence and remains available.
+- Studio preview has190 automated tests,0failed/0skipped locally on Linux; final Windows evidence must reference the matching source revision.
+- Windows publish, portable startup, installer smoke, Studio widget/wallpaper recovery and physical Windows acceptance are separate gates.
+- Studio native acceptance is disposable-runner-only; it refuses existing data directories and restores wallpaper before deleting owned test assets.
+- All binaries are unsigned. Manual Win10/11, DPI, Narrator, sleep/RDP/fullscreen checks remain outstanding.
+
+## Historical RC1 local report
+
 # Published RC2 — final evidence
 
 **VERIFIED PRERELEASE WITH DISCLOSED LIMITATIONS** · [Download](https://github.com/LosarOS/SHIFT/releases/tag/v1.0.0-rc.2).

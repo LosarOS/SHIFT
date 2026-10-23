@@ -3,7 +3,7 @@ using Shift.Domain;
 namespace Shift.Infrastructure;
 
 /// <summary>Serializes SQLite access off the UI thread. Each operation owns and closes its connections.</summary>
-public sealed class LocalDataStore(string path) : IWorkspaceStore, IRunStore, ISettingsStore, IHistoryQueries, IDisposable
+public sealed partial class LocalDataStore(string path) : IWorkspaceStore, IRunStore, ISettingsStore, IHistoryQueries, IStudioStore, IDisposable
 {
     private readonly SqliteStore inner = new(path);
     private readonly SemaphoreSlim gate = new(1, 1);

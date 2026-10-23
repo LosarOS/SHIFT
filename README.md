@@ -1,5 +1,6 @@
 <div align="center">
 
+> **SHIFT Studio preview:** development in [PR13](https://github.com/LosarOS/SHIFT/pull/13). Studio is opt-in; see [architecture](docs/studio/ARCHITECTURE.md), [migration](docs/studio/MIGRATION.md) and [actual validation journal](reports/SHIFT-STUDIO-ENGINEERING-SESSION.md). Public RC2 remains available until RC3 native release gates pass.
 ![SHIFT — Your work. One SHIFT away.](docs/assets/shift-cover.svg)
 
 **A native, local-first workspace launcher for Windows.**
@@ -54,7 +55,7 @@ dotnet test tests/Shift.Tests -c Release
 Create the Windows distribution with PowerShell 7 and Inno Setup 6:
 
 ```powershell
-pwsh ./packaging/Build-Release.ps1 -Version 1.0.0-rc.2
+pwsh ./packaging/Build-Release.ps1 -Version 1.0.0-rc.3
 ```
 
 The script runs locked restore, core tests, self-contained publish and UI Automation smoke, then creates a portable ZIP, per-user installer and SHA-256 checksums in `artifacts/`. Windows CI additionally tests the installed app and uninstall. The UI smoke includes an explicitly approved harmless command that writes a marker into its disposable test profile; it also verifies refusal does not execute it. Diagnostics and real-window screenshots are saved by CI; screenshots are genuine disposable Windows runner captures.

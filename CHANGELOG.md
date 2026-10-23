@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.0-rc.3 — Studio experimental preview
+
+- Added opt-in desktop profiles, separate workspace associations and staged static-wallpaper recovery with managed originals.
+- Added four owned native widget types, centralized updates, normalized layout, notes recovery drafts and deadline-based focus timers.
+- Added Widget Lab with reversible drafts, external preview, six built-in styles and bounded declaration import/export.
+- Added transactional SQLite v2 migration, pre-migration backup, revision guards and v1/v2 backup validation.
+- Added disposable native Studio acceptance using actual published RC2 data; physical Windows/DPI/accessibility acceptance remains outstanding.
+- Kept Studio disabled by default, command consent unchanged, automatic wallpaper changes disabled and Explorer untouched.
+
 ## 1.0.0-rc.2 — 2026-10-23
 
 - Added cancellable Workspace Doctor with Ready / Warning / Error / Unknown observations, RU/EN guidance and direct item editing.

@@ -127,6 +127,7 @@ public sealed partial class MainWindow : Window, ICommandConsent
             }
             if (!vm.Settings.OnboardingComplete && !quitRequested)
                 await OnboardAsync();
+            await InitializeStudioAsync();
             log.Info("SHIFT started.");
         }
         catch (Exception ex)
@@ -165,7 +166,7 @@ public sealed partial class MainWindow : Window, ICommandConsent
             AppWindow.Hide();
             return;
         }
-        if (vm.IsLaunching || activeOperations > 0)
+        if (vm.IsLaunching || activeOperations > 0 || studioRuntime is not null)
         {
             args.Cancel = true;
             _ = QuitAsync();
@@ -200,6 +201,7 @@ public sealed partial class MainWindow : Window, ICommandConsent
                         await launchTask;
                 }
                 await idleOperations.Task;
+                await StopStudioAsync();
                 exiting = true;
                 desktop.Dispose();
                 Close();
@@ -225,6 +227,7 @@ public sealed partial class MainWindow : Window, ICommandConsent
     }
     private void BuildShell()
     {
+        if (studioRuntime is not null) studioRuntime.Language = s.Language;
         // Persistent panels must be detached before a theme/language rebuild reparents them.
         if (navigation.Parent is Panel oldSide)
             oldSide.Children.Remove(navigation);
@@ -283,7 +286,7 @@ public sealed partial class MainWindow : Window, ICommandConsent
     private void RenderNavigation()
     {
         navigation.Children.Clear();
-        foreach (var (key, glyph) in new[] { ("Overview", "\uE80F"), ("Workspaces", "\uE8F1"), ("Favorites", "\uE734"), ("History", "\uE81C"), ("Settings", "\uE713") })
+        foreach (var (key, glyph) in new[] { ("Overview", "\uE80F"), ("Workspaces", "\uE8F1"), ("Favorites", "\uE734"), ("History", "\uE81C"), ("Studio", "\uE790"), ("Settings", "\uE713") })
         {
             var target = key;
             var row = Row(12);
@@ -368,6 +371,9 @@ public sealed partial class MainWindow : Window, ICommandConsent
                 break;
             case "History":
                 RenderHistory();
+                break;
+            case "Studio":
+                RenderStudio();
                 break;
             case "Settings":
                 RenderSettings();
