@@ -157,6 +157,22 @@ public sealed class StudioPersistenceTests : IDisposable
         Assert.Equal(workspace.Id,Assert.Single(await target.ListAsync()).Id);Assert.Empty(await target.ListProfilesAsync());
         Assert.Equal(RunStatus.Interrupted,Assert.Single(await target.HistoryAsync()).Status);
     }
+    [Fact]
+    public async Task V1_restore_migration_backup_failure_does_not_replace_working_database()
+    {
+        var(legacy,_)=await Legacy();var backup=await legacy.BackupAsync(Path.Combine(root,"legacy"));var target=await Store("target.db");
+        await target.SaveAsync(new(){Name="Current must survive"});File.WriteAllText(Path.Combine(root,"migration-backups"),"owned obstruction");
+        await Assert.ThrowsAnyAsync<IOException>(()=>target.RestoreAsync(backup,Path.Combine(root,"safety")));
+        Assert.Equal(2L,await Sql(target.DatabasePath,"PRAGMA user_version"));Assert.Equal("Current must survive",Assert.Single(await target.ListAsync()).Name);
+    }
+    [Fact]
+    public async Task V1_restore_schema_collision_does_not_replace_working_database()
+    {
+        var(legacy,_)=await Legacy();await Sql(legacy.DatabasePath,"CREATE TABLE StudioProfiles(Unexpected INTEGER)");var backup=await legacy.BackupAsync(Path.Combine(root,"legacy"));
+        var target=await Store("target.db");await target.SaveAsync(new(){Name="Current must survive"});
+        await Assert.ThrowsAsync<SqliteException>(()=>target.RestoreAsync(backup,Path.Combine(root,"safety")));
+        Assert.Equal(2L,await Sql(target.DatabasePath,"PRAGMA user_version"));Assert.Equal("Current must survive",Assert.Single(await target.ListAsync()).Name);
+    }
     [Theory]
     [InlineData("UPDATE StudioDefinitions SET Style='{\"Opacity\":-1}'")]
     [InlineData("UPDATE StudioInstances SET Layout='{\"X\":20}'")]

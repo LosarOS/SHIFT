@@ -12,14 +12,14 @@ public sealed partial class SqliteStore : IWorkspaceStore, IRunStore, ISettingsS
         get;
     }
     public SqliteStore(string path) : this(path, readOnly: false) { }
-    private SqliteStore(string path, bool readOnly)
+    private SqliteStore(string path, bool readOnly, bool? pooling = null)
     {
         DatabasePath = Path.GetFullPath(path);
         connectionString = new SqliteConnectionStringBuilder
         {
             DataSource = DatabasePath, ForeignKeys = true, DefaultTimeout = 15,
             Mode = readOnly ? SqliteOpenMode.ReadOnly : SqliteOpenMode.ReadWriteCreate,
-            Pooling = !readOnly
+            Pooling = pooling ?? !readOnly
         }.ToString();
     }
     private async Task<SqliteConnection> OpenAsync(CancellationToken token)
@@ -430,6 +430,27 @@ public sealed partial class SqliteStore : IWorkspaceStore, IRunStore, ISettingsS
             }
             token.ThrowIfCancellationRequested();
             await ValidateBackupAsync(temporary, token);
+            int snapshotVersion;
+            await using (var inspected = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = temporary, Mode = SqliteOpenMode.ReadOnly, Pooling = false }.ToString()))
+            {
+                await inspected.OpenAsync(token);
+                using var version = inspected.CreateCommand(); version.CommandText = "PRAGMA user_version";
+                snapshotVersion = Convert.ToInt32(await version.ExecuteScalarAsync(token));
+            }
+            if (snapshotVersion == 1)
+            {
+                // Upgrade the owned snapshot BEFORE replacing live data. Failed migration must
+                // leave the working database unchanged, including backup-path/DDL failures.
+                var upgraded = new SqliteStore(temporary, readOnly: false, pooling: false);
+                await upgraded.InitializeAsync(token);
+                LastMigrationBackupPath = upgraded.LastMigrationBackupPath;
+                await using (var standalone = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = temporary, Pooling = false }.ToString()))
+                {
+                    await standalone.OpenAsync(token);
+                    await ExecuteAsync(standalone, null, "PRAGMA journal_mode=DELETE", token);
+                }
+                await ValidateBackupAsync(temporary, token);
+            }
             var safety = await BackupAsync(safetyDirectory, token);
             await using (var db = await OpenAsync(token))
             {
