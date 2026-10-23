@@ -1,21 +1,36 @@
-# SHIFT 1.0.0-rc.1
+# SHIFT 1.0.0-rc.2 — проверка пространств и первый Windows-кандидат
 
-Native, local-first Windows workspace manager. This candidate extends the initial MVP with a compact launcher, opt-in global hotkey, background persistence, complete usage statistics, paged history and safe backup restoration.
+SHIFT — локальный менеджер рабочих пространств: приложения, папки, файлы, ссылки и явно подтверждаемые команды одним запуском. Windows 10 build 19041+ / Windows 11 x64. Учётная запись, облако и платные API не нужны.
 
-## Main capabilities
+## Новое
 
-Workspace CRUD, clone, tags, favorites, search, sorting and per-item launch order/delays. Apps, shortcuts, folders, files, HTTP(S) and explicit PowerShell/cmd commands. Visible queue, cancellation, failure isolation, command consent on every run and durable history. No account, backend, telemetry or paid APIs.
+- **Проверка пространства / Workspace Doctor:** действие «Проверить» на странице пространства. Асинхронная отменяемая проверка, состояния Ready / Warning / Error / Unknown, объяснения RU/EN, повторная проверка и переход к редактору элемента.
+- Анализ локальных путей, доступа, рабочих каталогов, заголовков EXE/ярлыков и HTTP(S)-адресов без запуска элементов и сетевых запросов. Подтверждение команд по-прежнему требуется при каждом запуске.
+- Исправлены блокировавшие Windows-запуск проблемы: дублирование ресурсов иконки, конфликт XAML-компиляторов, неподдерживаемая подписка на системное событие и отсутствие application `resources.pri` в publish.
+- Диагностика ошибок сохраняет HRESULT и имена методов без аргументов или исходных приватных путей.
 
-WinUI interface with RU/EN and four themes, tray, notifications, installed startup, second-instance activation. Ctrl+K compact search, ↑/↓ selection, Enter dispatch; opt-in Ctrl+Alt+Space. JSON import/export and verified SQLite restoration with a safety copy.
+Существующие CRUD, теги, поиск, избранное, клонирование, очередь/отмена, история, JSON, SQLite backup/restore, RU/EN, Dark / Light / Midnight / Forest, трей, компактный launcher и горячая клавиша сохранены.
 
-## Quality work
+## Скачать и установить
 
-63 local automated checks cover core behavior, SQLite, cancellation, command consent, backup restore, URI escaping, history statistics/paging, null/duplicate JSON and IPC. Restore snapshots include committed WAL changes and reject corrupt workspace/history values before replacing current data. Failed restoration cleans temporary journals; export enforces its import size budget before touching a destination. Dependencies are locked and audited; CI actions are pinned. Windows automation scripts cover real approved dispatch, refusal, theme/language, compact view, tray/activation and installed/uninstall flow, and preserve diagnostics.
+- `SHIFT-1.0.0-rc.2-win-x64-setup.exe` — установка для текущего пользователя, без elevation.
+- `SHIFT-1.0.0-rc.2-win-x64-portable.zip` — распакуйте **всю** папку и запустите `SHIFT.exe`; `portable.flag` должен оставаться рядом с EXE. Данные хранятся в `data` внутри portable-папки.
+- `SHA256SUMS.txt` — сверяйте SHA-256 с файлами из этого же релиза (`Get-FileHash <file> -Algorithm SHA256`).
 
-## Current status
+Установленная версия хранит данные в `%LOCALAPPDATA%\SHIFT`. Перед обновлением выйдите через трей и создайте backup. Uninstall сохраняет пользовательскую базу. Инструкции: [installation](https://github.com/LosarOS/SHIFT/blob/v1.0.0-rc.2/docs/INSTALLATION.md).
 
-Release candidate. C# reference compilation and Linux core checks are complete. Windows build/UI/installer, clean-machine validation and accessibility/performance/signing gates must pass before stable 1.0. See `docs/VALIDATION.md`; prepared tests are not reported as executed.
+**Бинарники не подписаны.** SmartScreen может показать предупреждение; отсутствие такого предупреждения не проверено.
 
-## Limits
+## Проверки и ограничения
 
-Success means Windows accepted dispatch, not app readiness or a command exit code. Cancelling leaves open programs running. Capture of arbitrary sessions, window layouts and schedules remain roadmap features. Data/exports/backups are unencrypted. Trust executable content explicitly; SHIFT is not a sandbox. Binaries are unsigned until a signing method is configured.
+Релиз допускается только после locked restore, core suite, настоящего self-contained Windows publish, автоматического запуска portable и установленного приложения, проверок установщика и проверки скачанных GitHub-файлов по SHA-256. Точный source SHA и выполненные проверки записываются в `WINDOWS-VALIDATION.json`; подробности — в [engineering report](https://github.com/LosarOS/SHIFT/blob/v1.0.0-rc.2/reports/engineering-session-2026-10-23.md) и [Actions](https://github.com/LosarOS/SHIFT/actions).
+
+Это **prerelease**, не stable 1.0.0. UI Automation на одноразовом Windows runner не заменяет ручную приёмку на физических Windows 10/11, Narrator, high contrast, 100–200% DPI и увеличенного текста. Не подтверждается запуск каждого стороннего приложения или каждой конфигурации компьютера.
+
+Doctor проверяет доступные локальные признаки. Ready не обещает успешную работу приложения; цели ярлыков и произвольный текст команд не оцениваются как безопасные. Между проверкой и запуском файл может измениться. Quick Workspace Setup развивается отдельным PR и не входит в этот релиз.
+
+Success в истории означает принятие запроса Windows, а не готовность приложения или код завершения команды. Отмена не закрывает уже открытые программы. Захват сессий, расположение окон и расписания остаются в roadmap. Данные, exports и backups не зашифрованы; SHIFT не является sandbox.
+
+## English
+
+This unsigned Windows x64 prerelease adds cancellable Workspace Doctor with local-only diagnostics, RU/EN explanations and item editing. It fixes confirmed native WinUI startup/publish blockers and preserves existing local data contracts. Commands still require explicit consent on every run; Doctor never executes them. Install per user or extract the entire portable ZIP; verify the matching SHA256SUMS. Native automated evidence and exact source commit accompany the release. Interactive Windows 10/11, accessibility and physical DPI acceptance remain unverified; this is not stable 1.0.0.

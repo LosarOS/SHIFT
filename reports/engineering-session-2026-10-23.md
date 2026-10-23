@@ -45,3 +45,19 @@ Native progression/evidence:
 - No runtime PASS, installer PASS or public binary release is claimed. PR9 remains a draft; native gate BLOCKED.
 
 Quick Workspace Setup is isolated in a separate feature worktree and does not block core fixes. User explicitly authorized subagents; ownership is split among native runtime, Doctor tests, Codex quality/release and optional setup, with changes reviewed before integration.
+
+## Checkpoint — native baseline recovered
+
+At source `b900ab60fa1891008df02c129b52e4d56872eb79`, [39955142632](https://github.com/LosarOS/SHIFT/actions/runs/39955142632) completed successfully. The missing generated main resource index was the confirmed native XAML blocker; explicitly publishing `resources.pri` resolved it.
+
+- Native Windows and Linux core suites: **110 passed, 0 failed, 0 skipped** each.
+- Canonical Build-Release succeeded, including self-contained native publish, actual portable startup and UI Automation.
+- Installed UI smoke and Inno uninstall succeeded in the disposable runner; real screenshots captured.
+- Main workspace/item creation, command refusal/approval and benign visible dispatch, RU/EN, theme selection, compact search, tray and second-instance activation passed at that source.
+- NuGet transitive audit: six projects, no known advisories reported by configured nuget.org source.
+
+Additional Doctor UI, graceful restart, data preservation and repair/reinstall gates are being strengthened and require a new successful native run. No stable release or manual Windows10/11/DPI acceptance is claimed.
+
+Optional Quick Workspace Setup commit `3c0bcff` passed independent source review and **129 core tests** (19 new) in a separate worktree. It will remain a separate P2 PR until native wizard validation, rather than expanding this release's unverified surface.
+
+Release workflow now stages exact source/test evidence, refuses stable versions and existing releases, verifies nonempty downloaded GitHub binary assets against SHA-256 while draft, then publishes only a prerelease. Release notes disclose all manual acceptance and signing limits.

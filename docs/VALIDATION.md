@@ -1,6 +1,15 @@
-# Current RC2 session
+# Current RC2 session — 2026-10-23
 
-2026-10-23: [engineering session report](../reports/engineering-session-2026-10-23.md) tracks the current Windows work and release gates. Linux .NET10 core suite now **110 passed, 0 failed, 0 skipped**. Native Windows publish is confirmed; runtime inspection identified additional WinUI resource blockers, so no downloadable verified RC2 release is claimed here. The following section is preserved as historical RC1 evidence.
+[Engineering report](../reports/engineering-session-2026-10-23.md) records the current source and remaining gates. Native Windows [run39955142632](https://github.com/LosarOS/SHIFT/actions/runs/39955142632) at `b900ab60fa1891008df02c129b52e4d56872eb79` **passed**:
+
+- Locked restore and **110 passed / 0 failed / 0 skipped** core tests, both Windows and Linux.
+- Self-contained WinUI publish with the actual application `resources.pri`.
+- Real portable and installed UI Automation: onboarding, workspace/item creation, command refusal/approval, benign dispatch, RU/EN, theme, compact search, tray and second-instance activation.
+- Inno per-user installation, installed startup, uninstall and registry cleanup.
+
+This proves the native startup blockers are resolved at that source. Later restart, Doctor UI and SQLite-preservation extensions require their own successful run; see the session report and release `WINDOWS-VALIDATION.json` for final evidence. No manual physical-PC Windows10/11, DPI, Narrator/high-contrast or signing acceptance is claimed. Native CI screenshots are captured from the actual running application, not generated renders. Stable1.0 remains blocked on manual acceptance.
+
+The following RC1 section is historical evidence; its outstanding list describes the RC1 checkpoint, not current RC2 results.
 
 # Фактическая валидация 1.0.0-rc.1
 
