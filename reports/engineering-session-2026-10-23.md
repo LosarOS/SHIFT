@@ -67,3 +67,17 @@ Release workflow now stages exact source/test evidence, refuses stable versions 
 A second bounded real Engine experiment used SHIFT `e054cd00e3d73cf815bae2b1280b98d8d45f01ea` and Codex Team `ced1aecac1569150cb0d9f1dfabf5979eaaac246`. Task: uppercase EXE/LNK Doctor regression cases, Implement/standard/isolated, no auto-commit, 4-call/1200-second/80000-token ceiling.
 
 Run `run_3f8712c9e45e` created its isolated worktree. Actual first official SDK turn hit the same stale refresh-token error and now correctly stopped as **AUTH_REQUIRED**, rather than generic FAILED. One attempted coordinator call, recorded elapsed1.684s/wall1.74s; no developer/QA/reviewer stage, changed files or token metrics available. No paid API fallback. Live AI development remains **NOT VERIFIED**; only the real auth-stop classification and static Project Doctor integration are confirmed.
+
+## Checkpoint — expanded native acceptance
+
+Native [40004559552](https://github.com/LosarOS/SHIFT/actions/runs/40004559552) at `e054cd00e3d73cf815bae2b1280b98d8d45f01ea` and [40004952246](https://github.com/LosarOS/SHIFT/actions/runs/40004952246) at `16a6319` both passed. The latest screenshot-composition refinement [40005570348](https://github.com/LosarOS/SHIFT/actions/runs/40005570348), source `5d4b61b`, also passed.
+
+- 110/110 core tests on Windows and Linux, zero failures/skips.
+- Real Doctor inspection/repeat left the command marker absent; command refusal still did not dispatch, explicit approval created the benign marker.
+- Graceful exit/restart preserved workspace, English and Midnight; compact search, tray and second-instance activation passed.
+- Per-user install/Start Menu shortcut, same-version in-place reinstall, uninstall, reinstall/reopen and SQLite SHA256 preservation passed. This is not a claim that every older-binary upgrade was tested.
+- Retrieved the genuine native artifact through the GitHub connector, checked both binary hashes, reviewed six actual running-window captures. Clean readable layout and persisted theme/language confirmed. Corrected capture timing waits for composition; screenshots remain raw Windows runner captures.
+
+Final canonical packaging now tests the actual extracted portable ZIP, rather than only the directory before archiving. Its JSON records `portable_smoke_archive=true`; release publication requires that evidence. This last distribution gate must pass at the final source before publication.
+
+P2/P3 findings deferred: Russian singular item-count grammar and the enabled-item toggle's state-like action label can be clarified; physical-PC DPI/Narrator/high-contrast acceptance remains open. Optional Quick Setup [PR10](https://github.com/LosarOS/SHIFT/pull/10) is draft:129 core tests and native compilation/standard application smoke passed, but the new wizard-specific Windows acceptance is **NOT VERIFIED**.

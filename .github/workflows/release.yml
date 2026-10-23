@@ -51,12 +51,15 @@ jobs:
             $evidence = Get-Content $path -Raw | ConvertFrom-Json
             if ($evidence.schema_version -ne 1 -or $evidence.status -ne 'passed' -or $evidence.manual_acceptance -ne $false -or @($evidence.checks).Count -eq 0) { throw "Invalid native smoke evidence: $path" }
           }
+          $portableEvidence = Get-Content $nativeChecks[0] -Raw | ConvertFrom-Json
+          if ($portableEvidence.portable_smoke_archive -ne $true) { throw 'Portable smoke did not use the extracted distribution ZIP.' }
           $report = [ordered]@{
             schema_version = 1; version = $env:SHIFT_VERSION; source_commit = $env:GITHUB_SHA
             workflow_run = "https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
             environment = 'GitHub Actions disposable Windows x64 runner'; signature = 'unsigned'
             core_tests = @{ total = [int]$counts.total; passed = [int]$counts.passed; failed = [int]$counts.failed; skipped = [int]$counts.notExecuted }
             locked_restore = 'passed'; windows_self_contained_publish = 'passed'
+            portable_smoke_archive = $true
             portable_ui_smoke = 'passed'; installed_ui_smoke = 'passed'; installer_preservation_smoke = 'passed'
             interactive_physical_windows_acceptance = 'not_verified'
             dpi_narrator_high_contrast_matrix = 'not_verified'
