@@ -65,6 +65,7 @@ jobs:
           $studio = Get-Content artifacts/diagnostics/studio/studio-smoke.json -Raw | ConvertFrom-Json
           $studioEnvironment = Get-Content artifacts/diagnostics/studio/studio-native-environment.json -Raw | ConvertFrom-Json
           if ($studio.status -ne 'passed' -or $studio.source_commit -ne $env:GITHUB_SHA -or $studio.manual_acceptance -ne $false -or $studio.wallpaper_verified -ne $true) { throw 'Studio native widget/wallpaper recovery gates are not verified.' }
+          if ($studio.alpha_attribute_verified -ne $true -or $studio.actual_alpha -lt 210 -or $studio.actual_alpha -gt 220) { throw 'Native widget alpha gate was not verified.' }
           if ($studioEnvironment.upgraded_from_actual_rc2 -ne $true) { throw 'Actual RC2 data upgrade was not verified.' }
           foreach ($gate in @('lab_preview_cancel_save_no_preview_writes','four_real_windows_notes_timer','reapply_no_duplicate_windows','wallpaper_apply_restore','disable_reenable','restart_persistence_and_quit')) {
             if ($gate -notin $studio.checks) { throw "Missing Studio gate: $gate" }

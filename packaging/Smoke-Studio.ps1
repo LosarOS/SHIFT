@@ -82,12 +82,16 @@ function Sample([int]$Count){
  Start-Sleep -Seconds 2
  $process.Refresh();$elapsed=$start.Elapsed.TotalMilliseconds
  $script:raw+=@{windows=$Count;working_set_bytes=$process.WorkingSet64;private_bytes=$process.PrivateMemorySize64;cpu_machine_percent=100*($process.TotalProcessorTime.TotalMilliseconds-$cpu)/$elapsed/[Environment]::ProcessorCount;sample_ms=$elapsed}
+ $script:raw | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $DiagnosticsDirectory 'studio-performance-raw.json')
 }
 function Apply([int]$Count){
+ $before=@(Widgets | ForEach-Object { $_.Current.NativeWindowHandle })
  $id='00000000-0000-4000-8000-'+(100+$Count).ToString('D12')
  Click ('Studio.Profile.Apply.'+$id)
  if($Count -eq 4 -and $proof.wallpaper_eligible){Click '' 'Allow wallpaper changes'}
- $null=Wait-For {@(Widgets).Count -eq $Count} "exactly $Count widget windows"
+ $null=Wait-For {
+  $current=@(Widgets); if($current.Count -eq $Count -and @($current | Where-Object {$_.Current.NativeWindowHandle -in $before}).Count -eq 0){$true}
+ } "exactly $Count new widget windows"
 }
 try {
  Add-Type -AssemblyName System.Windows.Forms
@@ -108,6 +112,10 @@ try {
  $null=Tool 'seed' (Join-Path $oldApp 'data/shift.db')
  $proof=Get-Content (Join-Path $data 'studio-ci.json') -Raw | ConvertFrom-Json
  Copy-Item (Join-Path $data 'studio-ci.json') (Join-Path $DiagnosticsDirectory 'studio-native-environment.json')
+ # Hide only disposable runner console windows; keep real widget screenshots unobstructed.
+ foreach($window in [System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children,[System.Windows.Automation.Condition]::TrueCondition)){
+  if($window.Current.ClassName -in @('CASCADIA_HOSTING_WINDOW_CLASS','ConsoleWindowClass')){[void][StudioProbe]::ShowWindow([intptr]$window.Current.NativeWindowHandle,6)}
+ }
  $process=Start-Process (Join-Path $app 'SHIFT.exe') -WorkingDirectory $app -PassThru
  $main=Wait-For {
   $condition=New-Object System.Windows.Automation.AndCondition((New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty,$process.Id)),(New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty,'SHIFT')))
@@ -135,6 +143,7 @@ try {
  $clock=Widgets | Where-Object {$_.Current.Name -like '*Clock'} | Select-Object -First 1
  [uint32]$key=0;[byte]$alpha=255;[uint32]$flags=0
  $layered=[StudioProbe]::GetLayeredWindowAttributes([intptr]$clock.Current.NativeWindowHandle,[ref]$key,[ref]$alpha,[ref]$flags)
+ if(-not $layered -or ($flags -band 2) -eq 0 -or $alpha -lt 210 -or $alpha -gt 220){throw 'Native whole-window alpha did not match the saved .85 opacity.'}
  [void][StudioProbe]::ShowWindow([intptr]$main.Current.NativeWindowHandle,6);Capture 'desktop-clock-monitor';[void][StudioProbe]::ShowWindow([intptr]$main.Current.NativeWindowHandle,9)
  $checks+='four_real_windows_notes_timer'
  # Real move/resize; normalized location is saved on runtime stop and confirmed on reopen.
@@ -144,7 +153,10 @@ try {
  Click 'Studio.Gather';Click 'Studio.EditMode';Start-Sleep -Seconds 2
  Apply 4
  $notes=Wait-For {@(Widgets | Where-Object {$_.Current.Name -like '*Notes'}) | Select-Object -First 1} 'reapplied Notes window'
- $editor=Wait-For {Find '' 'Note text, autosave' $notes} 'reapplied note editor'
+ $editor=Wait-For {
+  $fresh=@(Widgets | Where-Object {$_.Current.Name -like '*Notes'}) | Select-Object -First 1
+  if($fresh){Find '' 'Note text, autosave' $fresh}
+ } 'reapplied note editor'
  if($editor.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value -ne 'Native CI note — Unicode'){throw 'Reapply displayed stale pre-flush note text.'}
  $checks+='reapply_no_duplicate_windows'
  Click 'Studio.Restore';Click 'Studio.Restore'

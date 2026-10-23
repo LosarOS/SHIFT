@@ -63,3 +63,13 @@ Settings → Open logs / Data folder. Logs: `logs\shift-YYYYMMDD.log`, до 5 MB
 ## Быстрый запуск и история
 
 Ctrl+K открывает компактный launcher; ↑/↓ выбирают строку, Enter запускает, Esc возвращает полный режим. Глобальный Ctrl+Alt+Space включается в Settings явно; при конфликте сочетания SHIFT сообщает об ошибке. Второй запуск EXE активирует существующий экземпляр. History поддерживает поиск по имени, фильтр ошибок, страницы, повтор и очистку завершённых записей. Повтор использует текущее содержимое workspace и снова требует consent для команд.
+
+## SHIFT Studio preview: migration and recovery
+
+Studio is disabled by default. Enable it explicitly in Studio; saving or opening a desktop profile does not change Windows. Wallpaper apply requires confirmation that Windows uses static images. Spotlight/provider and slideshow restoration are unsupported. Automatic workspace rules currently apply widget-only profiles.
+
+Before upgrading RC2, quit SHIFT and copy the entire data folder. SQLite initialization creates a validated v1 snapshot in `migration-backups/` before transactional schema2 migration. RC2 refuses a schema2 database. To downgrade, keep the Studio data safely and use the preserved v1 snapshot in a separate data directory.
+
+SQLite `.db` backups contain profile/image references, not the image files or local note drafts. For a complete Studio backup or portable move, copy the entire data folder including `Studio/Images`, `Studio/RecoveryNotes` and `migration-backups`. Keep managed images while Windows still uses them as wallpaper. Uninstall retains user data; it does not silently undo the desktop. Use Studio → Restore Windows appearance first if desired.
+
+Recovery checks for later user changes and asks before overwriting conflicts. Disable Studio closes owned widgets without deleting their configuration or implicitly restoring wallpaper. Gather widgets moves lost windows onto an available monitor. The tray always provides access to the main window and these controls.
