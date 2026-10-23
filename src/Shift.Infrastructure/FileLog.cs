@@ -7,7 +7,15 @@ public sealed class FileLog(string directory) : IAppLog
     private readonly object gate = new();
     public string DirectoryPath { get; } = directory;
     public void Info(string message) => Write("INFO", message);
-    public void Error(string message, Exception exception) => Write("ERROR", $"{message} [{exception.GetType().Name}] {exception.Message}");
+    public void Error(string message, Exception exception)
+    {
+        // COM/XAML failures may have an empty Message. Keep HRESULT and method frames,
+        // without local variable values, command arguments or source file paths.
+        var frames = new System.Diagnostics.StackTrace(exception, false).GetFrames()
+            .Take(12).Select(frame => frame.GetMethod())
+            .Select(method => $"{method?.DeclaringType?.FullName}.{method?.Name}");
+        Write("ERROR", $"{message} [{exception.GetType().Name} 0x{exception.HResult:X8}] {exception.Message} {string.Join(" <- ", frames)}");
+    }
     private void Write(string level, string message)
     {
         lock (gate)

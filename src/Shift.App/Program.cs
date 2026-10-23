@@ -50,11 +50,15 @@ public sealed partial class ShiftApplication : Microsoft.UI.Xaml.Application
             new FileLog(paths.LogDirectory).Error("Unhandled UI error", e.Exception);
         };
         AppDomain.CurrentDomain.UnhandledException += (_, e) => new FileLog(paths.LogDirectory).Error("Fatal error", e.ExceptionObject as Exception ?? new Exception("Unknown fatal error"));
+        new FileLog(paths.LogDirectory).Info("Initializing WinUI resources.");
         InitializeComponent();
+        new FileLog(paths.LogDirectory).Info("WinUI resources initialized.");
     }
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
+        new FileLog(paths.LogDirectory).Info("Creating main window.");
         window = new MainWindow(paths);
+        new FileLog(paths.LogDirectory).Info("Main window created.");
         signal = new SingleInstanceSignal(signalName, () => window.DispatcherQueue.TryEnqueue(window.ShowAndActivate), new FileLog(paths.LogDirectory));
         window.Closed += async (_, _) => { if (signal is not null) await signal.DisposeAsync(); };
         window.Activate();
