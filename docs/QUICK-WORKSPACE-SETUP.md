@@ -1,6 +1,6 @@
 # Quick workspace setup
 
-Status: optional feature candidate. Core discovery/draft tests run on Linux; native Windows wizard acceptance is required before merging into a downloadable release.
+Status: optional P2 draft, not included in published RC2. Read-only discovery/draft tests and limited native Windows portable wizard automation have passed. Packaging reconciliation and the remaining acceptance below are required before merge or release.
 
 ## User flow
 
@@ -21,15 +21,16 @@ Cancel/Escape closes the wizard and cancels discovery. If no candidates are foun
 
 ## Validation
 
-Focused tests: 19 passed on Linux, .NET 10.0.402. Tests cover unchanged input bytes/no generated files, Unicode/grouping, corrupt/truncated links, duplicate/missing/relative sources, empty results, bounds, cancellation, access failure, symlink exclusions, safe surrogate truncation, ordered explicit selection, unknown/duplicate/oversized selections and normal domain validation. Windows tests use a file-sharing lock for inaccessible-file coverage; the symlink fixture requires a runner with symlink creation rights.
+Core suite: 129 passed, zero failed/skipped on Linux and Windows, including 19 Quick Setup cases. Tests cover unchanged input bytes/no generated files, Unicode/grouping, corrupt/truncated links, duplicate/missing/relative sources, empty results, bounds, cancellation, access failure, symlink exclusions, safe surrogate truncation, ordered explicit selection, unknown/duplicate/oversized selections and normal domain validation. Windows tests use a file-sharing lock for inaccessible-file coverage; the symlink fixture requires a runner with symlink creation rights.
 
-Pending native acceptance:
+[Native run 40014081976](https://github.com/LosarOS/SHIFT/actions/runs/40014081976) at source `8d10bf6b13f4b26e6fb5e74aa730f04567fbcaf0` passed actual WinUI/UI Automation: RU/EN discovery, search, empty-search results, manual selection, retained selection, preview/Back, cancel without saving, save without dispatch and saved workspaces after restart. See [exact scope and evidence](../reports/quick-setup-validation-2026-10-23.md). This smoke uses a pre-ZIP portable directory; it does not establish extracted-archive or installed-wizard acceptance.
 
-- Open wizard from Overview and Workspaces in RU/EN and all four themes.
-- Search, select/unselect, reach selection limit, preview, Back, save; confirm no process launch.
-- Cancel during discovery and after preview; no workspace should be saved.
-- Empty/missing Start Menu and denied-directory behavior.
+Pending before merge:
+
+- Reconcile current main packaging, including actual extracted portable ZIP smoke and release evidence, then rerun the wizard from that distribution.
+- Exercise the installed wizard, all four themes, unselect/selection limit and cancellation during discovery.
+- Distinguish an actually empty/missing Start Menu catalog from the already tested empty search result; verify denied-directory UI behavior.
 - Keyboard-only navigation, Narrator names, 100–200% DPI and large text.
-- Portable and installed startup; restart confirms the saved workspace and launch order.
+- Independently review the final combined diff; keep PR10 as a draft until its gates are satisfied.
 
 This feature is intentionally isolated from the main runtime/release fixes and must not weaken their gates.
