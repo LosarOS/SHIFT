@@ -276,7 +276,7 @@ public sealed partial class MainWindow
             target.MaxLines = 2;
             target.TextTrimming = TextTrimming.CharacterEllipsis;
             words.Children.Add(target);
-            words.Children.Add(Text($"{s[item.Kind.ToString()]}  ·  {item.DelayMs} ms  ·  {s[item.Enabled ? "Enabled" : "Disabled"]}", 11, color: item.Kind == ItemKind.Command ? "#DEAF72" : palette.Muted));
+            words.Children.Add(Text($"{s[item.Kind.ToString()]}  ·  {item.DelayMs} {s["Milliseconds"]}  ·  {s[item.Enabled ? "Enabled" : "Disabled"]}", 11, color: item.Kind == ItemKind.Command ? "#DEAF72" : palette.Muted));
             Grid.SetColumn(words, 1);
             row.Children.Add(words);
             var edit = AsyncButton(s["Edit"], () => EditItemAsync(workspace, item));
@@ -380,7 +380,7 @@ public sealed partial class MainWindow
     {
         var header = Stack(6);
         header.Children.Add(Text(run.WorkspaceName, 16, weight: Microsoft.UI.Text.FontWeights.SemiBold));
-        header.Children.Add(Text($"{run.StartedAt.ToLocalTime():g}  ·  {s[run.Status.ToString()]}", 12, true));
+        header.Children.Add(Text($"{s.FormatDate(run.StartedAt)}  ·  {s[run.Status.ToString()]}", 12, true));
         var content = RunItems(run);
         var workspace = vm.Workspaces.FirstOrDefault(w => w.Id == run.WorkspaceId);
         if (workspace is not null)

@@ -1,14 +1,38 @@
+using Shift.Domain;
 namespace Shift.App.Services;
 
-public sealed class Strings
+public sealed partial class Strings
 {
     public string Language { get; set; } = "ru";
     public string this[string key] => key == "About" ? "SHIFT " + AppInfo.Version + " · Windows x64" : Values.TryGetValue(key, out var value) ? (Language == "ru" ? value.Ru : value.En) : key;
     public string ErrorDetails(Exception error) => error is ValidationException validation
         ? string.Join(Environment.NewLine, validation.Issues.Select(issue => (string.IsNullOrWhiteSpace(issue.Subject) ? "" : issue.Subject + ": ") + (Values.ContainsKey("Validation." + issue.Code) ? this["Validation." + issue.Code] : issue.Message)))
-        : error.Message;
+        : DescribeError(error);
     private static readonly Dictionary<string, (string Ru, string En)> Values = new()
     {
+        ["Studio.Preset.Development"] = ("Разработка", "Development"),
+        ["Studio.Preset.DevelopmentDescription"] = ("Часы, системный монитор и заметки — всё для работы над проектом.", "Clock, system monitor and notes for your next project."),
+        ["Studio.Preset.Streaming"] = ("Стриминг", "Streaming"),
+        ["Studio.Preset.StreamingDescription"] = ("Неоновое оформление, часы, системный монитор и таймер.", "Neon style, clock, system monitor and focus timer."),
+        ["Studio.Preset.Focus"] = ("Фокус", "Focus"),
+        ["Studio.Preset.FocusDescription"] = ("Спокойная палитра, часы, заметки и Pomodoro без лишнего шума.", "Calm colors, clock, notes and Pomodoro without distractions."),
+        ["Studio.Preset.NoMonitor"] = ("Монитор пока не найден. Расположение будет уточнено при применении.", "No monitor found yet. Placement will be resolved when applied."),
+        ["Studio.Preset.MonitorFallback"] = ("Выбранный монитор недоступен. Использован доступный экран.", "The selected monitor is unavailable. An available display was used."),
+        ["Studio.Preset.LayoutConstrained"] = ("На небольшом экране виджеты могут перекрываться. Их можно переместить в режиме редактирования.", "Widgets may overlap on a small display. Move them in Edit mode."),
+        ["Studio.Lab"] = ("Мастерская виджетов", "Widget Lab"),
+        ["Studio.Starter"] = ("Готовые окружения", "Starter environments"),
+        ["Studio.Starter.Note"] = ("Создайте профиль за один шаг. Приложения и обои не запускаются и не меняются.", "Create a profile in one step. Apps do not launch and wallpaper does not change."),
+        ["Studio.CreatePreset"] = ("Создать профиль", "Create profile"),
+        ["Studio.Preset.Saved"] = ("Профиль создан. Примените его, когда будете готовы.", "Profile created. Apply it when you are ready."),
+        ["Studio.Preset.Scope"] = ("Сохраняются только настройки и новые виджеты. Studio не включается автоматически.", "Only configuration and new widgets are saved. Studio is not enabled automatically."),
+        ["Studio.SearchWidgets"] = ("Найти виджет по названию или типу…", "Find widgets by name or type…"),
+        ["Studio.AllKinds"] = ("Все типы", "All types"),
+        ["Studio.Profile.RemoveNote"] = ("Удаление виджета из профиля удаляет его заметки и таймер. Чтобы временно скрыть виджет, снимите «Показывать».", "Removing a widget from a profile deletes its note and timer. To hide it temporarily, turn off Show."),
+        ["Studio.Arrange"] = ("Разложить по сетке", "Arrange in a grid"),
+        ["Studio.Arrange.Note"] = ("Изменить сохранённые позиции виджетов? Рабочий стол изменится после отдельного применения профиля.", "Change saved widget positions? The desktop changes only after applying the profile separately."),
+        ["Studio.DesktopMode"] = ("Закрепить виджеты", "Lock widgets"),
+        ["Studio.DefinitionsEmpty"] = ("Создайте свой первый виджет", "Create your first widget"),
+        ["Studio.DefinitionsEmpty.Note"] = ("Начните с готового окружения или настройте часы, заметки, таймер и системный монитор в мастерской.", "Start with a preset or customize a clock, note, timer or system monitor in the lab."),
         ["Doctor.Title"] = ("Проверка пространства", "Workspace Doctor"),
         ["Doctor.Check"] = ("Проверить", "Inspect"),
         ["Doctor.Recheck"] = ("Проверить снова", "Inspect again"),
@@ -60,7 +84,8 @@ public sealed class Strings
         ["Validation.Studio.Timer"] = ("Проверьте состояние и длительность таймера.", "Check timer state and duration."),
         ["Validation.Studio.Settings"] = ("Некорректные настройки Studio.", "Invalid Studio settings."),
         ["Validation.Studio.Journal"] = ("Журнал восстановления повреждён или превышает лимиты.", "Recovery journal is invalid or exceeds limits."),
-        ["Studio"] = ("Studio", "Studio"),
+        ["Studio"] = ("Студия", "Studio"),
+        ["Milliseconds"] = ("мс", "ms"),
         ["Setup.Create"] = ("Создать из приложений", "Create from apps"),
         ["Setup.Title"] = ("Быстрое создание пространства", "Quick workspace setup"),
         ["Setup.Scope"] = ("Выберите локальные ярлыки вручную. SHIFT читает только меню «Пуск» и рабочий стол, не изучает запущенные процессы, историю браузеров или параметры сторонних приложений.", "Manually select local shortcuts. SHIFT reads only Start Menu and Desktop shortcuts, without inspecting running processes, browser history or other applications’ parameters."),
