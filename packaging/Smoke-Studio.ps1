@@ -61,9 +61,21 @@ function Set-Field([string]$Id,[string]$Value){
  $control=Wait-For {Find $Id} $Id
  $control.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($Value)
 }
+function Select-Value([string]$Id,[string]$Name){
+ $control=Wait-For {Find $Id} ('choice '+$Id)
+ $control.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand()
+ $null=Wait-For {
+  $choice=Find '' $Name ([System.Windows.Automation.AutomationElement]::RootElement)
+  if($choice -and $choice.Current.IsEnabled){$choice.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select();$true}
+ } ('selected '+$Name)
+ $control=Wait-For {Find $Id} ('choice '+$Id)
+ $pattern=$control.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern)
+ if($pattern.Current.ExpandCollapseState -eq [System.Windows.Automation.ExpandCollapseState]::Expanded){$pattern.Collapse()}
+}
+function Idle-Button([string]$Id){$null=Wait-For {$button=Find $Id;if($button -and $button.Current.IsEnabled){$true}} ('completed '+$Id)}
 function Widgets {
  $condition=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty,$process.Id)
- return @([System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children,$condition) | Where-Object {$_.Current.Name -like 'SHIFT Widget*'})
+ return @([System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children,$condition) | Where-Object {($_.Current.Name -like 'SHIFT Widget*' -or $_.Current.Name -like 'SHIFT Виджет*')})
 }
 function Capture([string]$Name){
  Start-Sleep -Milliseconds 500
@@ -151,7 +163,8 @@ try {
  $rect=New-Object StudioProbe+Rect
  [void][StudioProbe]::GetWindowRect([intptr]$clock.Current.NativeWindowHandle,[ref]$rect)
  [void][StudioProbe]::SetWindowPos([intptr]$clock.Current.NativeWindowHandle,[intptr]::Zero,80,90,300,220,0x0014)
- Click 'Studio.Gather';Click 'Studio.EditMode';Start-Sleep -Seconds 2
+ Click 'Studio.DesktopMode';Idle-Button 'Studio.DesktopMode';$null=Tool 'mode-check';$checks+='mode_change_preserves_geometry'
+ Click 'Studio.Gather';Idle-Button 'Studio.Gather';Click 'Studio.EditMode';Idle-Button 'Studio.EditMode';Start-Sleep -Seconds 2
  Apply 4
  $notes=Wait-For {@(Widgets | Where-Object {$_.Current.Name -like '*Notes'}) | Select-Object -First 1} 'reapplied Notes window'
  $editor=Wait-For {
@@ -165,7 +178,70 @@ try {
  $wallpaperVerified=$false
  if($proof.wallpaper_eligible){$restored=Tool 'verify-wallpaper';if($restored -ne 'WALLPAPER_RESTORED'){throw 'Native wallpaper restore not verified.'};$wallpaperVerified=$true;$checks+='wallpaper_apply_restore'}
  $null=Tool 'inspect' | Set-Content (Join-Path $DiagnosticsDirectory 'studio-state-check.json')
- foreach($count in @(1,5,10)){Apply $count;Sample $count}
+ foreach($count in @(1,5,10)){
+  Apply $count;Sample $count
+  if($count -eq 5){
+   $focus=Wait-For {@(Widgets | Where-Object {$_.Current.Name -like '*FocusTimer'}) | Select-Object -First 1} 'restart test timer'
+   Click '' 'Start' $focus;Start-Sleep -Seconds 5
+   Click '' 'Restart timer' $focus;Start-Sleep -Seconds 1
+   $null=Tool 'timer-restart-check';Click '' 'Pause' $focus;$checks+='timer_restart_after_completion'
+  }
+ }
+ # Change language through the actual Settings UI while ten native widgets are alive.
+ $beforeRu=@(Widgets | ForEach-Object {$_.Current.NativeWindowHandle} | Sort-Object)
+ Click 'Nav.Settings';Select-Value 'Field.Language' 'Русский';Click '' 'Save'
+ $null=Wait-For {$nav=Find 'Nav.Studio';if($nav -and $nav.Current.Name -eq 'Студия'){$true}} 'Russian navigation'
+ Click 'Nav.Studio';Click 'Studio.Tab.Overview';Capture 'ru-overview'
+ $null=Wait-For {@(Widgets | Where-Object {$_.Current.Name -like 'SHIFT Виджет*'}).Count -eq 10} 'live Russian widget titles'
+ $afterRu=@(Widgets | ForEach-Object {$_.Current.NativeWindowHandle} | Sort-Object)
+ if(($beforeRu -join ',') -ne ($afterRu -join ',')){throw 'Language change recreated native widget HWNDs.'}
+ $monitor=Widgets | Where-Object {$_.Current.Name -like '*SystemMonitor'} | Select-Object -First 1
+ $null=Wait-For {$metric=Find 'Widget.Value' '' $monitor;if($metric -and $metric.Current.Name -like 'ЦП*'){$true}} 'Russian metric name'
+ $checks+='russian_live_language_without_recreation'
+ Click 'Studio.Tab.Widgets';Set-Field 'Studio.Widget.Search' 'точно нет такого виджета'
+ $null=Wait-For {Find '' 'Ничего не найдено'} 'Russian empty filter'
+ Set-Field 'Studio.Widget.Search' '';Capture 'ru-gallery'
+ # Opening valid extreme/custom/disconnected values and switching language must not coerce them.
+ Click 'Studio.Widget.Edit.00000000-0000-4000-8000-000000000014'
+ Click 'Studio.Widget.Language';$null=Wait-For {Find '' 'Widget Lab'} 'English retained editor'
+ Click 'Studio.Widget.Language';$null=Wait-For {Find '' 'Мастерская виджетов'} 'Russian retained editor';Capture 'ru-widget-lab'
+ Click '' 'Сохранить';$null=Wait-For {Find 'Studio.Widget.Search'} 'boundary edit completed'
+ $null=Tool 'editor-preserve-check';$checks+='editor_preserves_boundaries_custom_style_and_missing_monitor'
+ Click 'Studio.Tab.Overview';Click 'Studio.Preset.Create.Focus';Capture 'ru-preset';Click '' 'Отмена'
+ $null=Tool 'preset-cancel-check';Click 'Studio.Preset.Create.Focus';Set-Field 'Studio.Preset.Name' 'RC4 Фокус';Click '' 'Сохранить'
+ $null=Wait-For {Find '' 'RC4 Фокус'} 'saved Russian preset'
+ $preset=(Tool 'preset-check') | ConvertFrom-Json
+ if(@(Widgets).Count -ne 10){throw 'Saving a preset changed live widget windows.'}
+ Click ('Studio.Profile.Apply.'+$preset.profile_id)
+ $null=Wait-For {@(Widgets).Count -eq 3} 'three actual starter widgets'
+ [void][StudioProbe]::ShowWindow([intptr]$main.Current.NativeWindowHandle,6);Capture 'desktop-ru-preset';[void][StudioProbe]::ShowWindow([intptr]$main.Current.NativeWindowHandle,9)
+ $checks+='starter_preset_cancel_atomic_save_and_apply'
+ Apply 10
+ & powershell.exe -NoProfile -File (Join-Path $PSScriptRoot 'Smoke-QuickSetup.ps1') -ShiftProcessId $process.Id -DataDirectory $data -DataOwner $owner -DiagnosticsDirectory $DiagnosticsDirectory
+ if($LASTEXITCODE -ne 0){throw 'Russian Quick Setup acceptance failed.'}
+ $null=Tool 'quick-check';$checks+='russian_quick_setup_order_save_cancel'
+ Click 'Nav.Studio'
+
+ # An explicitly disabled active profile must not reopen widgets on restart.
+ Click 'Studio.Tab.Profiles';Click 'Studio.Profile.Edit.00000000-0000-4000-8000-000000000110'
+ $enabled=Wait-For {Find '' 'Профиль включён'} 'profile enabled toggle'
+ $enabled.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Toggle();Click '' 'Сохранить'
+ $null=Wait-For {@(Widgets).Count -eq 0} 'disabled profile closes owned windows'
+ [void][StudioProbe]::PostMessage([intptr]$main.Current.NativeWindowHandle,0x0010,[intptr]::Zero,[intptr]::Zero)
+ if(-not $process.WaitForExit(15000) -or $process.ExitCode -ne 0){throw 'Disabled-profile close failed.'}
+ $process.Dispose();$process=Start-Process (Join-Path $app 'SHIFT.exe') -WorkingDirectory $app -PassThru
+ $main=Wait-For {
+  $condition=New-Object System.Windows.Automation.AndCondition((New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty,$process.Id)),(New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty,'SHIFT')))
+  [System.Windows.Automation.AutomationElement]::RootElement.FindFirst([System.Windows.Automation.TreeScope]::Children,$condition)
+ } 'disabled-profile restart'
+ Click 'Nav.Studio';Click 'Studio.Tab.Settings';$null=Wait-For {Find 'Studio.Toggle'} 'ready Studio after restart'
+ Start-Sleep -Seconds 2
+ if(@(Widgets).Count -ne 0){throw 'A disabled profile reopened widgets after restart.'}
+ Click 'Studio.Tab.Profiles';Click 'Studio.Profile.Edit.00000000-0000-4000-8000-000000000110'
+ $enabled=Wait-For {Find '' 'Профиль включён'} 're-enable profile'
+ $enabled.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Toggle();Click '' 'Сохранить'
+ $null=Wait-For {Find 'Studio.Profile.Apply.00000000-0000-4000-8000-000000000110'} 'profile saved'
+ Apply 10;$checks+='disabled_profile_stays_disabled_after_restart'
  Click 'Studio.Tab.Settings';Capture 'settings-recovery';Click 'Studio.Disable'
  $null=Wait-For {@(Widgets).Count -eq 0} 'Studio disabled'
  Click 'Studio.Toggle';$null=Wait-For {@(Widgets).Count -eq 10} 'Studio re-enabled'
@@ -176,6 +252,7 @@ try {
  $process.Dispose();$process=Start-Process (Join-Path $app 'SHIFT.exe') -WorkingDirectory $app -PassThru
  $null=Wait-For {@(Widgets).Count -eq 10} 'widget restart without duplicate windows'
  $checks+='restart_persistence_and_quit'
+ $null=Wait-For {@(Widgets | Where-Object {$_.Current.Name -like 'SHIFT Виджет*'}).Count -eq 10} 'persisted Russian widgets'
  # The old main element belongs to the old process; reacquire before final close.
  $main=Wait-For {
   $condition=New-Object System.Windows.Automation.AndCondition((New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty,$process.Id)),(New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty,'SHIFT')))
