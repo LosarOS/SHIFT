@@ -234,6 +234,7 @@ public sealed partial class MainWindow
         actions.Children.Add(more);
         header.Children.Add(actions);
         screen.Children.Add(header);
+        RenderWorkspaceStudioActions(workspace);
         var itemsHeading = new Grid();
         itemsHeading.ColumnDefinitions.Add(new()
         {

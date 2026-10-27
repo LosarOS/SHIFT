@@ -50,6 +50,11 @@ public sealed partial class Strings
     }
     private static readonly (string English, string Russian)[] OperationalMessages =
     [
+        ("Studio data changed. Reload it before saving; your newer data was not overwritten.", "Данные Studio изменились. Обновите профили и откройте редактор заново. Более новые данные не перезаписаны."),
+        ("Edited widget is missing from the target profile.", "Редактируемый виджет отсутствует в выбранном профиле."),
+        ("Studio preset was not saved. Existing data was not overwritten.", "Пресет не сохранён. Существующие данные не перезаписаны."),
+        ("Studio preset bundle is invalid.", "Данные пресета повреждены или имеют неподдерживаемый формат."),
+        ("Another dialog is already open.", "Сначала закройте открытое диалоговое окно."),
         ("Studio is disabled.", "Studio выключен. Включите его в разделе «Студия»."),
         ("Resolve the unfinished Studio operation before applying another profile.", "Сначала завершите или восстановите незавершённое изменение оформления в разделе «Восстановление»."),
         ("Desktop profile was not found.", "Визуальный профиль не найден. Обновите список профилей."),
