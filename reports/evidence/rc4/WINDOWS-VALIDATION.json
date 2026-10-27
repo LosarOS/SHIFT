@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "version": "1.0.0-rc.4",
+  "source_commit": "ebcae08bbe4c66bf1aece9bbc811cc706fbe3c99",
+  "workflow_run": "https://github.com/LosarOS/SHIFT/actions/runs/40486345165",
+  "environment": "GitHub Actions disposable Windows x64 runner",
+  "signature": "unsigned",
+  "core_tests": {
+    "passed": 296,
+    "skipped": 0,
+    "failed": 0,
+    "total": 296
+  },
+  "locked_restore": "passed",
+  "windows_self_contained_publish": "passed",
+  "russian_localization": "passed",
+  "quick_workspace_setup": "passed",
+  "studio_starter_presets": "passed",
+  "studio_widgets": "passed",
+  "studio_wallpaper_recovery": "passed",
+  "actual_rc2_migration": "passed",
+  "studio_alpha_attribute_verified": true,
+  "studio_actual_alpha": 217,
+  "portable_smoke_archive": true,
+  "portable_ui_smoke": "passed",
+  "installed_ui_smoke": "passed",
+  "installer_preservation_smoke": "passed",
+  "interactive_physical_windows_acceptance": "not_verified",
+  "dpi_narrator_high_contrast_matrix": "not_verified",
+  "limits": [
+    "UI Automation is not manual acceptance.",
+    "Same-version repair is not every older-version migration.",
+    "Dispatch success is not third-party application readiness."
+  ]
+}

@@ -1,3 +1,9 @@
+# Validation — SHIFT RC4
+
+**VERIFIED PRERELEASE WITH DISCLOSED LIMITATIONS.** [Russian report, downloads, exact SHA256 and repeated original-byte proof](../reports/SHIFT-RC4-VALIDATION-RU.md). Tagged binary source `ebcae08bbe4c66bf1aece9bbc811cc706fbe3c99`;296tests and native tagged gates passed. Two extra full native passes used the unchanged downloaded public binaries with corrected UIA locale selection. Physical Windows/accessibility/multi-monitor/sleep acceptance remains outstanding.
+
+## Historical RC3 validation
+
 # Validation — SHIFT Studio RC3
 
 **VERIFIED PRERELEASE WITH DISCLOSED LIMITATIONS.** [Final Russian report and public-byte proof](../reports/SHIFT-STUDIO-VALIDATION-RU.md). Tagged source `dd9d047d17f395902173c7231d2b2a59fdb843d4`; release and main workflows passed. Physical Windows/accessibility gates remain outstanding.
