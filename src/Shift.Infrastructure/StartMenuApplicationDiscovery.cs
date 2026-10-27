@@ -8,7 +8,7 @@ public sealed record ApplicationDiscoveryRoot(string Path, ApplicationSource Sou
 /// <summary>Bounded, read-only shortcut discovery. Does not resolve links or inspect running processes.</summary>
 public sealed class StartMenuApplicationDiscovery : IApplicationDiscovery
 {
-    public const int MaximumCandidates = 500;
+    public const int MaximumCandidates = QuickWorkspaceSetup.MaximumCatalog;
     public const int MaximumEntries = 5000;
     public const int MaximumDirectories = 256;
     public const int MaximumDepth = 8;

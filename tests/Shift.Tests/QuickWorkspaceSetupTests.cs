@@ -212,5 +212,41 @@ public sealed class QuickWorkspaceSetupTests : IDisposable
         Assert.Throws<ValidationException>(() => QuickWorkspaceSetup.CreateDraft("Work", [Candidate("one", path: @"C:\Scripts\unsafe.cmd")], ["one"]));
     }
 
+    [Fact]
+    public void Search_combines_unicode_name_and_group_terms_without_reordering_catalog()
+    {
+        var catalog = new[] { Candidate("one", "Редактор кода") with { Group = "Разработка" }, Candidate("two", "Редактор заметок") with { Group = "Учёба" } };
+        Assert.Equal("one", Assert.Single(QuickWorkspaceSetup.Filter(catalog, "  рЕдАкТоР\tРАЗРАБОТКА  ")).Id);
+        Assert.Equal(new[] { "one", "two" }, QuickWorkspaceSetup.Filter(catalog, null).Select(c => c.Id));
+        Assert.Empty(QuickWorkspaceSetup.Filter(catalog, "браузер"));
+    }
+
+    [Theory]
+    [InlineData("duplicate")]
+    [InlineData("null")]
+    [InlineData("source")]
+    [InlineData("oversize")]
+    public void Malformed_catalog_is_a_user_validation_error(string scenario)
+    {
+        ApplicationCandidate[] catalog = scenario switch
+        {
+            "duplicate" => [Candidate("one"), Candidate("one")],
+            "null" => [Candidate("one"), null!],
+            "source" => [Candidate("one") with { Source = (ApplicationSource)999 }],
+            _ => Enumerable.Range(0, QuickWorkspaceSetup.MaximumCatalog + 1).Select(i => Candidate(i.ToString())).ToArray()
+        };
+        var error = Assert.Throws<ValidationException>(() => QuickWorkspaceSetup.CreateDraft("Work", catalog, ["one"]));
+        Assert.Equal("QuickSelection", Assert.Single(error.Issues).Code);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData(" ")]
+    public void Empty_selection_identity_is_rejected_as_validation(string? id)
+    {
+        Assert.Throws<ValidationException>(() => QuickWorkspaceSetup.CreateDraft("Work", [Candidate("one")], [id!]));
+    }
+
     public void Dispose() => Directory.Delete(directory, true);
 }

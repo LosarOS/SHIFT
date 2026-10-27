@@ -8,6 +8,8 @@ public sealed partial class MainWindow
     {
         using var cancellation = new CancellationTokenSource();
         var selected = new HashSet<string>(StringComparer.Ordinal);
+        var selectionOrder = new List<string>();
+        var createManually = false;
         ApplicationDiscovery? discovery = null;
         Workspace? saved = null;
         // A refresh failure after SQLite commit must not duplicate a workspace on retry.
@@ -28,6 +30,8 @@ public sealed partial class MainWindow
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(query, s["Setup.Search"]);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(query, "Setup.Search");
         selection.Children.Add(query);
+        var selectionTools = new FlowPanel();
+        selection.Children.Add(selectionTools);
         var choices = Stack(8);
         selection.Children.Add(new ScrollViewer { Content = choices, MaxHeight = 280, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled });
         content.Children.Add(selection);
@@ -41,7 +45,8 @@ public sealed partial class MainWindow
         var previewItems = Stack(8);
         preview.Children.Add(new ScrollViewer { Content = previewItems, MaxHeight = 250, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled });
         content.Children.Add(preview);
-        var dialog = Dialog(s["Setup.Title"], new ScrollViewer { Content = content, MaxHeight = 470, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled }, s["Setup.Next"], s["Cancel"]);
+        var form = new ContentControl { Content = content, HorizontalContentAlignment = HorizontalAlignment.Stretch };
+        var dialog = Dialog(s["Setup.Title"], new ScrollViewer { Content = form, MaxHeight = 470, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled }, s["Setup.Next"], s["Cancel"]);
         dialog.IsPrimaryButtonEnabled = false;
         void UpdateStatus()
         {
@@ -53,9 +58,8 @@ public sealed partial class MainWindow
         {
             choices.Children.Clear();
             if (discovery is null) return;
-            var terms = query.Text.Split(' ', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-            var matching = discovery.Candidates.Where(c => terms.All(term => c.Name.Contains(term, StringComparison.CurrentCultureIgnoreCase) || c.Group.Contains(term, StringComparison.CurrentCultureIgnoreCase))).ToArray();
-            if (matching.Length == 0)
+            var matching = QuickWorkspaceSetup.Filter(discovery.Candidates, query.Text);
+            if (matching.Count == 0)
                 choices.Children.Add(Text(s[discovery.Candidates.Count == 0 ? "Setup.Empty" : "NoResults"], 14, true));
             string? lastGroup = null;
             foreach (var candidate in matching)
@@ -82,15 +86,16 @@ public sealed partial class MainWindow
                         errors.IsOpen = true;
                         return;
                     }
-                    selected.Add(candidate.Id);
+                    if (selected.Add(candidate.Id)) selectionOrder.Add(candidate.Id);
                     errors.IsOpen = false;
                     UpdateStatus();
                 };
-                choice.Unchecked += (_, _) => { selected.Remove(candidate.Id); UpdateStatus(); };
+                choice.Unchecked += (_, _) => { selected.Remove(candidate.Id); selectionOrder.Remove(candidate.Id); UpdateStatus(); };
                 choices.Children.Add(choice);
             }
             UpdateStatus();
         }
+        selectionTools.Children.Add(Button(s["Setup.Clear"], () => { selected.Clear(); selectionOrder.Clear(); RenderChoices(); }, false, "Setup.Clear"));
         query.TextChanged += (_, _) => RenderChoices();
         void ShowSelection()
         {
@@ -98,7 +103,7 @@ public sealed partial class MainWindow
             selection.Visibility = Visibility.Visible;
             preview.Visibility = Visibility.Collapsed;
             dialog.PrimaryButtonText = s["Setup.Next"];
-            dialog.SecondaryButtonText = "";
+            dialog.SecondaryButtonText = discovery?.Candidates.Count == 0 ? s["Setup.Manual"] : "";
             errors.IsOpen = false;
             UpdateStatus();
             query.Focus(FocusState.Programmatic);
@@ -110,6 +115,7 @@ public sealed partial class MainWindow
                 discovery = await applicationDiscovery.DiscoverAsync(cancellation.Token);
                 if (cancellation.IsCancellationRequested) return;
                 RenderChoices();
+                if (discovery.Candidates.Count == 0) dialog.SecondaryButtonText = s["Setup.Manual"];
                 if (discovery.UnavailableLocations > 0 || discovery.InvalidShortcuts > 0 || discovery.Limited)
                     content.Children.Add(Text(s["Setup.Partial"], 12, true));
                 query.Focus(FocusState.Programmatic);
@@ -122,11 +128,43 @@ public sealed partial class MainWindow
                 {
                     status.Text = s["Setup.Failed"];
                     dialog.IsPrimaryButtonEnabled = false;
+                    dialog.SecondaryButtonText = s["Setup.Manual"];
                 }
             }
         }
         dialog.Opened += (_, _) => scan = DiscoverAsync();
-        dialog.SecondaryButtonClick += (_, args) => { args.Cancel = true; if (!saving) ShowSelection(); };
+        void RenderPreview()
+        {
+            previewItems.Children.Clear();
+            if (discovery is null) return;
+            var indexed = discovery.Candidates.ToDictionary(c => c.Id, StringComparer.Ordinal);
+            for (var index = 0; index < selectionOrder.Count; index++)
+            {
+                var position = index; var id = selectionOrder[position]; var candidate = indexed[id];
+                var item = Stack(6);
+                item.Children.Add(Text((position + 1) + ".  " + candidate.Name, 15));
+                item.Children.Add(Text(candidate.ShortcutPath, 11, true));
+                var order = new FlowPanel();
+                void Move(int delta)
+                {
+                    var target = position + delta;
+                    (selectionOrder[position], selectionOrder[target]) = (selectionOrder[target], selectionOrder[position]);
+                    RenderPreview();
+                }
+                var up = Button("↑ " + s["MoveUp"], () => Move(-1), false, "Setup.Up." + id); up.IsEnabled = position > 0;
+                var down = Button("↓ " + s["MoveDown"], () => Move(1), false, "Setup.Down." + id); down.IsEnabled = position < selectionOrder.Count - 1;
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(up, s["MoveUp"] + ": " + candidate.Name);
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(down, s["MoveDown"] + ": " + candidate.Name);
+                order.Children.Add(up); order.Children.Add(down); item.Children.Add(order);
+                previewItems.Children.Add(Card(item, 12));
+            }
+        }
+        dialog.SecondaryButtonClick += (_, args) =>
+        {
+            if (saving) { args.Cancel = true; return; }
+            if (previewStep) { args.Cancel = true; ShowSelection(); }
+            else createManually = true;
+        };
         dialog.PrimaryButtonClick += async (_, args) =>
         {
             if (saved is not null) return;
@@ -137,29 +175,22 @@ public sealed partial class MainWindow
                 previewStep = true;
                 selection.Visibility = Visibility.Collapsed;
                 preview.Visibility = Visibility.Visible;
-                previewItems.Children.Clear();
-                foreach (var candidate in discovery.Candidates.Where(c => selected.Contains(c.Id)))
-                {
-                    var item = Stack(4);
-                    item.Children.Add(Text("↗  " + candidate.Name, 15));
-                    item.Children.Add(Text(candidate.ShortcutPath, 11, true));
-                    previewItems.Children.Add(Card(item, 12));
-                }
+                RenderPreview();
                 dialog.PrimaryButtonText = s["Setup.Save"];
-                dialog.SecondaryButtonText = s["Back"];
+                dialog.SecondaryButtonText = s["Setup.Back"];
                 UpdateStatus();
                 name.Focus(FocusState.Programmatic);
                 name.SelectAll();
                 return;
             }
-            saving = true;
+            saving = true; form.IsEnabled = false;
             var deferral = args.GetDeferral();
             dialog.IsPrimaryButtonEnabled = false;
             dialog.IsSecondaryButtonEnabled = false;
             try
             {
-                // The visual preview and resulting launch order both use this catalog order.
-                var orderedIds = discovery.Candidates.Where(c => selected.Contains(c.Id)).Select(c => c.Id).ToArray();
+                // Preview order is the launch order; Back/search never reorder explicit choices.
+                var orderedIds = selectionOrder.ToArray();
                 var draft = QuickWorkspaceSetup.CreateDraft(name.Text, discovery.Candidates, orderedIds) with { Id = draftIdentity.Id, CreatedAt = draftIdentity.CreatedAt };
                 await vm.SaveAsync(draft);
                 saved = draft;
@@ -170,13 +201,15 @@ public sealed partial class MainWindow
                 errors.Title = s["ValidationHint"];
                 errors.Message = s.ErrorDetails(ex);
                 errors.IsOpen = true;
-                log.Error("Quick workspace save failed", ex);
+                if (ex is ValidationException) log.Info("Quick workspace validation requires correction.");
+                else log.Error("Quick workspace save failed", ex);
             }
-            finally { saving = false; dialog.IsSecondaryButtonEnabled = true; UpdateStatus(); deferral.Complete(); }
+            finally { saving = false; form.IsEnabled = true; dialog.IsSecondaryButtonEnabled = true; UpdateStatus(); deferral.Complete(); }
         };
         dialog.Closing += (_, args) => { if (saving) args.Cancel = true; else cancellation.Cancel(); };
         try { await ShowDialogAsync(dialog); }
         finally { cancellation.Cancel(); await scan; }
         if (saved is not null) OpenWorkspace(vm.Workspaces.First(w => w.Id == saved.Id));
+        else if (createManually) await EditWorkspaceAsync(null);
     }
 }
