@@ -79,6 +79,12 @@ public sealed class StudioWidgetRuntime : IWidgetRuntime
         }
         finally { operations.Release(); }
     }
+    public async Task FlushPendingAsync(CancellationToken token = default)
+    {
+        await operations.WaitAsync(token).ConfigureAwait(false);
+        try { if (host is { } current && !current.Exited.IsCompleted) await current.InvokeAsync(current.FlushAsync).ConfigureAwait(false); }
+        finally { operations.Release(); }
+    }
     public async Task StopAsync(CancellationToken token = default)
     {
         await operations.WaitAsync(token).ConfigureAwait(false);
@@ -358,7 +364,7 @@ internal sealed class WidgetHost
         foreach (var instance in WidgetPresentation.WrittenInstances(saved, edits.Keys))
             if (windows.TryGetValue(instance.Id, out var window)) window.LayoutSaved(instance);
     }
-    private async Task FlushAsync()
+    public async Task FlushAsync()
     {
         foreach (var window in windows.Values.ToArray()) await window.FlushForCloseAsync();
         try { await SaveLayoutsAsync(); }

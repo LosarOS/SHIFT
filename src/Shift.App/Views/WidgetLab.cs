@@ -6,6 +6,10 @@ public sealed partial class MainWindow
     private async Task EditStudioWidgetAsync(WidgetDefinition? existing, Guid? instanceId = null, WidgetLayout? retainedLayout = null, Guid? retainedProfileId = null)
     {
         if (studioRuntime is null) return;
+        await studioRuntime.FlushPendingAsync();
+        await RefreshStudioAsync();
+        if (existing is { Revision: > 0 } && retainedLayout is null)
+            existing = studioDefinitions.FirstOrDefault(d => d.Id == existing.Id) ?? throw new InvalidOperationException("A widget definition is missing.");
         var draft = existing ?? new WidgetDefinition { Title = T("Мой виджет", "My widget") };
         var title = new TextBox { Text = draft.Title, MaxLength = 100 };
         var kind = new ComboBox { ItemsSource = Enum.GetValues<WidgetKind>().Select(KindName).ToArray(), SelectedIndex = (int)draft.Kind, IsEnabled = existing is null || existing.Revision == 0 };
@@ -83,7 +87,7 @@ public sealed partial class MainWindow
                 };
                 error.IsOpen = false;
             }
-            catch (Exception ex) { error.Title = T("Проверьте свойства", "Check properties"); error.Message = s.ErrorDetails(ex); error.IsOpen = true; }
+            catch (Exception ex) { error.Title = T("Проверьте свойства", "Check properties"); error.Message = s.ErrorDetails(ex); error.IsOpen = true; DispatcherQueue.TryEnqueue(() => error.StartBringIntoView()); }
         }
         async Task UpdateDesktopPreviewAsync()
         {
@@ -94,7 +98,7 @@ public sealed partial class MainWindow
                 await studioRuntime.PreviewAsync(candidate, layout, lifetime.Token);
             }
             catch (OperationCanceledException) { }
-            catch (Exception ex) { error.Title = T("Предпросмотр недоступен", "Preview unavailable"); error.Message = s.ErrorDetails(ex); error.IsOpen = true; }
+            catch (Exception ex) { error.Title = T("Предпросмотр недоступен", "Preview unavailable"); error.Message = s.ErrorDetails(ex); error.IsOpen = true; DispatcherQueue.TryEnqueue(() => error.StartBringIntoView()); }
         }
         void Changed() { UpdateMockup(); if (previewOpen) timer.Start(); }
         timer.Tick += (_, _) => previewTask = UpdateDesktopPreviewAsync();
@@ -179,7 +183,7 @@ public sealed partial class MainWindow
                 await RefreshStudioAsync();
                 // Saving definitions does not silently mutate the active desktop. Apply the profile separately.
             }
-            catch (Exception ex) { args.Cancel = true; error.Title = T("Изменения не сохранены", "Changes were not saved"); error.Message = s.ErrorDetails(ex); error.IsOpen = true; }
+            catch (Exception ex) { args.Cancel = true; error.Title = T("Изменения не сохранены", "Changes were not saved"); error.Message = s.ErrorDetails(ex); error.IsOpen = true; DispatcherQueue.TryEnqueue(() => error.StartBringIntoView()); }
             finally { saving = false; dialog.IsSecondaryButtonEnabled = true; form.IsEnabled = true; dialog.IsPrimaryButtonEnabled = true; deferral.Complete(); }
         };
         UpdateMockup();

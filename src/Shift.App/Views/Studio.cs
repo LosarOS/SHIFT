@@ -108,14 +108,14 @@ public sealed partial class MainWindow
             var selected = key;
             tabs.Children.Add(Button(T(ru, en), () => { studioPage = selected; RenderScreen(); }, studioPage == key, "Studio.Tab." + key));
         }
+        tabs.Children.Add(StudioAction("↻", T("Обновить профили и экраны", "Refresh profiles and displays"), async () => { await RefreshStudioAsync(); RenderScreen(); }, "Studio.Refresh"));
         screen.Children.Add(tabs);
-        screen.Children.Add(AsyncButton(T("Обновить профили и экраны", "Refresh profiles and displays"), async () => { await RefreshStudioAsync(); RenderScreen(); }, false, "Studio.Refresh"));
         var safety = new FlowPanel();
-        safety.Children.Add(AsyncButton(T("Отключить Studio", "Disable Studio"), () => SetStudioEnabledAsync(false), false, "Studio.Disable"));
-        safety.Children.Add(AsyncButton(T("Вернуть оформление Windows", "Restore Windows appearance"), RestoreStudioAsync, false, "Studio.Restore"));
-        safety.Children.Add(AsyncButton(T("Собрать виджеты", "Gather widgets"), async () => { if (studioRuntime is not null) await studioRuntime.GatherAsync(); }, false, "Studio.Gather"));
-        safety.Children.Add(AsyncButton(s["Studio.DesktopMode"], async () => { if (studioRuntime is not null) await studioRuntime.SetInteractionAsync(WidgetInteraction.Desktop); }, false, "Studio.DesktopMode"));
-        safety.Children.Add(AsyncButton(T("Режим редактирования", "Edit mode"), async () => { if (studioRuntime is not null) await studioRuntime.SetInteractionAsync(WidgetInteraction.Edit); }, false, "Studio.EditMode"));
+        safety.Children.Add(StudioAction(T("Отключить", "Disable"), T("Отключить Studio", "Disable Studio"), () => SetStudioEnabledAsync(false), "Studio.Disable"));
+        safety.Children.Add(StudioAction(T("Восстановить", "Restore"), T("Вернуть оформление Windows", "Restore Windows appearance"), RestoreStudioAsync, "Studio.Restore"));
+        safety.Children.Add(StudioAction(T("Собрать", "Gather"), T("Собрать виджеты на основном экране", "Gather widgets on primary display"), async () => { if (studioRuntime is not null) await studioRuntime.GatherAsync(); }, "Studio.Gather"));
+        safety.Children.Add(StudioAction(T("Закрепить", "Lock"), s["Studio.DesktopMode"], async () => { if (studioRuntime is not null) await studioRuntime.SetInteractionAsync(WidgetInteraction.Desktop); }, "Studio.DesktopMode"));
+        safety.Children.Add(StudioAction(T("Редактировать", "Edit mode"), T("Режим редактирования виджетов", "Edit widget positions and sizes"), async () => { if (studioRuntime is not null) await studioRuntime.SetInteractionAsync(WidgetInteraction.Edit); }, "Studio.EditMode"));
         screen.Children.Add(safety);
         if (!studioReady)
         {
@@ -126,18 +126,19 @@ public sealed partial class MainWindow
         if (studioPage == "Profiles") { RenderStudioProfiles(); return; }
         if (studioPage == "Widgets") { RenderStudioGallery(); return; }
         if (studioPage == "Settings") { RenderStudioSettings(); return; }
-        var hero = Stack(14);
-        hero.Children.Add(StudioBadge(T("ВАШЕ ОКРУЖЕНИЕ", "YOUR ENVIRONMENT")));
-        hero.Children.Add(Text(T("Одно пространство. Ваше окружение.", "One workspace. One environment."), 30, weight: Microsoft.UI.Text.FontWeights.SemiBold));
-        hero.Children.Add(Text(T("Ваши инструменты, виджеты и оформление в одном месте. Обои меняются только после подтверждения.", "Your tools, widgets and appearance in one place. Wallpaper changes only after confirmation."), 15, true));
         var active = studioProfiles.FirstOrDefault(p => p.Id == studioSettings.ActiveProfileId);
-        hero.Children.Add(Text(T("Studio: ", "Studio: ") + (studioSettings.Enabled ? T("включён", "enabled") : T("выключен", "disabled")), 14));
-        hero.Children.Add(Text(T("Активный профиль: ", "Active profile: ") + (active?.Name ?? T("нет", "none")), 18));
-        if (active?.WorkspaceId is Guid workspaceId) hero.Children.Add(Text(T("Пространство: ", "Workspace: ") + vm.Workspaces.FirstOrDefault(w => w.Id == workspaceId)?.Name));
-        hero.Children.Add(Text($"{T("Окна виджетов", "Widget windows")}: {studioRuntime?.WindowCount ?? 0} · {T("Мониторы", "Monitors")}: {studioMonitors.Count}", 14, true));
-        if (!studioSettings.Enabled) hero.Children.Add(AsyncButton(T("Включить Studio", "Enable Studio"), () => SetStudioEnabledAsync(true), true, "Studio.Enable"));
-        hero.Children.Add(AsyncButton(T("Создать профиль", "Create profile"), () => EditStudioProfileAsync(null), false, "Studio.Profile.New"));
-        var heroCard = Card(hero, 26); heroCard.Background = Brush(palette.Selected); screen.Children.Add(heroCard);
+        var hero = Stack(10); hero.Children.Add(StudioBadge(studioSettings.Enabled ? T("STUDIO ВКЛЮЧЁН", "STUDIO ENABLED") : T("STUDIO ВЫКЛЮЧЕН", "STUDIO DISABLED")));
+        var heading = Text(active?.Name ?? T("Соберите своё окружение", "Build your environment"), 30, weight: Microsoft.UI.Text.FontWeights.SemiBold);
+        heading.MaxLines = 2; heading.TextTrimming = TextTrimming.CharacterEllipsis; if (active is not null) ToolTipService.SetToolTip(heading, active.Name); hero.Children.Add(heading);
+        hero.Children.Add(Text(T("Виджеты, инструменты и оформление для вашей следующей задачи. Обои меняются только после подтверждения.", "Widgets, tools and appearance for your next task. Wallpaper changes only after confirmation."), 14, true));
+        if (active?.WorkspaceId is Guid workspaceId) hero.Children.Add(Text(T("Пространство: ", "Workspace: ") + vm.Workspaces.FirstOrDefault(w => w.Id == workspaceId)?.Name, 14));
+        hero.Children.Add(Text($"{T("Окна виджетов", "Widget windows")}: {studioRuntime?.WindowCount ?? 0} · {T("Мониторы", "Monitors")}: {studioMonitors.Count}", 13, true));
+        var heroActions = new FlowPanel();
+        if (!studioSettings.Enabled) heroActions.Children.Add(AsyncButton(T("Включить Studio", "Enable Studio"), () => SetStudioEnabledAsync(true), true, "Studio.Enable"));
+        else if (active?.Enabled == true) heroActions.Children.Add(AsyncButton(T("Применить профиль", "Apply profile"), () => ApplyStudioProfileAsync(active), true, "Studio.Active.Apply"));
+        heroActions.Children.Add(AsyncButton(T("Создать профиль", "Create profile"), () => EditStudioProfileAsync(null), false, "Studio.Profile.New"));
+        heroActions.Children.Add(Button(T("Все профили", "All profiles"), () => { studioPage = "Profiles"; RenderScreen(); })); hero.Children.Add(heroActions);
+        var heroCard = Card(hero, 24); heroCard.Background = Brush(palette.Selected); screen.Children.Add(heroCard);
         RenderStudioStarters();
         screen.Children.Add(Text(T("Собственные окна, без внедрения в Explorer. Режим «Поверх всех окон» выключен по умолчанию. Восстановление проверяет более поздние изменения пользователя.", "Owned windows without Explorer injection. Always on Top is off by default. Recovery checks for later user changes."), 13, true));
         foreach (var monitor in studioMonitors) screen.Children.Add(Text($"{monitor.Name} · {monitor.Width}×{monitor.Height} · {monitor.DpiScale:P0}", 13, true));
@@ -177,6 +178,9 @@ public sealed partial class MainWindow
     }
     private async Task EditStudioProfileAsync(DesktopProfile? existing)
     {
+        if (studioRuntime is not null) await studioRuntime.FlushPendingAsync();
+        await RefreshStudioAsync();
+        if (existing is not null) existing = studioProfiles.FirstOrDefault(p => p.Id == existing.Id) ?? throw new InvalidOperationException("Desktop profile was not found.");
         var source = existing ?? new DesktopProfile { Name = T("Новое окружение", "New environment") };
         var name = new TextBox { Text = source.Name, MaxLength = 100 };
         var description = new TextBox { Text = source.Description, MaxLength = 2000, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap };
@@ -254,7 +258,7 @@ public sealed partial class MainWindow
                 }
                 await RefreshStudioAsync();
             }
-            catch (Exception ex) { args.Cancel = true; error.Title = T("Профиль не сохранён", "Profile was not saved"); error.Message = s.ErrorDetails(ex); error.IsOpen = true; }
+            catch (Exception ex) { args.Cancel = true; error.Title = T("Профиль не сохранён", "Profile was not saved"); error.Message = s.ErrorDetails(ex); error.IsOpen = true; DispatcherQueue.TryEnqueue(() => error.StartBringIntoView()); }
             finally { busy = false; form.IsEnabled = true; dialog.IsPrimaryButtonEnabled = true; deferral.Complete(); }
         };
         await ShowDialogAsync(dialog); RenderScreen();

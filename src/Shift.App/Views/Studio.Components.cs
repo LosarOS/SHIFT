@@ -17,7 +17,11 @@ public sealed partial class MainWindow
     }
     private Border StudioBadge(string text)
     {
-        return new Border { Child = Text(text, 12, color: palette.Accent), Background = Brush(palette.Selected), Padding = new Thickness(10, 5, 10, 5), CornerRadius = new CornerRadius(6) };
+        return new Border { Child = Text(text, 12, color: vm.Settings.Theme == AppTheme.Light ? palette.Text : palette.Accent), Background = Brush(palette.Selected), Padding = new Thickness(10, 5, 10, 5), CornerRadius = new CornerRadius(6) };
+    }
+    private Button StudioAction(string label, string help, Func<Task> action, string id)
+    {
+        var button = AsyncButton(label, action, false, id); ToolTipService.SetToolTip(button, help); AutomationProperties.SetName(button, help); return button;
     }
     private static string StudioKindGlyph(WidgetKind kind) => kind switch
     { WidgetKind.Clock => "\uE823", WidgetKind.SystemMonitor => "\uE9D9", WidgetKind.FocusTimer => "\uE916", _ => "\uE70B" };
@@ -110,7 +114,7 @@ public sealed partial class MainWindow
     }
     private Border StudioDefinitionPreview(WidgetDefinition definition)
     {
-        var preview = Stack(8); preview.Children.Add(Text(T("ПРЕДПРОСМОТР ОФОРМЛЕНИЯ", "STYLE PREVIEW"), 10, true));
+        var preview = Stack(8); preview.Children.Add(Text(T("ПРЕДПРОСМОТР ОФОРМЛЕНИЯ", "STYLE PREVIEW"), 10, color: accessibility.HighContrast ? palette.Text : definition.Style.Foreground));
         var line = new Grid { ColumnSpacing = 12 }; line.ColumnDefinitions.Add(new() { Width = GridLength.Auto }); line.ColumnDefinitions.Add(new() { Width = new GridLength(1, GridUnitType.Star) }); line.Children.Add(Glyph(StudioKindGlyph(definition.Kind), 28));
         var text = definition.Kind switch
         {

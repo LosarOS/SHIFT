@@ -267,7 +267,14 @@ try {
  $raw | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $DiagnosticsDirectory 'studio-performance-raw.json')
  @{status='passed';source_commit=$env:GITHUB_SHA;environment='disposable Windows Server runner, actual extracted SHIFT.exe';checks=$checks;wallpaper_verified=$wallpaperVerified;alpha_attribute_verified=[bool]$layered;actual_alpha=[int]$alpha;manual_acceptance=$false;multi_monitor_verified=$false;sleep_verified=$false;physical_windows11_verified=$false;not_measured=@('actual_sleep_resume','widget_lab_open_latency','full_profile_apply_latency')} | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $DiagnosticsDirectory 'studio-smoke.json')
 } catch {
- try{if($main){Capture 'failure'}}catch{}
+ try{
+  if($main){
+   Capture 'failure'
+   $names=@($main.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition) | ForEach-Object {$_.Current.Name} | Where-Object {$_ -match 'сохран|измен|ошиб|не найден|поврежд|invalid|changed|failed'} | Select-Object -First 40)
+   $names | Set-Content (Join-Path $DiagnosticsDirectory 'studio-ui-failure.txt')
+   Write-Host ($names -join ' | ')
+  }
+ }catch{}
  if(Test-Path (Join-Path $data 'logs')){Copy-Item (Join-Path $data 'logs') (Join-Path $DiagnosticsDirectory 'studio-app-logs') -Recurse}
  throw
 } finally {
