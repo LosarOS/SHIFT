@@ -1,0 +1,184 @@
+{
+  "schema_version": 1,
+  "status": "passed",
+  "version": "1.0.0-rc.4",
+  "binary_source_commit": "ebcae08bbe4c66bf1aece9bbc811cc706fbe3c99",
+  "verification_scripts_commit": "a52cc427a4d1f9edd348070e9a10d5eb9c584730",
+  "application_source_unchanged": true,
+  "original_assets_unchanged": true,
+  "original_binary_sha256": {
+    "SHIFT-1.0.0-rc.4-win-x64-setup.exe": "3c5b812f57d2d24998137f797b6d8e64888f128a6b6a817460221ade7c947fae",
+    "SHIFT-1.0.0-rc.4-win-x64-portable.zip": "0d149134d06cb3f9740ad9d75d5b5f3491acc87031a7dbcd9c474cb799d94199"
+  },
+  "environment": "GitHub Actions disposable Windows x64 runner",
+  "workflow_run": "https://github.com/LosarOS/SHIFT/actions/runs/40487992814",
+  "diagnosis": "The old Studio probe expanded the locale dropdown once and retained a peer while WinUI could replace/collapse it during layout. The corrected probe reacquires the control, verifies actual selection and re-expands idempotently. Original published binaries passed two complete Studio/Russian feature passes without rebuilding.",
+  "checks": {
+    "diagnostics/installed-smoke.json": {
+      "mode": "installed",
+      "schema_version": 1,
+      "environment": "disposable-windows-ui-automation",
+      "timestamp_utc": "2026-10-27T10:27:34.3595591Z",
+      "portable_smoke_archive": false,
+      "resumed": false,
+      "status": "passed",
+      "manual_acceptance": false,
+      "checks": [
+        "workspace_persistence",
+        "english_persistence",
+        "midnight_theme_persistence",
+        "command_proof_persistence",
+        "graceful_exit",
+        "workspace_create",
+        "item_create",
+        "doctor_read_only",
+        "doctor_repeat",
+        "command_refusal",
+        "command_approval",
+        "real_dispatch",
+        "compact_search",
+        "tray",
+        "second_instance_activation",
+        "restart"
+      ]
+    },
+    "diagnostics/installer-smoke.json": {
+      "manual_acceptance": false,
+      "checks": [
+        "per_user_install",
+        "start_menu_shortcut",
+        "installed_ui",
+        "in_place_same_version_reinstall",
+        "uninstall",
+        "registry_cleanup",
+        "reinstall",
+        "saved_workspace_settings",
+        "sqlite_sha256_preservation"
+      ],
+      "status": "passed",
+      "schema_version": 1,
+      "version": "1.0.0-rc.4",
+      "environment": "disposable-windows-ui-automation"
+    },
+    "diagnostics-reinstall/installed-smoke.json": {
+      "mode": "installed",
+      "schema_version": 1,
+      "environment": "disposable-windows-ui-automation",
+      "timestamp_utc": "2026-10-27T10:27:54.1363654Z",
+      "portable_smoke_archive": false,
+      "resumed": true,
+      "status": "passed",
+      "manual_acceptance": false,
+      "checks": [
+        "workspace_persistence",
+        "english_persistence",
+        "midnight_theme_persistence",
+        "command_proof_persistence",
+        "graceful_exit"
+      ]
+    },
+    "diagnostics/portable-smoke.json": {
+      "mode": "portable",
+      "schema_version": 1,
+      "environment": "disposable-windows-ui-automation",
+      "timestamp_utc": "2026-10-27T10:24:14.2115164Z",
+      "portable_smoke_archive": true,
+      "resumed": false,
+      "status": "passed",
+      "manual_acceptance": false,
+      "checks": [
+        "workspace_persistence",
+        "english_persistence",
+        "midnight_theme_persistence",
+        "command_proof_persistence",
+        "graceful_exit",
+        "workspace_create",
+        "item_create",
+        "doctor_read_only",
+        "doctor_repeat",
+        "command_refusal",
+        "command_approval",
+        "real_dispatch",
+        "compact_search",
+        "tray",
+        "second_instance_activation",
+        "restart"
+      ]
+    }
+  },
+  "studio_repeated_checks": {
+    "attempt_1": {
+      "checks": [
+        "lab_preview_cancel_save_no_preview_writes",
+        "four_real_windows_notes_timer",
+        "mode_change_preserves_geometry",
+        "recovery_gather_persists_geometry",
+        "reapply_no_duplicate_windows",
+        "wallpaper_apply_restore",
+        "timer_restart_after_completion",
+        "russian_live_language_without_recreation",
+        "editor_preserves_boundaries_custom_style_and_missing_monitor",
+        "starter_preset_cancel_atomic_save_and_apply",
+        "russian_quick_setup_order_save_cancel",
+        "disabled_profile_stays_disabled_after_restart",
+        "disable_reenable",
+        "restart_persistence_and_quit"
+      ],
+      "sleep_verified": false,
+      "environment": "disposable Windows Server runner, actual extracted SHIFT.exe",
+      "multi_monitor_verified": false,
+      "alpha_attribute_verified": true,
+      "not_measured": [
+        "actual_sleep_resume",
+        "widget_lab_open_latency",
+        "full_profile_apply_latency"
+      ],
+      "physical_windows11_verified": false,
+      "manual_acceptance": false,
+      "source_commit": "a52cc427a4d1f9edd348070e9a10d5eb9c584730",
+      "actual_alpha": 217,
+      "status": "passed",
+      "wallpaper_verified": true
+    },
+    "attempt_2": {
+      "checks": [
+        "lab_preview_cancel_save_no_preview_writes",
+        "four_real_windows_notes_timer",
+        "mode_change_preserves_geometry",
+        "recovery_gather_persists_geometry",
+        "reapply_no_duplicate_windows",
+        "wallpaper_apply_restore",
+        "timer_restart_after_completion",
+        "russian_live_language_without_recreation",
+        "editor_preserves_boundaries_custom_style_and_missing_monitor",
+        "starter_preset_cancel_atomic_save_and_apply",
+        "russian_quick_setup_order_save_cancel",
+        "disabled_profile_stays_disabled_after_restart",
+        "disable_reenable",
+        "restart_persistence_and_quit"
+      ],
+      "sleep_verified": false,
+      "environment": "disposable Windows Server runner, actual extracted SHIFT.exe",
+      "multi_monitor_verified": false,
+      "alpha_attribute_verified": true,
+      "not_measured": [
+        "actual_sleep_resume",
+        "widget_lab_open_latency",
+        "full_profile_apply_latency"
+      ],
+      "physical_windows11_verified": false,
+      "manual_acceptance": false,
+      "source_commit": "a52cc427a4d1f9edd348070e9a10d5eb9c584730",
+      "actual_alpha": 217,
+      "status": "passed",
+      "wallpaper_verified": true
+    }
+  },
+  "original_core_tests": {
+    "passed": 296,
+    "skipped": 0,
+    "failed": 0,
+    "total": 296
+  },
+  "manual_acceptance": false
+}

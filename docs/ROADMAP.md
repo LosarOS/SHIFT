@@ -1,61 +1,31 @@
-# План развития
+# План развития SHIFT
 
-## Итерации первого прохода
+## RC4 — реализовано
 
-1. **Фундамент:** solution, domain records, validation, PRD, architecture and stable contracts.
-2. **Данные и запуск:** SQLite schema, transactions, JSON, history, launch sequence, cancellation, crash recovery and tests.
-3. **Desktop slice:** native WinUI shell, all 5 sections, editors, queue, onboarding, localization, themes and Windows adapters.
-4. **Release engineering:** CI, publish script, portable, installer, checksums and docs.
-5. **Windows acceptance:** build on real Windows, install and launch smoke, QA matrix, fix runtime issues, measure performance.
+- Локальные пространства: CRUD, clone, избранное, теги, поиск, пять типов элементов, последовательный запуск, отмена и command consent.
+- Workspace Doctor, компактный лаунчер, горячая клавиша, трей/second-instance activation, история, JSON и SQLite backup/restore.
+- Studio: визуальные профили, обратимое применение статичных обоев, четыре настоящих виджета, нормализованное расположение, recovery и безопасный opt-in.
+- Quick Setup из локальных ярлыков с явным выбором/предпросмотром/порядком/Back/cancel.
+- Готовые окружения «Разработка», «Стриминг», «Фокус» с атомарным сохранением.
+- Русская локализация, поиск/фильтр галереи, адаптивные профили, улучшенная мастерская и атомарное редактирование.
+- Windows x64 portable/installer, контрольные суммы, реальные UIA-сценарии и 296 автоматических тестов. Точные факты и границы: [RC4 validation](../reports/SHIFT-RC4-VALIDATION-RU.md).
 
-Первые 4 представлены кодом в 0.1.0. Пятый — обязательный gate перед public beta; его нельзя заменить тестами на Linux или проверкой C# reference assemblies.
+## До stable1.0 — обязательная приёмка
 
-## MVP → engineering preview 0.1
+1. Физические Windows11 и поддерживаемые Windows10; чистые prerequisites/install/update/uninstall.
+2. DPI100/125/150/200%, большие шрифты, Narrator/highcontrast/reduced motion.
+3. Несколько мониторов, hotplug, смена primary/resolution, RDP, sleep/resume/fullscreen.
+4. Длительная работа заметок/таймеров, сбои диска/питания, backup ресурсов и восстановление данных.
+5. Полная installed Studio матрица, длительные idle/performance измерения и политика подписи бинарников.
 
-CRUD, 5 item types, tags/favorites/search, sequential launch and cancel, command consent, durable history, import/export/backup, RU/EN, themes, tray, per-user startup. All UI calls real services; no fake workspace storage.
+Успешный CI на Server не заменяет эту физическую матрицу. Никакой фиктивной stable1.0 по одному номеру версии.
 
-## Beta 0.2–0.4
+## После приёмки
 
-- Windows 10/11 real-device QA, install/update/uninstall verification, unsigned signing policy.
-- Fix all release-blocking issues from checklist; test crash, disk-full, readonly and multi-monitor scenarios.
-- Measure cold start and large dataset behavior; serialized storage executor if needed.
-- Incremental UI updates, responsive layout polish, high contrast / Narrator, text scaling.
-- Portable move tests, imported missing-path repair, preview of environment expansion.
-- App shortcuts and custom icon UI; explicit multi-file import/export options.
-- Bring running instance forward on second invocation.
-- Typed error codes and complete localized validation messages.
+- Quick Links и компактные интерактивные действия с тем же command consent.
+- Улучшенный Widget Lab и пользовательские style templates по обратной связи.
+- Документированные backdrops с проверенными fallback/accessibility режимами.
+- Session capture, window layouts, расписания и bounded parallel launch — отдельные модули с явными разрешениями.
+- При желании локальные рекомендации по реальным данным, без фиктивных показателей.
 
-## v1.0
-
-- Global hotkeys and compact launcher using the same launch coordinator and command consent.
-- Strong release reproducibility, dependency maintenance, signed downloads when signing is arranged.
-- App readiness probes for known adapters, command exit tracking as a separate opt-in mode.
-- History pagination, retention controls, local summary metrics; no telemetry.
-- Guided backup restore with pre-restore backup and restart.
-
-## Future
-
-- Explicit capture of windows/apps/folders, browser extension for opt-in URLs.
-- Layout presets with DPI/monitor topology and restoration retries.
-- Previous session recovery as a proposal for user approval, never blindly rerun commands.
-- Scheduled routines with visible missed-run policy and security model.
-- Bounded parallel launch groups and dependency steps.
-- Local recommendations, quick-launch widgets and usage analytics.
-
-Не планируются как обязательные зависимости: облако, API-ключи, online аккаунты, платные AI-сервисы, Windows service с повышенными привилегиями.
-
-## Реализовано в 1.0 candidate
-
-- Compact launcher с поиском, выбором ↑/↓, Enter/Esc, Ctrl+K и opt-in Ctrl+Alt+Space.
-- Activation существующего экземпляра, восстановление из трея.
-- Background SQLite access, full-data usage, сортировка и tag filter.
-- History pagination/search/failure filter/retry/clear.
-- Backup restore с validation и safety copy.
-- Typed validation RU/EN, system high contrast/reduced motion handling, DPI-aware initial window size.
-- Более полный Windows UI/installer smoke с diagnostics/screenshots и source hygiene gate.
-
-Код этих возможностей включён в RC. «Реализовано» не означает «подтверждено на Windows»; текущая валидация фиксируется отдельно. Stable 1.0 требует закрытия release gates, а session capture/layouts/schedules остаются следующими версиями.
-
-## RC2 engineering session
-
-Workspace Doctor is implemented with bounded local-only checks and explicit Unknown states. Quick Workspace Setup is being developed independently and will be integrated only after its own review/native validation; it does not replace full session capture. The primary release gate remains actual Windows startup and preservation checks. See [session evidence](../reports/engineering-session-2026-10-23.md).
+Необязательные исследования: WebView2/HTML widgets с отдельной моделью безопасности; packaged Windows Widgets Board. Explorer injection/WorkerW hacks, изменения системных политик, обязательное облако, платные API и повышенные службы не планируются как основа продукта.
