@@ -90,6 +90,15 @@ else if (stage == "mode-check")
         throw new InvalidOperationException("Mode change lost the pending native geometry.");
     Console.WriteLine("MODE_AND_GEOMETRY_SAVED");
 }
+else if (stage == "gather-check")
+{
+    var instance = (await store.ListProfilesAsync()).Single(p => p.Id == Id(104)).Widgets.Single(w => w.Id == Id(4000));
+    var topology = await new WindowsMonitorTopology().GetMonitorsAsync(); var primary = topology.FirstOrDefault(m => m.Primary) ?? topology[0];
+    var actual = WidgetLayoutService.Resolve(instance.Layout, topology);
+    var expected = WidgetLayoutService.Resolve(instance.Layout with { MonitorId = primary.DeviceId, X = .04, Y = .04 }, topology);
+    if (instance.Layout.MonitorId != primary.DeviceId || Math.Abs(actual.X - expected.X) > 2 || Math.Abs(actual.Y - expected.Y) > 2) throw new InvalidOperationException("Gather did not persist native recovery geometry.");
+    Console.WriteLine("GATHER_GEOMETRY_PERSISTED");
+}
 else if (stage == "timer-restart-check")
 {
     var timer = (await store.GetWidgetStateAsync(Id(5002)))?.Timer;

@@ -407,7 +407,7 @@ public sealed partial class MainWindow
             row.Children.Add(Text($"{s[item.Status.ToString()]}  ·  {item.Name}", 14, color: color));
             if (item.Error is not null)
             {
-                var error = Text(item.Error, 12, true);
+                var error = Text(s.LocalizeMessage(item.Error), 12, true);
                 error.IsTextSelectionEnabled = true;
                 row.Children.Add(error);
             }

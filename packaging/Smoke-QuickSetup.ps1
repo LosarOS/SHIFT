@@ -117,8 +117,11 @@ try {
     $pathB=Join-Path $fixtureDirectory ($nameB+'.lnk')
     $shell=New-Object -ComObject WScript.Shell
     foreach($path in @($pathA,$pathB)){
-        $shortcut=$shell.CreateShortcut($path)
-        try{$shortcut.TargetPath=$notepad;$shortcut.Arguments='';$shortcut.WorkingDirectory=Split-Path $notepad -Parent;$shortcut.Description='Owned disposable SHIFT Quick Setup fixture; never execute.';$shortcut.Save()}
+        # WSH Save uses the runner's ANSI codepage for its own filename on this image.
+        # Save through an ASCII temporary name, then use .NET's Unicode rename; discovery still sees Cyrillic paths.
+        $temporaryShortcut=Join-Path $fixtureDirectory ('fixture-'+[guid]::NewGuid().ToString('N')+'.lnk')
+        $shortcut=$shell.CreateShortcut($temporaryShortcut)
+        try{$shortcut.TargetPath=$notepad;$shortcut.Arguments='';$shortcut.WorkingDirectory=Split-Path $notepad -Parent;$shortcut.Description='Owned disposable SHIFT Quick Setup fixture; never execute.';$shortcut.Save();[IO.File]::Move($temporaryShortcut,$path)}
         finally{[void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($shortcut)}
     }
     $idA=Candidate-Id $pathA;$idB=Candidate-Id $pathB

@@ -50,6 +50,11 @@ public sealed partial class Strings
     }
     private static readonly (string English, string Russian)[] OperationalMessages =
     [
+        ("A workspace launch is already in progress.", "Пространство уже запускается. Дождитесь завершения очереди."),
+        ("Command execution was declined.", "Выполнение команд отклонено пользователем."),
+        ("Launch cancelled before dispatch.", "Запуск отменён до отправки запроса Windows."),
+        ("Launch interrupted. Check the local log.", "Запуск прерван. Подробности сохранены в локальном журнале."),
+        ("This database belongs to a newer SHIFT version. Update SHIFT before opening it.", "Эта база создана более новой версией SHIFT. Обновите приложение перед открытием."),
         ("Studio data changed. Reload it before saving; your newer data was not overwritten.", "Данные Studio изменились. Обновите профили и откройте редактор заново. Более новые данные не перезаписаны."),
         ("Edited widget is missing from the target profile.", "Редактируемый виджет отсутствует в выбранном профиле."),
         ("Studio preset was not saved. Existing data was not overwritten.", "Пресет не сохранён. Существующие данные не перезаписаны."),

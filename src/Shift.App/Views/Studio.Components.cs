@@ -111,7 +111,7 @@ public sealed partial class MainWindow
     private Border StudioDefinitionPreview(WidgetDefinition definition)
     {
         var preview = Stack(8); preview.Children.Add(Text(T("ПРЕДПРОСМОТР ОФОРМЛЕНИЯ", "STYLE PREVIEW"), 10, true));
-        var line = Row(12); line.Children.Add(Glyph(StudioKindGlyph(definition.Kind), 28));
+        var line = new Grid { ColumnSpacing = 12 }; line.ColumnDefinitions.Add(new() { Width = GridLength.Auto }); line.ColumnDefinitions.Add(new() { Width = new GridLength(1, GridUnitType.Star) }); line.Children.Add(Glyph(StudioKindGlyph(definition.Kind), 28));
         var text = definition.Kind switch
         {
             WidgetKind.Clock => DateTime.Now.ToString(definition.Content.Use24Hour ? "HH:mm" : "h:mm tt", s.Culture),
@@ -119,7 +119,7 @@ public sealed partial class MainWindow
             WidgetKind.Notes => definition.Content.InitialNotes.Length > 0 ? definition.Content.InitialNotes[..Math.Min(80, definition.Content.InitialNotes.Length)] : T("Ваши мысли. Только локально.", "Your thoughts. Kept local."),
             _ => T("ЦП  /  ОЗУ", "CPU  /  RAM")
         };
-        line.Children.Add(Text(text, 24, color: accessibility.HighContrast ? palette.Text : definition.Style.Foreground)); preview.Children.Add(line);
+        var words = Text(text, 24, color: accessibility.HighContrast ? palette.Text : definition.Style.Foreground); words.MaxLines = 3; words.TextTrimming = TextTrimming.CharacterEllipsis; Grid.SetColumn(words, 1); line.Children.Add(words); preview.Children.Add(line);
         return new Border { Child = preview, Background = Brush(accessibility.HighContrast ? palette.Surface : definition.Style.Background),
             BorderBrush = Brush(accessibility.HighContrast ? palette.Border : definition.Style.Accent), BorderThickness = new Thickness(1), Padding = new Thickness(16), CornerRadius = new CornerRadius(12) };
     }

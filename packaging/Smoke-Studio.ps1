@@ -164,7 +164,7 @@ try {
  [void][StudioProbe]::GetWindowRect([intptr]$clock.Current.NativeWindowHandle,[ref]$rect)
  [void][StudioProbe]::SetWindowPos([intptr]$clock.Current.NativeWindowHandle,[intptr]::Zero,80,90,300,220,0x0014)
  Click 'Studio.DesktopMode';Idle-Button 'Studio.DesktopMode';$null=Tool 'mode-check';$checks+='mode_change_preserves_geometry'
- Click 'Studio.Gather';Idle-Button 'Studio.Gather';Click 'Studio.EditMode';Idle-Button 'Studio.EditMode';Start-Sleep -Seconds 2
+ Click 'Studio.Gather';Idle-Button 'Studio.Gather';$null=Tool 'gather-check';$checks+='recovery_gather_persists_geometry';Click 'Studio.EditMode';Idle-Button 'Studio.EditMode';Start-Sleep -Seconds 2
  Apply 4
  $notes=Wait-For {@(Widgets | Where-Object {$_.Current.Name -like '*Notes'}) | Select-Object -First 1} 'reapplied Notes window'
  $editor=Wait-For {
