@@ -1,6 +1,8 @@
 <div align="center">
 
 > **SHIFT Studio RC3:** [Windows prerelease](https://github.com/LosarOS/SHIFT/releases/tag/v1.0.0-rc.3) · [Russian engineering report](reports/SHIFT-STUDIO-VALIDATION-RU.md) · [merged PR13](https://github.com/LosarOS/SHIFT/pull/13). Studio is opt-in; physical Windows/accessibility limits remain disclosed.
+[Русский быстрый старт](docs/QUICKSTART-RU.md) · [RC4 engineering journal](reports/SHIFT-RC4-ENGINEERING-SESSION.md)
+
 ![SHIFT — Your work. One SHIFT away.](docs/assets/shift-cover.svg)
 
 **A native, local-first workspace launcher for Windows.**

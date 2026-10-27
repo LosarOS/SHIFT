@@ -35,6 +35,13 @@ if (stage == "seed")
     var definitions = new List<WidgetDefinition>();
     foreach (var kind in Enum.GetValues<WidgetKind>()) definitions.Add(await store.SaveDefinitionAsync(new WidgetDefinition { Id = Id(10 + (int)kind), Title = "Studio CI " + kind,
         Kind = kind, Style = StudioTemplates.For("Midnight") with { Opacity = .85, Surface = WidgetSurface.Translucent }, Content = new() { ShowSeconds = true, InitialNotes = "Initial CI note", FocusMinutes = 1, UpdateIntervalSeconds = 1 } }));
+    // A valid declaration beyond the old editor's bounds must survive an unrelated edit.
+    var boundary = await store.SaveDefinitionAsync(new WidgetDefinition { Id = Id(14), Title = "Studio CI preserved", Kind = WidgetKind.Notes,
+        Style = StudioTemplates.For("Midnight") with { TemplateId = "Custom CI", CornerRadius = 64, Padding = 64, BorderWidth = 8 },
+        Content = new() { InitialNotes = new string('Я', 20000), FocusMinutes = 1440, UpdateIntervalSeconds = 3600 } });
+    await store.SaveProfileAsync(new DesktopProfile { Id = Id(199), Name = "Studio CI editor preservation",
+        Widgets = [new WidgetInstance { Id = Id(19900), DefinitionId = boundary.Id, Visible = false,
+            Layout = new() { Width = 1600, Height = 1200, MonitorId = "temporarily-disconnected-ci-display", X = .3, Y = .4 } }] });
     var monitors = await new WindowsMonitorTopology().GetMonitorsAsync(); if (monitors.Count == 0) throw new InvalidOperationException("No Windows monitor.");
     WallpaperSnapshot? original = null; string? limitation = null;
     try { original = await wallpaper.CaptureAsync(); if (!original.CanRestore) limitation = original.Limitation; }
@@ -58,7 +65,7 @@ if (stage == "seed")
 else if (stage == "lab-check")
 {
     var definitions = await store.ListDefinitionsAsync();
-    if (definitions.Count != 4 || definitions.Single(d => d.Id == Id(10)).Title != "Studio CI Clock" || definitions.Single(d => d.Id == Id(10)).Style.Foreground != "#EEDDCC") throw new InvalidOperationException("Lab save/cancel did not preserve declarations.");
+    if (definitions.Count != 5 || definitions.Single(d => d.Id == Id(10)).Title != "Studio CI Clock" || definitions.Single(d => d.Id == Id(10)).Style.Foreground != "#EEDDCC") throw new InvalidOperationException("Lab save/cancel did not preserve declarations.");
     using var db = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = store.DatabasePath, Mode = SqliteOpenMode.ReadOnly, Pooling = false }.ToString()); db.Open();
     using var command = db.CreateCommand(); command.CommandText = "SELECT COUNT(*) FROM StudioWidgetState";
     if (Convert.ToInt32(command.ExecuteScalar()) != 4) throw new InvalidOperationException("Preview changed persisted state.");
@@ -74,6 +81,61 @@ else if (stage == "inspect")
     var journals = await store.ListRecoveryJournalsAsync();
     var windowsJournal = journals.LastOrDefault(j => j.ProfileId == Id(104) && j.AttemptedMonitorIds.Count > 0);
     Console.WriteLine(JsonSerializer.Serialize(new { note_saved = true, timer_completed = true, profiles = profiles.Count, wallpaper_journal_restored = windowsJournal?.Status == StudioApplyStatus.Restored }, json));
+}
+else if (stage == "mode-check")
+{
+    var instance = (await store.ListProfilesAsync()).Single(p => p.Id == Id(104)).Widgets.Single(w => w.Id == Id(4000));
+    var bounds = WidgetLayoutService.Resolve(instance.Layout, await new WindowsMonitorTopology().GetMonitorsAsync());
+    if (instance.Interaction != WidgetInteraction.Desktop || Math.Abs(bounds.X - 80) > 2 || Math.Abs(bounds.Y - 90) > 2 || Math.Abs(bounds.Width - 300) > 2 || Math.Abs(bounds.Height - 220) > 2)
+        throw new InvalidOperationException("Mode change lost the pending native geometry.");
+    Console.WriteLine("MODE_AND_GEOMETRY_SAVED");
+}
+else if (stage == "gather-check")
+{
+    var instance = (await store.ListProfilesAsync()).Single(p => p.Id == Id(104)).Widgets.Single(w => w.Id == Id(4000));
+    var topology = await new WindowsMonitorTopology().GetMonitorsAsync(); var primary = topology.FirstOrDefault(m => m.Primary) ?? topology[0];
+    var actual = WidgetLayoutService.Resolve(instance.Layout, topology);
+    var expected = WidgetLayoutService.Resolve(instance.Layout with { MonitorId = primary.DeviceId, X = .04, Y = .04 }, topology);
+    if (instance.Layout.MonitorId != primary.DeviceId || Math.Abs(actual.X - expected.X) > 2 || Math.Abs(actual.Y - expected.Y) > 2) throw new InvalidOperationException("Gather did not persist native recovery geometry.");
+    Console.WriteLine("GATHER_GEOMETRY_PERSISTED");
+}
+else if (stage == "timer-restart-check")
+{
+    var timer = (await store.GetWidgetStateAsync(Id(5002)))?.Timer;
+    if (timer?.Running != true || timer.CompletionNotified || timer.RemainingSeconds < 30) throw new InvalidOperationException("Completed native timer did not restart.");
+    Console.WriteLine("TIMER_RESTARTED");
+}
+else if (stage == "editor-preserve-check")
+{
+    var definition = (await store.ListDefinitionsAsync()).Single(d => d.Id == Id(14));
+    var instance = (await store.ListProfilesAsync()).Single(p => p.Id == Id(199)).Widgets.Single();
+    if (definition.Style.TemplateId != "Custom CI" || definition.Style.CornerRadius != 64 || definition.Style.Padding != 64 || definition.Content.FocusMinutes != 1440 || definition.Content.UpdateIntervalSeconds != 3600 || definition.Content.InitialNotes != new string('Я', 20000)
+        || instance.Layout.Width != 1600 || instance.Layout.Height != 1200 || instance.Layout.MonitorId != "temporarily-disconnected-ci-display" || instance.Visible)
+        throw new InvalidOperationException("Editing changed valid boundary values or the unavailable display association.");
+    Console.WriteLine("EDITOR_VALUES_PRESERVED");
+}
+else if (stage == "preset-cancel-check")
+{
+    if ((await store.ListProfilesAsync()).Count != 5 || (await store.ListDefinitionsAsync()).Count != 5) throw new InvalidOperationException("Preset cancel wrote data.");
+    Console.WriteLine("PRESET_CANCEL_READONLY");
+}
+else if (stage == "preset-check")
+{
+    var profiles = await store.ListProfilesAsync(); var definitions = await store.ListDefinitionsAsync();
+    var created = profiles.Single(p => p.Name == "RC4 Фокус");
+    if (profiles.Count != 6 || definitions.Count != 8 || created.Wallpapers.Count != 0 || created.ApplyOnWorkspaceLaunch || created.WorkspaceId is not null || created.Widgets.Count != 3
+        || (await store.LoadStudioSettingsAsync()).ActiveProfileId != Id(110)) throw new InvalidOperationException("Starter preset changed the active environment or was not saved completely.");
+    Console.WriteLine(JsonSerializer.Serialize(new { profile_id = created.Id, widget_count = created.Widgets.Count, no_automatic_apply = true }, json));
+}
+else if (stage == "quick-check")
+{
+    using var fixture = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(data, "quick-setup-ci.json")));
+    var expected = fixture.RootElement.GetProperty("targetPaths").EnumerateArray().Select(x => x.GetString()).ToArray();
+    var workspaces = await store.ListAsync(); var created = workspaces.Single(w => w.Name == fixture.RootElement.GetProperty("expectedName").GetString());
+    if (created.Items.Count != 2 || !created.Items.OrderBy(i => i.Order).Select(i => i.Target).SequenceEqual(expected)
+        || created.Items.Any(i => i.Kind != ItemKind.App || i.Arguments.Length != 0) || workspaces.Any(w => w.Name == fixture.RootElement.GetProperty("cancelledName").GetString()))
+        throw new InvalidOperationException("Quick setup save/order/cancel did not match explicit choices.");
+    Console.WriteLine("QUICK_SETUP_ORDER_SAVE_CANCEL_VERIFIED");
 }
 else if (stage == "cleanup" || stage == "verify-wallpaper")
 {

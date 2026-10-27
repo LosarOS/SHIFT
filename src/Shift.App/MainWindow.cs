@@ -72,7 +72,7 @@ public sealed partial class MainWindow : Window, ICommandConsent
             if (columns == cardColumns)
                 return;
             cardColumns = columns;
-            if (trayReady && vm.Selected is null && vm.Section is "Overview" or "Workspaces" or "Favorites")
+            if (trayReady && !dialogOpen && vm.Selected is null && vm.Section is ("Overview" or "Workspaces" or "Favorites" or "Studio"))
                 RenderScreen();
         };
         root.Loaded += async (_, _) => { if (!initialized) { initialized = true; SizeForDisplay(); await SafeAsync(InitializeAsync); } };
@@ -110,7 +110,7 @@ public sealed partial class MainWindow : Window, ICommandConsent
             {
                 windowCommands.ConfigureHotkey(vm.Settings.GlobalHotkeyEnabled);
             }
-            catch (Exception ex) { log.Error("Global shortcut unavailable", ex); ShowNotice(s["Error"], ex.Message, true); }
+            catch (Exception ex) { log.Error("Global shortcut unavailable", ex); ShowNotice(s["Error"], s.ErrorDetails(ex), true); }
             if (existing)
             {
                 try
@@ -123,7 +123,7 @@ public sealed partial class MainWindow : Window, ICommandConsent
                     foreach (var old in Directory.EnumerateFiles(auto, "SHIFT-*.db").OrderByDescending(File.GetLastWriteTimeUtc).Skip(10))
                         File.Delete(old);
                 }
-                catch (Exception ex) { log.Error("Automatic backup failed", ex); ShowNotice(s["Error"], ex.Message, true); }
+                catch (Exception ex) { log.Error("Automatic backup failed", ex); ShowNotice(s["Error"], s.ErrorDetails(ex), true); }
             }
             if (!vm.Settings.OnboardingComplete && !quitRequested)
                 await OnboardAsync();
@@ -139,7 +139,7 @@ public sealed partial class MainWindow : Window, ICommandConsent
             failure.Margin = new Thickness(64);
             failure.Children.Add(Text(s["StartupError"], 28));
             failure.Children.Add(Text(s["StartupErrorNote"], 16, true));
-            failure.Children.Add(Text(ex.Message, 14, true));
+            failure.Children.Add(Text(s.ErrorDetails(ex), 14, true));
             failure.Children.Add(Button(s["OpenData"], () => DesktopIntegration.OpenFolder(paths.DataDirectory)));
             failure.Children.Add(Button(s["OpenLogs"], () => DesktopIntegration.OpenFolder(paths.LogDirectory)));
             shell.Children.Add(failure);
@@ -227,6 +227,7 @@ public sealed partial class MainWindow : Window, ICommandConsent
     }
     private void BuildShell()
     {
+        root.Language = s.Culture.Name;
         if (studioRuntime is not null) studioRuntime.Language = s.Language;
         // Persistent panels must be detached before a theme/language rebuild reparents them.
         if (navigation.Parent is Panel oldSide)
@@ -427,7 +428,7 @@ public sealed partial class MainWindow : Window, ICommandConsent
             button.Foreground = Brush(accessibility.HighContrast ? palette.Background : "#17151F");
             button.BorderThickness = new Thickness(0);
         }
-        button.Click += (_, _) => { try { action(); } catch (Exception ex) { log.Error("Desktop action failed", ex); ShowNotice(s["Error"], ex.Message, true); } };
+        button.Click += (_, _) => { try { action(); } catch (Exception ex) { log.Error("Desktop action failed", ex); ShowNotice(s["Error"], s.ErrorDetails(ex), true); } };
         return button;
     }
     private Button AsyncButton(string label, Func<Task> action, bool primary = false, string? automationId = null)

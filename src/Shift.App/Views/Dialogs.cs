@@ -272,7 +272,7 @@ public sealed partial class MainWindow
             {
                 windowCommands.ConfigureHotkey(vm.Settings.GlobalHotkeyEnabled);
             }
-            catch (Exception ex) { log.Error("Restored global shortcut unavailable", ex); ShowNotice(s["Restored"], result.SafetyBackupPath + "\n" + ex.Message, true); return; }
+            catch (Exception ex) { log.Error("Restored global shortcut unavailable", ex); ShowNotice(s["Restored"], result.SafetyBackupPath + "\n" + s.ErrorDetails(ex), true); return; }
             ShowNotice(s["Restored"], result.SafetyBackupPath);
         }
         finally { maintenance = false; }

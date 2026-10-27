@@ -79,6 +79,12 @@ public sealed class StudioWidgetRuntime : IWidgetRuntime
         }
         finally { operations.Release(); }
     }
+    public async Task FlushPendingAsync(CancellationToken token = default)
+    {
+        await operations.WaitAsync(token).ConfigureAwait(false);
+        try { if (host is { } current && !current.Exited.IsCompleted) await current.InvokeAsync(current.FlushAsync).ConfigureAwait(false); }
+        finally { operations.Release(); }
+    }
     public async Task StopAsync(CancellationToken token = default)
     {
         await operations.WaitAsync(token).ConfigureAwait(false);
@@ -286,8 +292,13 @@ internal sealed class WidgetHost
     {
         if (profile is null) return;
         var latest = (await store.ListProfilesAsync()).FirstOrDefault(p => p.Id == profile.Id) ?? throw new InvalidOperationException("The active profile was deleted.");
-        profile = await store.SaveProfileAsync(latest with { Widgets = latest.Widgets.Select(w => w with { Interaction = interaction }).ToArray() });
-        foreach (var window in windows.Values) { window.SetInteraction(interaction); window.LayoutSaved(); }
+        // A mode switch may arrive between drag/resize and the scheduler's layout save.
+        // Merge those live edits into the latest record before acknowledging them as saved.
+        var dirtyLayouts = windows.Values.Where(w => w.LayoutDirty).ToDictionary(w => w.Instance.Id, w => w.CaptureLayout());
+        profile = await store.SaveProfileAsync(WidgetPresentation.MergeInteraction(latest, interaction, dirtyLayouts));
+        foreach (var window in windows.Values) window.SetInteraction(interaction, persisted: true);
+        foreach (var saved in WidgetPresentation.WrittenInstances(profile, dirtyLayouts.Keys))
+            if (windows.TryGetValue(saved.Id, out var window)) window.LayoutSaved(saved);
     }
     public async Task GatherAsync(IReadOnlyList<MonitorIdentity> topologySnapshot)
     {
@@ -298,7 +309,7 @@ internal sealed class WidgetHost
         foreach (var window in windows.Values)
         {
             var layout = window.Instance.Layout with { MonitorId = primary.DeviceId, X = .04 + (index % 4) * .05, Y = .04 + (index % 4) * .05 };
-            window.Reposition(layout, monitors); index++;
+            window.Reposition(layout, monitors, persist: true); index++;
         }
         await SaveLayoutsAsync();
     }
@@ -344,11 +355,16 @@ internal sealed class WidgetHost
         if (profile is null || !windows.Values.Any(w => w.LayoutDirty)) return;
         var latest = (await store.ListProfilesAsync()).FirstOrDefault(p => p.Id == profile.Id)
             ?? throw new InvalidOperationException("The active profile was deleted. Disable Studio to close its windows.");
-        var saved = await store.SaveProfileAsync(latest with { Widgets = latest.Widgets.Select(w => windows.TryGetValue(w.Id, out var window) && window.LayoutDirty ? w with { Layout = window.CaptureLayout(), Interaction = window.Instance.Interaction } : w).ToArray() });
+        // Snapshot the actual write set before awaiting storage. A clean fallback window
+        // must not be acknowledged against a preferred monitor/size that is temporarily absent.
+        var edits = windows.Values.Where(w => w.LayoutDirty).ToDictionary(w => w.Instance.Id,
+            w => w.Instance with { Layout = w.CaptureLayout() });
+        var saved = await store.SaveProfileAsync(WidgetPresentation.MergeLayoutEdits(latest, edits));
         profile = saved;
-        foreach (var window in windows.Values) window.LayoutSaved();
+        foreach (var instance in WidgetPresentation.WrittenInstances(saved, edits.Keys))
+            if (windows.TryGetValue(instance.Id, out var window)) window.LayoutSaved(instance);
     }
-    private async Task FlushAsync()
+    public async Task FlushAsync()
     {
         foreach (var window in windows.Values.ToArray()) await window.FlushForCloseAsync();
         try { await SaveLayoutsAsync(); }

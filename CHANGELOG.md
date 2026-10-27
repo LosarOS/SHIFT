@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.0-rc.4 — 2026-10-27
+
+- Added explicit local shortcut workspace setup with search, selected order, preview reorder, Back preservation and safe cancellation.
+- Added inert Development/Streaming/Focus Studio presets with transactional creation; searchable gallery and responsive profile cards.
+- Added localized native widget controls/metrics, consistent Russian display formats and diagnostics, per-display visible grid arrangement and wide Widget Lab.
+- Fixed two pending geometry races, completed timer restart, disabled active-profile startup, editor bounds/custom style/disconnected monitor preservation and library-only language retention.
+- Widget definition and profile placement now save atomically with existing CAS/FK protections.
+- Expanded actual Windows RU/EN/preset/Quick Setup/editor acceptance gates; physical manual matrix remains separate.
+
 ## 1.0.0-rc.3 — Studio experimental preview
 
 - Added opt-in desktop profiles, separate workspace associations and staged static-wallpaper recovery with managed originals.

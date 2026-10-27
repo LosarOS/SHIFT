@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([ValidatePattern('^\d+\.\d+\.\d+(?:-rc\.\d+)?$')][string]$Version='1.0.0-rc.3')
+param([ValidatePattern('^\d+\.\d+\.\d+(?:-rc\.\d+)?$')][string]$Version='1.0.0-rc.4')
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 if($env:GITHUB_ACTIONS -ne 'true'){throw 'Installer smoke requires a disposable GitHub Actions Windows runner.'}
