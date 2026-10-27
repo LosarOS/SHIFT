@@ -226,6 +226,7 @@ try {
  Click 'Studio.Tab.Profiles';Click 'Studio.Profile.Edit.00000000-0000-4000-8000-000000000110'
  $enabled=Wait-For {Find '' 'Профиль включён'} 'profile enabled toggle'
  $enabled.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Toggle();Click '' 'Сохранить'
+ $null=Wait-For { -not (Find '' 'Визуальный профиль') } 'profile dialog save and close completed'
  $null=Wait-For {@(Widgets).Count -eq 0} 'disabled profile closes owned windows'
  [void][StudioProbe]::PostMessage([intptr]$main.Current.NativeWindowHandle,0x0010,[intptr]::Zero,[intptr]::Zero)
  if(-not $process.WaitForExit(15000) -or $process.ExitCode -ne 0){throw 'Disabled-profile close failed.'}
@@ -240,6 +241,7 @@ try {
  Click 'Studio.Tab.Profiles';Click 'Studio.Profile.Edit.00000000-0000-4000-8000-000000000110'
  $enabled=Wait-For {Find '' 'Профиль включён'} 're-enable profile'
  $enabled.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Toggle();Click '' 'Сохранить'
+ $null=Wait-For { -not (Find '' 'Визуальный профиль') } 'profile dialog save and close completed'
  $null=Wait-For {Find 'Studio.Profile.Apply.00000000-0000-4000-8000-000000000110'} 'profile saved'
  Apply 10;$checks+='disabled_profile_stays_disabled_after_restart'
  Click 'Studio.Tab.Settings';Capture 'settings-recovery';Click 'Studio.Disable'
