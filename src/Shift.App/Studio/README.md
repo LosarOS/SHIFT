@@ -26,3 +26,9 @@ Stop closes all owned windows, disposes the scheduler/context, removes display/p
 ## Required native evidence
 
 On disposable Windows only: four widget HWNDs, live clock and CPU/RAM, actual window alpha, edit drag/resize, Desktop/Click-through recovery, no duplicate windows on reapply, Notes/timer restart, preview Cancel without writes, profile switch, Gather, Disable/reenable and Quit/pump exit. Physical Windows10/11, multi-monitor mixed DPI, fullscreen, Narrator/high contrast and sleep/RDP remain manual gates unless actually executed. Memory/CPU and opening/switch timings are NOT MEASURED at this checkpoint.
+
+## RC4 runtime changes
+
+Widget titles and accessible labels follow RU/EN live without recreating windows or editing user titles. Clock and metrics formatting uses the selected language even when Windows uses another culture. CPU/RAM becomes ЦП/ОЗУ in Russian; memory units are explicitly GiB/ГиБ. Used and free memory have separate lines, with ellipsis/tooltips for small surfaces. The native timer uses three equal columns, switches to accessible compact symbols at narrow widths, and can explicitly restart a completed session. Controls and context menus follow the widget palette with a high-contrast system fallback.
+
+Layout acknowledgments compare the geometry/mode actually written to SQLite with the current native window. Dragging just before a mode switch or during an awaited storage write leaves unsaved changes dirty instead of clearing them. The merge keeps concurrent profile metadata and unrelated layouts. Five pure helper regressions cover culture-independent readings, unavailable versus measured-zero values, latest-profile merging and stale acknowledgments. Native visual/DPI validation of these RC4 changes still belongs to the Windows acceptance workflow.

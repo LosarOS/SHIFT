@@ -286,8 +286,15 @@ internal sealed class WidgetHost
     {
         if (profile is null) return;
         var latest = (await store.ListProfilesAsync()).FirstOrDefault(p => p.Id == profile.Id) ?? throw new InvalidOperationException("The active profile was deleted.");
-        profile = await store.SaveProfileAsync(latest with { Widgets = latest.Widgets.Select(w => w with { Interaction = interaction }).ToArray() });
-        foreach (var window in windows.Values) { window.SetInteraction(interaction); window.LayoutSaved(); }
+        // A mode switch may arrive between drag/resize and the scheduler's layout save.
+        // Merge those live edits into the latest record before acknowledging them as saved.
+        var dirtyLayouts = windows.Values.Where(w => w.LayoutDirty).ToDictionary(w => w.Instance.Id, w => w.CaptureLayout());
+        profile = await store.SaveProfileAsync(WidgetPresentation.MergeInteraction(latest, interaction, dirtyLayouts));
+        foreach (var window in windows.Values)
+        {
+            window.SetInteraction(interaction);
+            if (profile.Widgets.FirstOrDefault(w => w.Id == window.Instance.Id) is { } saved) window.LayoutSaved(saved);
+        }
     }
     public async Task GatherAsync(IReadOnlyList<MonitorIdentity> topologySnapshot)
     {
@@ -346,7 +353,8 @@ internal sealed class WidgetHost
             ?? throw new InvalidOperationException("The active profile was deleted. Disable Studio to close its windows.");
         var saved = await store.SaveProfileAsync(latest with { Widgets = latest.Widgets.Select(w => windows.TryGetValue(w.Id, out var window) && window.LayoutDirty ? w with { Layout = window.CaptureLayout(), Interaction = window.Instance.Interaction } : w).ToArray() });
         profile = saved;
-        foreach (var window in windows.Values) window.LayoutSaved();
+        foreach (var window in windows.Values)
+            if (saved.Widgets.FirstOrDefault(w => w.Id == window.Instance.Id) is { } instance) window.LayoutSaved(instance);
     }
     private async Task FlushAsync()
     {

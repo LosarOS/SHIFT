@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using Forms = System.Windows.Forms;
@@ -15,12 +14,15 @@ internal sealed class WidgetWindow : Forms.Form
     private readonly bool preview;
     private readonly Action edit;
     private readonly Action<string> notify;
-    private readonly Forms.Label heading = new() { Dock = Forms.DockStyle.Fill, TextAlign = Drawing.ContentAlignment.MiddleLeft };
-    private readonly Forms.Label status = new() { Dock = Forms.DockStyle.Bottom, AutoSize = false, Height = 34 };
-    private readonly Forms.Label value = new() { Dock = Forms.DockStyle.Fill, TextAlign = Drawing.ContentAlignment.MiddleCenter };
-    private readonly Forms.Label detail = new() { Dock = Forms.DockStyle.Bottom, Height = 32, TextAlign = Drawing.ContentAlignment.MiddleCenter };
-    private readonly Forms.TextBox notes = new() { Multiline = true, Dock = Forms.DockStyle.Fill, ScrollBars = Forms.ScrollBars.Vertical, MaxLength = 20000, BorderStyle = Forms.BorderStyle.None, AcceptsReturn = true, AcceptsTab = true };
-    private readonly Forms.FlowLayoutPanel timerButtons = new() { Dock = Forms.DockStyle.Bottom, Height = 38, WrapContents = false };
+    private readonly Forms.Label heading = new() { Name = "Widget.Heading", AutoEllipsis = true, Dock = Forms.DockStyle.Fill, TextAlign = Drawing.ContentAlignment.MiddleLeft };
+    private readonly Forms.Label status = new() { Name = "Widget.Status", AutoEllipsis = true, Dock = Forms.DockStyle.Bottom, AutoSize = false, Height = 34 };
+    private readonly Forms.Label value = new() { Name = "Widget.Value", AutoEllipsis = true, Dock = Forms.DockStyle.Fill, TextAlign = Drawing.ContentAlignment.MiddleCenter };
+    private readonly Forms.Label detail = new() { Name = "Widget.Detail", AutoEllipsis = true, Dock = Forms.DockStyle.Bottom, Height = 25, TextAlign = Drawing.ContentAlignment.MiddleCenter };
+    private readonly Forms.Label secondaryDetail = new() { Name = "Widget.SecondaryDetail", AutoEllipsis = true, Dock = Forms.DockStyle.Bottom, Height = 23, TextAlign = Drawing.ContentAlignment.MiddleCenter };
+    private readonly Forms.ToolTip tips = new();
+    private SystemMetrics? lastMetrics;
+    private readonly Forms.TextBox notes = new() { Name = "Widget.Notes", Multiline = true, Dock = Forms.DockStyle.Fill, ScrollBars = Forms.ScrollBars.Vertical, MaxLength = 20000, BorderStyle = Forms.BorderStyle.None, AcceptsReturn = true, AcceptsTab = true };
+    private readonly Forms.TableLayoutPanel timerButtons = new() { Dock = Forms.DockStyle.Bottom, Height = 38, ColumnCount = 3, RowCount = 1, Padding = Forms.Padding.Empty, Margin = Forms.Padding.Empty };
     private readonly Forms.Button start = new() { AutoSize = true, Name = "Timer.Start" };
     private readonly Forms.Button pause = new() { AutoSize = true, Name = "Timer.Pause" };
     private readonly Forms.Button reset = new() { AutoSize = true, Name = "Timer.Reset" };
@@ -66,7 +68,7 @@ internal sealed class WidgetWindow : Forms.Form
             Timer = new FocusTimerState { RemainingSeconds = definition.Content.FocusMinutes * 60 } };
         timer = new FocusTimerController(state.Timer);
         draftPath = Path.Combine(new AppPaths().DataDirectory, "Studio", "RecoveryNotes", instance.Id.ToString("N") + ".json");
-        Text = "SHIFT Widget — " + definition.Title;
+        Text = WidgetPresentation.WindowTitle(definition.Title, language);
         Name = "Studio.Widget." + instance.Id.ToString("N");
         AccessibleName = Text;
         FormBorderStyle = Forms.FormBorderStyle.None;
@@ -78,12 +80,16 @@ internal sealed class WidgetWindow : Forms.Form
         DoubleBuffered = true;
         header.Controls.Add(heading); header.Controls.Add(menuButton);
         body.Controls.Add(value); body.Controls.Add(detail);
+        if (definition.Kind == WidgetKind.SystemMonitor) body.Controls.Add(secondaryDetail);
         if (definition.Kind == WidgetKind.Notes) { body.Controls.Clear(); body.Controls.Add(notes); notes.Text = state.Notes; }
         if (definition.Kind == WidgetKind.FocusTimer)
         {
             detail.Visible = false;
-            timerButtons.Controls.AddRange([start, pause, reset]); body.Controls.Add(timerButtons);
-            start.Click += async (_, _) => await ChangeTimerAsync(() => timer.Start());
+            for (var column = 0; column < 3; column++) timerButtons.ColumnStyles.Add(new Forms.ColumnStyle(Forms.SizeType.Percent, 100f / 3));
+            timerButtons.RowStyles.Add(new Forms.RowStyle(Forms.SizeType.Percent, 100));
+            timerButtons.Controls.Add(start, 0, 0); timerButtons.Controls.Add(pause, 1, 0); timerButtons.Controls.Add(reset, 2, 0); body.Controls.Add(timerButtons);
+            timerButtons.SizeChanged += (_, _) => UpdateTimerButtons();
+            start.Click += async (_, _) => await ChangeTimerAsync(() => { if (timer.State.RemainingSeconds <= 0) timer.Reset(TimeSpan.FromMinutes(definition.Content.FocusMinutes)); timer.Start(); });
             pause.Click += async (_, _) => await ChangeTimerAsync(() => timer.Pause());
             reset.Click += async (_, _) => await ChangeTimerAsync(() => timer.Reset(TimeSpan.FromMinutes(definition.Content.FocusMinutes)));
         }
@@ -92,7 +98,7 @@ internal sealed class WidgetWindow : Forms.Form
         heading.MouseDown += (_, e) => { if (e.Button == Forms.MouseButtons.Left && Instance.Interaction == WidgetInteraction.Edit) { Native.ReleaseCapture(); Native.SendMessage(Handle, 0xA1, 2, 0); } };
         notes.TextChanged += (_, _) => { if (!loading && !preview) MarkDirty(); };
         LocationChanged += (_, _) => { if (!positioning && !loading && !preview) LayoutDirty = true; };
-        SizeChanged += (_, _) => { if (!positioning && !loading && !preview) LayoutDirty = true; SetCorners(); };
+        SizeChanged += (_, _) => { if (!positioning && !loading && !preview) LayoutDirty = true; SetCorners(); UpdateTimerButtons(); };
         FormClosing += (_, e) => { if (!ownedClose) { e.Cancel = true; HideRequested?.Invoke(this, EventArgs.Empty); } };
         ApplyStyle(); SetLanguage(language); Reposition(instance.Layout, monitors);
         loading = false;
@@ -110,18 +116,33 @@ internal sealed class WidgetWindow : Forms.Form
         var background = accessible ? Drawing.SystemColors.Window : Drawing.ColorTranslator.FromHtml(style.Background);
         var foreground = accessible ? Drawing.SystemColors.WindowText : Drawing.ColorTranslator.FromHtml(style.Foreground);
         BackColor = background; ForeColor = foreground;
-        foreach (Forms.Control control in new Forms.Control[] { header, body, heading, menuButton, status, value, detail, notes, timerButtons, start, pause, reset })
+        foreach (Forms.Control control in new Forms.Control[] { header, body, heading, menuButton, status, value, detail, secondaryDetail, notes, timerButtons, start, pause, reset })
         { control.BackColor = background; control.ForeColor = foreground; }
         var family = style.FontFamily == "Segoe UI Variable" ? "Segoe UI" : style.FontFamily;
         Drawing.Font Own(float size, Drawing.FontStyle fontStyle = Drawing.FontStyle.Regular)
         { var font = new Drawing.Font(family, size, fontStyle, Drawing.GraphicsUnit.Point); ownedFonts.Add(font); return font; }
         Font = Own(10); heading.Font = Own(10, Drawing.FontStyle.Bold); status.Font = Own(9);
         value.Font = Own((float)style.FontSize, Drawing.FontStyle.Bold);
-        detail.Font = Own(Math.Max(10, (float)style.FontSize * .5f));
+        detail.Font = Own(Math.Min(12, Math.Max(10, (float)style.FontSize * .5f)));
+        secondaryDetail.Font = Own(10);
         notes.Font = Own(Math.Max(10, (float)style.FontSize * .65f));
         body.Padding = new Forms.Padding((int)style.Padding);
         Opacity = accessible || !TransparencyEnabled() ? 1 : style.Opacity;
         TopMost = Instance.Layout.AlwaysOnTop;
+        var accent = accessible ? Drawing.SystemColors.Highlight : Drawing.ColorTranslator.FromHtml(style.Accent);
+        foreach (var button in new[] { start, pause, reset, menuButton })
+        {
+            button.FlatStyle = Forms.FlatStyle.Flat; button.UseVisualStyleBackColor = false;
+            button.FlatAppearance.BorderSize = 1; button.FlatAppearance.BorderColor = accessible ? Drawing.SystemColors.WindowText : accent;
+            button.FlatAppearance.MouseOverBackColor = accessible ? Drawing.SystemColors.Highlight : Forms.ControlPaint.Light(background, .15f);
+            button.FlatAppearance.MouseDownBackColor = accessible ? Drawing.SystemColors.Highlight : Forms.ControlPaint.Light(background, .25f);
+            button.AutoSize = false; button.Dock = button == menuButton ? Forms.DockStyle.Right : Forms.DockStyle.Fill;
+            button.Margin = new Forms.Padding(2); button.Padding = Forms.Padding.Empty;
+        }
+        start.BackColor = accent; start.ForeColor = accessible ? Drawing.SystemColors.HighlightText : background;
+        start.FlatAppearance.MouseOverBackColor = Forms.ControlPaint.Light(accent, .1f);
+        start.FlatAppearance.MouseDownBackColor = Forms.ControlPaint.Dark(accent, .1f);
+        UpdateTimerButtons();
         foreach (var font in oldFonts) font.Dispose();
     }
     private static bool TransparencyEnabled()
@@ -136,16 +157,47 @@ internal sealed class WidgetWindow : Forms.Form
     public void SetLanguage(string value)
     {
         language = value == "en" ? "en" : "ru";
+        Text = WidgetPresentation.WindowTitle(definition.Title, language); AccessibleName = Text;
         heading.Text = (preview ? L("Предпросмотр · ", "Preview · ") : "") + definition.Title;
-        heading.AccessibleName = heading.Text;
-        menuButton.AccessibleName = L("Действия виджета", "Widget actions");
+        heading.AccessibleName = heading.Text; tips.SetToolTip(heading, heading.Text);
+        menuButton.AccessibleName = L("Действия виджета", "Widget actions"); tips.SetToolTip(menuButton, menuButton.AccessibleName);
         notes.AccessibleName = L("Текст заметки, автосохранение", "Note text, autosave");
-        start.Text = L("Старт", "Start"); pause.Text = L("Пауза", "Pause"); reset.Text = L("Сброс", "Reset");
-        ShowSurfaceStatus();
+        notes.AccessibleDescription = L("Заметка хранится локально. Изменения сохраняются автоматически.", "This note stays local. Changes are saved automatically.");
+        start.AccessibleName = L("Старт", "Start"); pause.AccessibleName = L("Пауза", "Pause"); reset.AccessibleName = L("Сброс", "Reset");
+        UpdateTimerButtons(); RenderReading(); ShowSurfaceStatus();
+    }
+    private void UpdateTimerButtons()
+    {
+        if (definition.Kind != WidgetKind.FocusTimer || timer is null) return;
+        var state = timer.State; var compact = timerButtons.ClientSize.Width < (int)(185 * DeviceDpi / 96d);
+        var restart = state.RemainingSeconds <= 0;
+        start.Text = compact ? "▶" : restart ? L("Ещё раз", "Restart") : L("Старт", "Start");
+        pause.Text = compact ? "Ⅱ" : L("Пауза", "Pause"); reset.Text = compact ? "↺" : L("Сброс", "Reset");
+        start.AccessibleName = restart ? L("Запустить новый таймер", "Restart timer") : L("Старт", "Start");
+        start.Enabled = !state.Running; pause.Enabled = state.Running;
+        tips.SetToolTip(start, start.AccessibleName); tips.SetToolTip(pause, L("Пауза", "Pause")); tips.SetToolTip(reset, L("Сброс", "Reset"));
+    }
+    private void RenderReading()
+    {
+        if (definition.Kind == WidgetKind.Clock)
+        {
+            var local = DateTime.Now;
+            value.Text = WidgetPresentation.Clock(local, definition.Content, language);
+            detail.Text = local.ToString(definition.Content.DateFormat, WidgetPresentation.Culture(language));
+        }
+        else if (definition.Kind == WidgetKind.SystemMonitor)
+        {
+            var reading = WidgetPresentation.Metrics(lastMetrics, language);
+            value.Text = reading.Cpu; detail.Text = reading.UsedMemory; secondaryDetail.Text = reading.FreeMemory;
+        }
+        else if (definition.Kind == WidgetKind.FocusTimer) value.Text = FormatDuration(timer.State.RemainingSeconds);
+        value.AccessibleName = value.Text; detail.AccessibleName = detail.Text; secondaryDetail.AccessibleName = secondaryDetail.Text;
+        tips.SetToolTip(value, value.Text); tips.SetToolTip(detail, detail.Text); tips.SetToolTip(secondaryDetail, secondaryDetail.Text);
     }
     private void ShowSurfaceStatus()
     {
-        if (saveConflict) return;
+        if (saveConflict) { status.Text = L("Конфликт · сохраните копию / выберите текст в меню", "Conflict · save a copy / choose text in menu"); status.Visible = true; return; }
+        if (dirty) { status.Text = draftAvailable ? L("Локальный черновик сохранён", "Local draft retained") : L("Сохранение…", "Saving…"); status.Visible = true; return; }
         status.Text = preview ? L("Черновик: изменения не сохраняются", "Draft: changes are not saved")
             : definition.Style.Surface is WidgetSurface.Acrylic or WidgetSurface.Mica
                 ? L("Эффект недоступен: обычный фон / alpha", "Effect unavailable: solid / alpha fallback")
@@ -193,7 +245,14 @@ internal sealed class WidgetWindow : Forms.Form
         var captured = WidgetLayoutService.Capture(new WidgetBounds(Left, Top, Width, Height, monitor?.DeviceId ?? Instance.Layout.MonitorId), monitors);
         return captured with { AlwaysOnTop = Instance.Layout.AlwaysOnTop };
     }
-    public void LayoutSaved() { Instance = Instance with { Layout = CaptureLayout() }; LayoutDirty = false; }
+    public void LayoutSaved(WidgetInstance saved)
+    {
+        var current = CaptureLayout();
+        // Native move/resize events can arrive while the database save is awaiting IO.
+        // Acknowledge only the exact geometry/mode that actually reached storage.
+        LayoutDirty = !WidgetPresentation.LayoutWasSaved(saved, current, Instance.Interaction);
+        Instance = Instance with { Layout = current };
+    }
     private bool DisplayActive => Visible && WindowState != Forms.FormWindowState.Minimized;
     public bool MetricsDue(DateTimeOffset now) => definition.Kind == WidgetKind.SystemMonitor && DisplayActive && now >= nextUpdate;
     public async Task TickAsync(DateTimeOffset now, SystemMetrics? metrics)
@@ -203,26 +262,13 @@ internal sealed class WidgetWindow : Forms.Form
         if (DisplayActive && now >= nextUpdate)
         {
             nextUpdate = now.AddSeconds(definition.Kind == WidgetKind.Clock ? definition.Content.ShowSeconds ? 1 : Math.Max(1, 60 - now.Second) : definition.Content.UpdateIntervalSeconds);
-            switch (definition.Kind)
-            {
-                case WidgetKind.Clock:
-                    var local = DateTime.Now;
-                    value.Text = local.ToString(definition.Content.Use24Hour ? definition.Content.ShowSeconds ? "HH:mm:ss" : "HH:mm" : definition.Content.ShowSeconds ? "h:mm:ss tt" : "h:mm tt", CultureInfo.CurrentCulture);
-                    detail.Text = local.ToString(definition.Content.DateFormat, CultureInfo.GetCultureInfo(language == "en" ? "en-US" : "ru-RU"));
-                    break;
-                case WidgetKind.SystemMonitor:
-                    var unavailable = L("Недоступно", "Unavailable");
-                    value.Text = "CPU  " + (metrics?.CpuPercent is double cpu ? cpu.ToString("F0", CultureInfo.CurrentCulture) + "%" : unavailable);
-                    detail.Text = metrics?.TotalMemoryBytes is ulong total && metrics.AvailableMemoryBytes is ulong available && total > 0
-                        ? "RAM  " + ((total - Math.Min(total, available)) / 1073741824d).ToString("F1", CultureInfo.CurrentCulture) + " / " + (total / 1073741824d).ToString("F1", CultureInfo.CurrentCulture) + " GB · " + L("свободно ", "free ") + (available / 1073741824d).ToString("F1", CultureInfo.CurrentCulture)
-                        : "RAM  " + unavailable;
-                    break;
-            }
+            if (metrics is not null) lastMetrics = metrics;
+            RenderReading();
         }
         if (definition.Kind == WidgetKind.FocusTimer)
         {
             var completed = timer.Tick();
-            if (DisplayActive) value.Text = FormatDuration(timer.State.RemainingSeconds);
+            if (DisplayActive) { value.Text = FormatDuration(timer.State.RemainingSeconds); value.AccessibleName = value.Text; UpdateTimerButtons(); }
             if (completed)
             {
                 if (!preview)
@@ -249,7 +295,7 @@ internal sealed class WidgetWindow : Forms.Form
     }
     private async Task ChangeTimerAsync(Action change)
     {
-        change();
+        change(); RenderReading(); UpdateTimerButtons();
         if (preview) return;
         MarkDirty();
         try { await FlushAsync(); }
@@ -296,10 +342,10 @@ internal sealed class WidgetWindow : Forms.Form
         try
         {
             var info = new FileInfo(draftPath);
-            if (info.Length > 256 * 1024) throw new InvalidDataException("Recovery draft exceeds its size limit.");
+            if (info.Length > 256 * 1024) throw new InvalidDataException(L("Черновик превышает допустимый размер.", "Recovery draft exceeds its size limit."));
             var restored = JsonSerializer.Deserialize<WidgetRuntimeState>(await File.ReadAllTextAsync(draftPath), new JsonSerializerOptions { MaxDepth = 8 });
             if (restored is null || restored.InstanceId != Instance.Id || restored.Notes.Length > 20000 || restored.Timer.RemainingSeconds is < 0 or > 86400 || !double.IsFinite(restored.Timer.RemainingSeconds))
-                throw new InvalidDataException("Invalid widget recovery draft.");
+                throw new InvalidDataException(L("Черновик восстановления повреждён.", "Invalid widget recovery draft."));
             if (restored.Notes == state.Notes && restored.Timer == state.Timer) { File.Delete(draftPath); return; }
             StudioValidator.Validate(restored);
             if (restored.Revision != state.Revision) { saveConflict = true; conflictBaseRevision = restored.Revision; }
@@ -362,16 +408,19 @@ internal sealed class WidgetWindow : Forms.Form
     }
     private void ShowMenu()
     {
-        var menu = new Forms.ContextMenuStrip();
+        var accessible = Forms.SystemInformation.HighContrast;
+        var accent = accessible ? Drawing.SystemColors.Highlight : Drawing.ColorTranslator.FromHtml(definition.Style.Accent);
+        var menu = new Forms.ContextMenuStrip { BackColor = BackColor, ForeColor = ForeColor, Font = Font, ShowImageMargin = false };
+        if (!accessible) menu.Renderer = new Forms.ToolStripProfessionalRenderer(new MenuColors(BackColor, accent));
         menu.Closed += (_, _) => menu.Dispose();
         void Add(string text, Action action)
         {
-            var item = menu.Items.Add(text);
+            var item = menu.Items.Add(text); item.ForeColor = ForeColor;
             item.Click += (_, _) => { try { action(); } catch (Exception ex) { ShowError(ex); log.Error("Widget action failed", ex); } };
         }
         void AddAsync(string text, Func<Task> action)
         {
-            var item = menu.Items.Add(text);
+            var item = menu.Items.Add(text); item.ForeColor = ForeColor;
             item.Click += async (_, _) => { try { await action(); } catch (Exception ex) { ShowError(ex); log.Error("Widget action failed", ex); } };
         }
         Add(L("Редактировать в SHIFT", "Edit in SHIFT"), edit);
@@ -407,9 +456,21 @@ internal sealed class WidgetWindow : Forms.Form
         Add(preview ? L("Закрыть предпросмотр", "Close preview") : L("Скрыть виджет", "Hide widget"), () => HideRequested?.Invoke(this, EventArgs.Empty));
         menu.Show(menuButton, 0, menuButton.Height);
     }
+    private sealed class MenuColors(Drawing.Color background, Drawing.Color accent) : Forms.ProfessionalColorTable
+    {
+        public override Drawing.Color ToolStripDropDownBackground => background;
+        public override Drawing.Color MenuBorder => accent;
+        public override Drawing.Color MenuItemBorder => accent;
+        public override Drawing.Color MenuItemSelected => Forms.ControlPaint.Light(background, .2f);
+        public override Drawing.Color MenuItemSelectedGradientBegin => MenuItemSelected;
+        public override Drawing.Color MenuItemSelectedGradientEnd => MenuItemSelected;
+        public override Drawing.Color MenuItemPressedGradientBegin => MenuItemSelected;
+        public override Drawing.Color MenuItemPressedGradientMiddle => MenuItemSelected;
+        public override Drawing.Color MenuItemPressedGradientEnd => MenuItemSelected;
+    }
     private void ExportNote()
     {
-        using var dialog = new Forms.SaveFileDialog { Filter = "Text (*.txt)|*.txt", FileName = "SHIFT-note.txt", AddExtension = true, DefaultExt = "txt", RestoreDirectory = true };
+        using var dialog = new Forms.SaveFileDialog { Filter = L("Текстовый файл (*.txt)|*.txt", "Text file (*.txt)|*.txt"), Title = L("Сохранить копию заметки", "Save a note copy"), FileName = L("SHIFT-заметка.txt", "SHIFT-note.txt"), AddExtension = true, DefaultExt = "txt", RestoreDirectory = true };
         if (dialog.ShowDialog(this) != Forms.DialogResult.OK) return;
         try { File.WriteAllText(dialog.FileName, notes.Text); }
         catch (Exception ex) { ShowError(ex); log.Error("Note copy could not be saved", ex); }
@@ -420,7 +481,7 @@ internal sealed class WidgetWindow : Forms.Form
     }
     protected override void Dispose(bool disposing)
     {
-        if (disposing) { draftDelay?.Cancel(); draftDelay?.Dispose(); foreach (var font in ownedFonts) font.Dispose(); }
+        if (disposing) { draftDelay?.Cancel(); draftDelay?.Dispose(); tips.Dispose(); foreach (var font in ownedFonts) font.Dispose(); }
         base.Dispose(disposing);
     }
     protected override void WndProc(ref Forms.Message message)
