@@ -52,6 +52,24 @@ public class WidgetPresentationTests
         Assert.False(WidgetPresentation.LayoutWasSaved(saved, saved.Layout, WidgetInteraction.Desktop));
         Assert.True(WidgetPresentation.LayoutWasSaved(saved with { Layout = movedDuringAwait, Interaction = WidgetInteraction.Desktop }, movedDuringAwait, WidgetInteraction.Desktop));
     }
+    [Fact] public void SavingAnotherWidgetDoesNotReplaceCleanFallbackMonitorOrClampedPreferredSize()
+    {
+        var moved = new WidgetInstance { Layout = new() { MonitorId = "available", X = .3 } };
+        var fallback = new WidgetInstance { Layout = new() { MonitorId = "temporarily-disconnected", Width = 1200, Height = 900, X = .8, Y = .9 } };
+        var latest = new DesktopProfile { Widgets = [moved, fallback] };
+        var displayedFallback = fallback.Layout with { MonitorId = "available", Width = 600, Height = 500, X = 0, Y = 0 };
+        Assert.False(WidgetPresentation.LayoutWasSaved(fallback, displayedFallback, fallback.Interaction));
+        var edits = new Dictionary<Guid, WidgetInstance> { [moved.Id] = moved with { Layout = moved.Layout with { X = .6 } } };
+        var saved = WidgetPresentation.MergeLayoutEdits(latest, edits);
+        Assert.Equal(.6, saved.Widgets[0].Layout.X);
+        Assert.Equal(fallback, saved.Widgets[1]);
+        var acknowledged = WidgetPresentation.WrittenInstances(saved, edits.Keys);
+        Assert.Equal(moved.Id, Assert.Single(acknowledged).Id);
+        Assert.Empty(WidgetPresentation.WrittenInstances(saved, []));
+        Assert.Empty(WidgetPresentation.WrittenInstances(saved, [Guid.NewGuid()]));
+        var modeOnly = WidgetPresentation.MergeInteraction(latest, WidgetInteraction.Desktop, new Dictionary<Guid, WidgetLayout>());
+        Assert.Equal(fallback.Layout, modeOnly.Widgets[1].Layout);
+    }
     [Fact] public void ModeChangePreservesUnflushedGeometryAndConcurrentProfileEdits()
     {
         var moved = new WidgetInstance(); var hidden = new WidgetInstance { Visible = false, Layout = new() { X = .8 } };

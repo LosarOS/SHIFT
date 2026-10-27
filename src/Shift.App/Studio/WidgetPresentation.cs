@@ -30,6 +30,15 @@ internal static class WidgetPresentation
     public static bool LayoutWasSaved(WidgetInstance saved, WidgetLayout current, WidgetInteraction interaction)
         => saved.Layout == current && saved.Interaction == interaction;
 
+    public static IReadOnlyList<WidgetInstance> WrittenInstances(DesktopProfile saved, IEnumerable<Guid> capturedIds)
+    {
+        var written = capturedIds.ToHashSet();
+        return saved.Widgets.Where(w => written.Contains(w.Id)).ToArray();
+    }
+
+    public static DesktopProfile MergeLayoutEdits(DesktopProfile latest, IReadOnlyDictionary<Guid, WidgetInstance> edits)
+        => latest with { Widgets = latest.Widgets.Select(w => edits.TryGetValue(w.Id, out var edit) ? w with { Layout = edit.Layout, Interaction = edit.Interaction } : w).ToArray() };
+
     public static DesktopProfile MergeInteraction(DesktopProfile latest, WidgetInteraction interaction, IReadOnlyDictionary<Guid, WidgetLayout> dirtyLayouts)
         => latest with { Widgets = latest.Widgets.Select(w => w with { Interaction = interaction, Layout = dirtyLayouts.TryGetValue(w.Id, out var layout) ? layout : w.Layout }).ToArray() };
 }

@@ -206,9 +206,9 @@ internal sealed class WidgetWindow : Forms.Form
     }
     protected override void OnHandleCreated(EventArgs e)
     { base.OnHandleCreated(e); SetInteraction(Instance.Interaction); SetCorners(); }
-    public void SetInteraction(WidgetInteraction mode)
+    public void SetInteraction(WidgetInteraction mode, bool persisted = false)
     {
-        if (!preview && !loading && Instance.Interaction != mode) LayoutDirty = true;
+        if (!persisted && !preview && !loading && Instance.Interaction != mode) LayoutDirty = true;
         Instance = Instance with { Interaction = mode };
         header.Visible = mode == WidgetInteraction.Edit || preview;
         Padding = new Forms.Padding(mode == WidgetInteraction.Edit ? 8 : (int)Math.Ceiling(definition.Style.BorderWidth));
@@ -223,7 +223,7 @@ internal sealed class WidgetWindow : Forms.Form
         }
         ShowSurfaceStatus(); Invalidate();
     }
-    public void Reposition(WidgetLayout layout, IReadOnlyList<MonitorIdentity> topology)
+    public void Reposition(WidgetLayout layout, IReadOnlyList<MonitorIdentity> topology, bool persist = false)
     {
         if (topology.Count == 0) return;
         monitors = topology; Instance = Instance with { Layout = layout };
@@ -236,6 +236,7 @@ internal sealed class WidgetWindow : Forms.Form
             Bounds = new Drawing.Rectangle(bounds.X, bounds.Y, bounds.Width, bounds.Height); TopMost = layout.AlwaysOnTop;
         }
         finally { positioning = false; }
+        if (persist && !preview) LayoutDirty = true;
     }
     public WidgetLayout CaptureLayout()
     {
@@ -247,6 +248,7 @@ internal sealed class WidgetWindow : Forms.Form
     }
     public void LayoutSaved(WidgetInstance saved)
     {
+        if (!LayoutDirty) return; // A fallback display is not a user edit.
         var current = CaptureLayout();
         // Native move/resize events can arrive while the database save is awaiting IO.
         // Acknowledge only the exact geometry/mode that actually reached storage.
