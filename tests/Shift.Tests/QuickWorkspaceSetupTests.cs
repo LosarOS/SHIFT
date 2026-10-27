@@ -235,7 +235,8 @@ public sealed class QuickWorkspaceSetupTests : IDisposable
             "source" => [Candidate("one") with { Source = (ApplicationSource)999 }],
             _ => Enumerable.Range(0, QuickWorkspaceSetup.MaximumCatalog + 1).Select(i => Candidate(i.ToString())).ToArray()
         };
-        var error = Assert.Throws<ValidationException>(() => QuickWorkspaceSetup.CreateDraft("Work", catalog, ["one"]));
+        var selected = scenario == "oversize" ? "0" : "one";
+        var error = Assert.Throws<ValidationException>(() => QuickWorkspaceSetup.CreateDraft("Work", catalog, [selected]));
         Assert.Equal("QuickSelection", Assert.Single(error.Issues).Code);
     }
 
