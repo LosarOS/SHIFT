@@ -62,11 +62,19 @@ function Set-Field([string]$Id,[string]$Value){
  $control.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($Value)
 }
 function Select-Value([string]$Id,[string]$Name){
- $control=Wait-For {Find $Id} ('choice '+$Id)
- $control.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand()
+ # WinUI may replace/collapse the automation peer while the Settings page finishes layout.
+ # Reacquire and idempotently expand on each probe; never retain a stale dropdown peer.
  $null=Wait-For {
-  $choice=Find '' $Name ([System.Windows.Automation.AutomationElement]::RootElement)
-  if($choice -and $choice.Current.IsEnabled){$choice.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select();$true}
+  $control=Find $Id
+  if(-not $control -or -not $control.Current.IsEnabled){return $null}
+  $selected=$control.GetCurrentPattern([System.Windows.Automation.SelectionPattern]::Pattern).Current.GetSelection()
+  if($selected.Count -eq 1 -and $selected[0].Current.Name -eq $Name){return $true}
+  $expand=$control.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern)
+  if($expand.Current.ExpandCollapseState -ne [System.Windows.Automation.ExpandCollapseState]::Expanded){$control.SetFocus();$expand.Expand()}
+  $condition=New-Object System.Windows.Automation.AndCondition((New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty,$Name)),(New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::ListItem)))
+  $choice=[System.Windows.Automation.AutomationElement]::RootElement.FindFirst([System.Windows.Automation.TreeScope]::Descendants,$condition)
+  if($choice -and $choice.Current.IsEnabled){$choice.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()}
+  return $null
  } ('selected '+$Name)
  $control=Wait-For {Find $Id} ('choice '+$Id)
  $pattern=$control.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern)

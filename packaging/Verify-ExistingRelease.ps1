@@ -41,6 +41,18 @@ try {
     if (-not (Test-Path (Join-Path $app 'SHIFT.exe')) -or -not (Test-Path (Join-Path $app 'portable.flag'))) { throw 'Original portable layout is incomplete.' }
     & powershell.exe -NoProfile -File (Join-Path $PSScriptRoot 'Smoke-Windows.ps1') -AppDirectory $app -ExtractedArchive -DiagnosticsDirectory (Join-Path $out 'diagnostics')
     if ($LASTEXITCODE -ne 0) { throw 'Original portable binary did not pass corrected UI smoke.' }
+    $studioChecks = @{}
+    for ($attempt = 1; $attempt -le 2; $attempt++) {
+        $studioPath = Join-Path $out ("diagnostics/studio-original-$attempt")
+        & powershell.exe -NoProfile -File (Join-Path $PSScriptRoot 'Smoke-Studio.ps1') -AppDirectory $app -DiagnosticsDirectory $studioPath
+        if ($LASTEXITCODE -ne 0) { throw "Original Studio/Russian feature revalidation failed on attempt $attempt." }
+        $entry = Get-Content (Join-Path $studioPath 'studio-smoke.json') -Raw | ConvertFrom-Json
+        if ($entry.status -ne 'passed' -or $entry.wallpaper_verified -ne $true -or $entry.manual_acceptance -ne $false) { throw 'Original Studio evidence is incomplete.' }
+        foreach ($gate in @('russian_live_language_without_recreation','russian_quick_setup_order_save_cancel','starter_preset_cancel_atomic_save_and_apply','editor_preserves_boundaries_custom_style_and_missing_monitor','disabled_profile_stays_disabled_after_restart','recovery_gather_persists_geometry')) {
+            if ($gate -notin $entry.checks) { throw "Missing original Studio gate: $gate" }
+        }
+        $studioChecks["attempt_$attempt"] = $entry
+    }
     $setup = Join-Path $out $files[1]
     if (Test-Path $setup) { throw 'Refusing to replace an existing setup artifact.' }
     Copy-Item (Join-Path $download $files[1]) $setup
@@ -60,8 +72,8 @@ try {
         original_binary_sha256 = $observed
         environment = 'GitHub Actions disposable Windows x64 runner'
         workflow_run = "https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
-        diagnosis = 'The old smoke observed a persistent navigation button before asynchronous settings save completed. Close correctly used the previous saved minimize-to-tray preference. Corrected smoke awaits the rebuilt settings controls and persisted Off state before closing once.'
-        checks = $evidence; manual_acceptance = $false
+        diagnosis = 'The old Studio probe expanded the locale dropdown once and retained a peer while WinUI could replace/collapse it during layout. The corrected probe reacquires the control, verifies actual selection and re-expands idempotently. Original published binaries passed two complete Studio/Russian feature passes without rebuilding.'
+        checks = $evidence; studio_repeated_checks = $studioChecks; original_core_tests = $original.core_tests; manual_acceptance = $false
     }
     $proof = Join-Path $out "WINDOWS-REVALIDATION-$env:GITHUB_RUN_ID.json"
     $report | ConvertTo-Json -Depth 12 | Set-Content $proof -Encoding utf8
