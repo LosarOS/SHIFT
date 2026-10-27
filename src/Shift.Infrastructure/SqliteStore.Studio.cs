@@ -168,6 +168,12 @@ public sealed partial class SqliteStore
     {
         ValidateProfile(profile);
         await using var db = await OpenAsync(token); using var tx = db.BeginTransaction();
+        var saved = await SaveProfileInTransactionAsync(db, tx, profile, token);
+        tx.Commit(); return saved;
+    }
+    private static async Task<DesktopProfile> SaveProfileInTransactionAsync(SqliteConnection db, SqliteTransaction tx,
+        DesktopProfile profile, CancellationToken token)
+    {
         using (var cmd = db.CreateCommand())
         {
             cmd.Transaction = tx;
@@ -213,7 +219,7 @@ public sealed partial class SqliteStore
             foreach (var (key,value) in new (string,object)[]{("$id",w.Id.ToString()),("$p",profile.Id.ToString()),("$d",w.DefinitionId.ToString()),("$order",index),("$layout",Encode(w.Layout)),("$visible",w.Visible),("$interaction",(int)w.Interaction)}) cmd.Parameters.AddWithValue(key,value);
             if (await cmd.ExecuteNonQueryAsync(token) != 1) throw new InvalidOperationException("Widget instance already belongs to a different profile.");
         }
-        tx.Commit(); return profile with { Name = profile.Name.Trim(), Revision = profile.Revision + 1 };
+        return profile with { Name = profile.Name.Trim(), Revision = profile.Revision + 1 };
     }
     private static async Task EnsureRevisionAsync(SqliteConnection db, SqliteTransaction tx, string table, string key, Guid id, long revision, CancellationToken token)
     {
@@ -236,13 +242,19 @@ public sealed partial class SqliteStore
     public async Task<WidgetDefinition> SaveDefinitionAsync(WidgetDefinition definition, CancellationToken token = default)
     {
         ValidateDefinition(definition); await using var db=await OpenAsync(token); using var tx=db.BeginTransaction();
+        var saved = await SaveDefinitionInTransactionAsync(db, tx, definition, token);
+        tx.Commit(); return saved;
+    }
+    private static async Task<WidgetDefinition> SaveDefinitionInTransactionAsync(SqliteConnection db, SqliteTransaction tx,
+        WidgetDefinition definition, CancellationToken token)
+    {
         await EnsureRevisionAsync(db,tx,"StudioDefinitions","Id",definition.Id,definition.Revision,token);
         await ExecuteAsync(db,tx,"""
             INSERT INTO StudioDefinitions VALUES($id,$schema,$title,$kind,$style,$content,1)
             ON CONFLICT(Id) DO UPDATE SET SchemaVersion=excluded.SchemaVersion,Title=excluded.Title,Kind=excluded.Kind,
             Style=excluded.Style,Content=excluded.Content,Revision=StudioDefinitions.Revision+1 WHERE StudioDefinitions.Revision=$revision
             """,token,("$id",definition.Id.ToString()),("$schema",definition.SchemaVersion),("$title",definition.Title.Trim()),("$kind",(int)definition.Kind),("$style",Encode(definition.Style)),("$content",Encode(definition.Content)),("$revision",definition.Revision));
-        tx.Commit(); return definition with { Title=definition.Title.Trim(),Revision=definition.Revision+1 };
+        return definition with { Title=definition.Title.Trim(),Revision=definition.Revision+1 };
     }
     public async Task DeleteDefinitionAsync(Guid id, CancellationToken token = default)
     {
