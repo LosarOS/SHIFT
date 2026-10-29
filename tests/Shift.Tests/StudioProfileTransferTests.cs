@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json.Nodes;
+using Microsoft.Data.Sqlite;
 using Shift.Application;
 using Shift.Domain;
 using Shift.Infrastructure;
@@ -253,6 +254,12 @@ public sealed class StudioProfileTransferTests
             foreach (var widget in saved.Widgets) Assert.Null(await store.GetWidgetStateAsync(widget.Id));
             Assert.Empty(await store.ListRecoveryJournalsAsync());
         }
-        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+        finally
+        {
+            // Disposed SQLite connections return to their pool. Windows retains the
+            // database handle until idle pools close; cleanup must follow that lifetime.
+            SqliteConnection.ClearAllPools();
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
     }
 }

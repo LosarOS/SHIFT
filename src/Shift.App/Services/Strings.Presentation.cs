@@ -32,6 +32,7 @@ public sealed partial class Strings
             UnauthorizedAccessException => "Нет доступа. Проверьте разрешения файла или папки.",
             FileNotFoundException or DirectoryNotFoundException => "Файл или папка не найдены. Проверьте путь и подключение диска.",
             System.Text.Json.JsonException or InvalidDataException => "Данные повреждены или имеют неподдерживаемый формат.",
+            System.Text.DecoderFallbackException => "Файл должен содержать корректный текст UTF-8. Сохраните его в этой кодировке и повторите импорт.",
             IOException => "Не удалось прочитать или сохранить данные. Проверьте диск и доступ к файлу.",
             _ => "Действие не выполнено. Проверьте настройки и повторите попытку."
         };

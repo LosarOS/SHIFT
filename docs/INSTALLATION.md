@@ -4,7 +4,7 @@
 
 Windows 10 2004 / build 19041+ x64 или Windows 11 x64. Основные релизные проверки: Windows 10 22H2 и Windows 11. Без администратора. Сборка включает .NET runtime и Windows App SDK; отдельно ставить их конечному пользователю не нужно. Нужны стандартные Windows runtime prerequisites, проверяемые на чистой VM перед beta.
 
-1.0.0-rc.2 — неподписанный prerelease. Готовые файлы публикуются в [GitHub Releases](https://github.com/LosarOS/SHIFT/releases) только после Windows build/runtime/installer gates. Исходники собираются на Windows через `packaging/Build-Release.ps1`; подробный статус проверки находится в `WINDOWS-VALIDATION.json` релиза и `docs/VALIDATION.md`. Ручная приёмка Windows 10/11 и DPI остаётся отдельным этапом.
+SHIFT распространяется как неподписанный prerelease. Готовые файлы публикуются в [GitHub Releases](https://github.com/LosarOS/SHIFT/releases) только после Windows build/runtime/installer gates. Исходники собираются на Windows через `packaging/Build-Release.ps1`; подробный статус проверки находится в `WINDOWS-VALIDATION.json` релиза и `docs/VALIDATION.md`. Ручная приёмка Windows 10/11 и DPI остаётся отдельным этапом.
 
 ## Installer
 
