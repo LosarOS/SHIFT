@@ -82,3 +82,9 @@
 - На настоящем screenshot `studio-sharing-failure.png` виден системный **Save As** с фильтром JSON. Исправление filter подтверждено; текущий timeout относится к probe: owned modal HWND вложен в UIA tree владельца, а поиск смотрел только desktop children. Поиск теперь ограничен Window/#32770 среди descendants; added bounded diagnostic metadata при отказе.
 - `Clipboard.Flush()` делает явное копирование независимым от времени жизни SHIFT. Добавлен обязательный native gate: скопировать заметки без промежуточного clipboard consumer, завершить процесс, сравнить текст после выхода.
 - До успешных real save/open/installer gates RC5 остаётся неопубликованным. Старая версия RC4 и её assets сохранены.
+
+## Контрольная точка 9 — broker file dialog input
+
+- CI https://github.com/LosarOS/SHIFT/actions/runs/40961694815, head `bac5076`: все core jobs **375/375**, меню/клавиатура и предшествующие native этапы прошли. Save As найден и заполнен, но подтверждение через UIA Invoke показало системное `An outgoing call cannot be made since the application is dispatching an input-synchronous call`.
+- Screenshot и metadata подтвердили отдельный picker process внутри UIA subtree SHIFT. Это ограничение синхронного automation/BM_CLICK call-out в broker, не доказательство отказа обычного пользовательского клика.
+- Probe теперь ищет только file dialogs внутри конкретного SHIFT owner tree, устанавливает путь в owned data и ждёт foreground HWND + filename focus + picker PID; затем один раз отправляет обычный Enter. Команда/путь не интерпретируются оболочкой. Сохранение, открытие и сравнение байтов остаются обязательными.

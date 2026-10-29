@@ -35,6 +35,7 @@ public static class StudioSharingProbe {
  [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hwnd,out Rect rect);
  [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hwnd,int command);
  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hwnd);
+ [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
  [DllImport("dwmapi.dll")] public static extern int DwmFlush();
 }
 '@
@@ -124,7 +125,9 @@ function Complete-FilePicker([string]$Path){
             (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::Window)))
         # UIA nests an owned modal HWND under its owner. It is not necessarily a
         # direct child of the desktop, even though EnumWindows sees a top-level HWND.
-        foreach($window in [System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Descendants,$dialogs)){
+        $ownerWindow=Main-Window;if(-not $ownerWindow){return $null}
+        foreach($window in $ownerWindow.FindAll([System.Windows.Automation.TreeScope]::Descendants,$dialogs)){
+            if($window.Current.Name -notin @('Save As','Open')){continue}
             $condition=New-Object System.Windows.Automation.AndCondition(
                 (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::AutomationIdProperty,'1001')),
                 (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::Edit)))
@@ -134,12 +137,17 @@ function Complete-FilePicker([string]$Path){
         return $null
     } 'actual system file picker'
     $picker.filename.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($Path)
-    $condition=New-Object System.Windows.Automation.AndCondition(
-        (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::AutomationIdProperty,'1')),
-        (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::Button)))
-    $accept=$picker.window.FindFirst([System.Windows.Automation.TreeScope]::Descendants,$condition)
-    if(-not $accept -or -not $accept.Current.IsEnabled){throw 'System picker confirm button is unavailable.'}
-    $accept.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    # WinRT's broker cannot call the app back from a synchronous UIA/BM_CLICK
+    # input call (RPC_E_CANTCALLOUT_ININPUTSYNCCALL). Use ordinary input, once,
+    # only after validating focus and foreground in the discovered owned dialog.
+    $null=Wait-For {
+        [void][StudioSharingProbe]::SetForegroundWindow([intptr]$picker.window.Current.NativeWindowHandle)
+        try{$picker.filename.SetFocus()}catch{return $null}
+        $focused=[System.Windows.Automation.AutomationElement]::FocusedElement
+        if($focused.Current.ProcessId -eq $picker.window.Current.ProcessId -and $focused.Current.AutomationId -eq '1001' -and [StudioSharingProbe]::GetForegroundWindow() -eq [intptr]$picker.window.Current.NativeWindowHandle){return $true}
+        return $null
+    } 'owned file picker keyboard focus'
+    [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
 }
 function Save-Export([string]$Id,[string]$Path,[string]$Expected){
     if(Test-Path -LiteralPath $Path){throw 'Refusing to overwrite existing file export fixture.'}
