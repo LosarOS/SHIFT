@@ -1,5 +1,3 @@
-> **Известная ошибка RC5:** переносы строк в Notes после редактора WinUI могут отображаться слитно в desktop-виджете. Подтверждено на публичных байтах; исправление RC6 проверяется отдельно. [Evidence](reports/evidence/rc5/native-notes-newline-baseline.json).
-
 # SHIFT ↗
 
 [English](README.md) · [Быстрый старт](docs/QUICKSTART-RU.md) · [Перенос профилей и заметок](docs/STUDIO-SHARING-RU.md)
@@ -12,11 +10,11 @@ SHIFT — нативное приложение для Windows 10/11 x64, кот
 
 Данные остаются на компьютере. Без обязательной регистрации, облака, телеметрии и платных API.
 
-> **Выпущен [SHIFT 1.0.0-rc.5](https://github.com/LosarOS/SHIFT/releases/tag/v1.0.0-rc.5).** [Установщик](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.5/SHIFT-1.0.0-rc.5-win-x64-setup.exe) · [Portable](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.5/SHIFT-1.0.0-rc.5-win-x64-portable.zip) · [SHA256](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.5/SHA256SUMS.txt). **375 тестов**, native Windows UIA и installer preservation прошли; публичные файлы повторно скачаны и сверены. [Отчёт с доказательствами](reports/SHIFT-RC5-VALIDATION-RU.md). Неподписанный prerelease; физическая Windows10/11, DPI и accessibility ещё требуют приёмки. Stable1.0 не объявлен.
+> **Выпущен [SHIFT 1.0.0-rc.6](https://github.com/LosarOS/SHIFT/releases/tag/v1.0.0-rc.6).** [Установщик](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.6/SHIFT-1.0.0-rc.6-win-x64-setup.exe) · [Portable](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.6/SHIFT-1.0.0-rc.6-win-x64-portable.zip) · [SHA256](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.6/SHA256SUMS.txt). **384 теста**, native Windows UIA и installer preservation прошли; публичные файлы повторно скачаны и сверены. [Отчёт с доказательствами](reports/SHIFT-RC6-VALIDATION-RU.md). Неподписанный prerelease; физическая Windows10/11, DPI и accessibility ещё требуют приёмки. Stable1.0 не объявлен.
 
-![Студия SHIFT — настоящее приложение на Windows CI](docs/screenshots/rc5/studio-overview.png)
+![Студия SHIFT — настоящее приложение на Windows CI](docs/screenshots/rc6/studio-overview.png)
 
-[Реальные снимки RC5](docs/screenshots/rc5/README.md) с синтетическими тестовыми данными; это не концепт-рендеры.
+[Реальные снимки RC6](docs/screenshots/rc6/README.md) с синтетическими тестовыми данными; это не концепт-рендеры.
 
 ## Что умеет SHIFT
 
@@ -29,7 +27,11 @@ SHIFT — нативное приложение для Windows 10/11 x64, кот
 - **Четыре виджета.** Настоящее локальное время, ЦП/ОЗУ, заметки с автосохранением и таймер фокусировки. Отдельные управляемые окна, без внедрения в Explorer и прав администратора. Мастерская позволяет редактировать черновик и смотреть отдельный предпросмотр до сохранения.
 - **Готовые окружения.** «Разработка», «Стриминг» и «Фокус» создают наборы виджетов без автоматического изменения Windows. Сохраняются темы Dark, Light, Midnight и Forest, а также RU/EN.
 
-## Новое в RC5
+## Исправление RC6
+
+Многострочные Notes после мастерской WinUI и импорта теперь правильно отображаются в desktop-виджете. Проверены настоящий Windows-контрол, сохранение и повторное применение. Исправление не требует миграции базы.
+
+## Возможности RC5, включённые в RC6
 
 **Переносимые профили Studio.** Экспортируйте набор виджетов с оформлением и относительным расположением в `.shiftstudio.json`. Импорт проверяет файл, показывает состав, позволяет переименовать профиль и создаёт отдельную копию одной транзакцией. Применение остаётся явным действием. Обои, локальные пути, привязки к пространствам, текущие заметки и таймеры в пакет не входят.
 
@@ -98,6 +100,6 @@ reports/                 Фактические результаты инжен�
 
 Команды, `.exe`, ярлыки и документы через системные обработчики — доверенные действия с пользовательскими правами. SHIFT не является sandbox. Импорт ничего не запускает автоматически. Studio не меняет Explorer, не требует elevation и не меняет системные политики. Статичные обои применяются с подтверждением; Spotlight и слайд-шоу не поддерживаются. Acrylic/Mica используют явно обозначенный fallback, без обещания настоящего стекла.
 
-[Безопасность](SECURITY.md) · [Архитектура](docs/ARCHITECTURE.md) · [Roadmap](docs/ROADMAP.md) · [Фактическая валидация](docs/VALIDATION.md) · [Журнал RC5](reports/SHIFT-RC5-ENGINEERING-SESSION.md) · [Changelog](CHANGELOG.md)
+[Безопасность](SECURITY.md) · [Архитектура](docs/ARCHITECTURE.md) · [Roadmap](docs/ROADMAP.md) · [Фактическая валидация](docs/VALIDATION.md) · [Журнал RC5](reports/SHIFT-RC6-ENGINEERING-SESSION.md) · [Changelog](CHANGELOG.md)
 
 MIT · SHIFT contributors

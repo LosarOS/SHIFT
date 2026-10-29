@@ -2,7 +2,7 @@
 
 SHIFT хранит рабочие пространства локально и открывает выбранные приложения, файлы, папки и ссылки по порядку. Русский интерфейс включён по умолчанию; язык и тема меняются в «Настройки».
 
-Руководство для [RC5](https://github.com/LosarOS/SHIFT/releases/tag/v1.0.0-rc.5). [Скачать установщик](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.5/SHIFT-1.0.0-rc.5-win-x64-setup.exe) или [portable](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.5/SHIFT-1.0.0-rc.5-win-x64-portable.zip); сверяйте [SHA256](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.5/SHA256SUMS.txt). [Результаты проверки](../reports/SHIFT-RC5-VALIDATION-RU.md) относятся к disposable Windows CI и не заменяют физическую DPI/accessibility приёмку. Бинарники неподписанные.
+Руководство для [RC6](https://github.com/LosarOS/SHIFT/releases/tag/v1.0.0-rc.6). [Скачать установщик](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.6/SHIFT-1.0.0-rc.6-win-x64-setup.exe) или [portable](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.6/SHIFT-1.0.0-rc.6-win-x64-portable.zip); сверяйте [SHA256](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.6/SHA256SUMS.txt). [Результаты проверки](../reports/SHIFT-RC6-VALIDATION-RU.md) относятся к disposable Windows CI и не заменяют физическую DPI/accessibility приёмку. Бинарники неподписанные.
 
 ## Первое пространство
 

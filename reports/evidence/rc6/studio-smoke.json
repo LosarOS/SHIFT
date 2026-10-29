@@ -1,0 +1,39 @@
+{
+    "checks":  [
+                   "lab_preview_cancel_save_no_preview_writes",
+                   "multiline_editor_content_preserved",
+                   "widget_lab_reuse_appearance_save_cancel",
+                   "native_notes_multiline_initial_text",
+                   "four_real_windows_notes_timer",
+                   "mode_change_preserves_geometry",
+                   "widget_desktop_keyboard_save_and_menu",
+                   "recovery_gather_persists_geometry",
+                   "reapply_no_duplicate_windows",
+                   "wallpaper_apply_restore",
+                   "timer_restart_after_completion",
+                   "russian_live_language_without_recreation",
+                   "editor_preserves_boundaries_custom_style_and_missing_monitor",
+                   "starter_preset_cancel_atomic_save_and_apply",
+                   "russian_quick_setup_order_save_cancel",
+                   "russian_profile_transfer_and_notes_export",
+                   "disabled_profile_stays_disabled_after_restart",
+                   "disable_reenable",
+                   "restart_persistence_and_quit",
+                   "notes_clipboard_survives_process_exit"
+               ],
+    "sleep_verified":  false,
+    "environment":  "disposable Windows Server runner, actual extracted SHIFT.exe",
+    "multi_monitor_verified":  false,
+    "alpha_attribute_verified":  true,
+    "not_measured":  [
+                         "actual_sleep_resume",
+                         "widget_lab_open_latency",
+                         "full_profile_apply_latency"
+                     ],
+    "physical_windows11_verified":  false,
+    "manual_acceptance":  false,
+    "source_commit":  "de8e744d6993b3293b55ed56675cb6472ef68fab",
+    "actual_alpha":  217,
+    "status":  "passed",
+    "wallpaper_verified":  true
+}
