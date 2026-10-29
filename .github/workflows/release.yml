@@ -7,7 +7,7 @@ on:
       version:
         description: 'Release candidate version; manual dispatch builds artifacts without publishing'
         required: true
-        default: '1.0.0-rc.5'
+        default: '1.0.0-rc.6'
       verify_existing:
         description: 'Revalidate unchanged existing release bytes using corrected smoke; does not publish'
         type: boolean
@@ -72,9 +72,11 @@ jobs:
           foreach ($gate in @('compact_selection_pattern','compact_keyboard_navigation','compact_cross_field_search','compact_empty_actions','compact_review_without_dispatch','compact_keyboard_command_refusal','multiline_workspace_and_item_editing')) {
             if ($gate -notin $portableEvidence.checks) { throw "Missing compact launcher gate: $gate" }
           }
-          foreach ($gate in @('lab_preview_cancel_save_no_preview_writes','four_real_windows_notes_timer','reapply_no_duplicate_windows','wallpaper_apply_restore','disable_reenable','restart_persistence_and_quit','mode_change_preserves_geometry','timer_restart_after_completion','russian_live_language_without_recreation','editor_preserves_boundaries_custom_style_and_missing_monitor','starter_preset_cancel_atomic_save_and_apply','russian_quick_setup_order_save_cancel','disabled_profile_stays_disabled_after_restart','recovery_gather_persists_geometry','russian_profile_transfer_and_notes_export','widget_desktop_keyboard_save_and_menu','widget_lab_reuse_appearance_save_cancel','notes_clipboard_survives_process_exit','multiline_editor_content_preserved')) {
+          foreach ($gate in @('lab_preview_cancel_save_no_preview_writes','four_real_windows_notes_timer','reapply_no_duplicate_windows','wallpaper_apply_restore','disable_reenable','restart_persistence_and_quit','mode_change_preserves_geometry','timer_restart_after_completion','russian_live_language_without_recreation','editor_preserves_boundaries_custom_style_and_missing_monitor','starter_preset_cancel_atomic_save_and_apply','russian_quick_setup_order_save_cancel','disabled_profile_stays_disabled_after_restart','recovery_gather_persists_geometry','russian_profile_transfer_and_notes_export','widget_desktop_keyboard_save_and_menu','widget_lab_reuse_appearance_save_cancel','notes_clipboard_survives_process_exit','multiline_editor_content_preserved','native_notes_multiline_initial_text')) {
             if ($gate -notin $studio.checks) { throw "Missing Studio gate: $gate" }
           }
+          $nativeNotes = Get-Content artifacts/diagnostics/studio/native-notes-newline-proof.json -Raw | ConvertFrom-Json
+          if ($nativeNotes.source_commit -ne $env:GITHUB_SHA -or $nativeNotes.native_line -ne 1 -or $nativeNotes.initial_text.Replace("`r`n","`n").Replace("`r","`n") -cne "Initial CI note`nSecond line — local only") { throw 'Actual native Notes line rendering is not verified.' }
           $report = [ordered]@{
             schema_version = 1; version = $env:SHIFT_VERSION; source_commit = $env:GITHUB_SHA
             workflow_run = "https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
@@ -83,7 +85,7 @@ jobs:
             locked_restore = 'passed'; windows_self_contained_publish = 'passed'
             russian_localization = 'passed'; quick_workspace_setup = 'passed'; studio_starter_presets = 'passed'
             widget_lab_reuse_appearance = 'passed'; widget_desktop_keyboard = 'passed'; studio_profile_transfer = 'passed'; studio_notes_export = 'passed'; real_file_pickers_and_clipboard = 'passed'; compact_launcher_selection_and_keyboard = 'passed'
-            studio_widgets = 'passed'; studio_wallpaper_recovery = 'passed'; actual_rc2_migration = 'passed'
+            native_notes_multiline_initial_text = 'passed'; studio_widgets = 'passed'; studio_wallpaper_recovery = 'passed'; actual_rc2_migration = 'passed'
             studio_alpha_attribute_verified = $studio.alpha_attribute_verified; studio_actual_alpha = $studio.actual_alpha
             portable_smoke_archive = $true
             portable_ui_smoke = 'passed'; installed_ui_smoke = 'passed'; installer_preservation_smoke = 'passed'

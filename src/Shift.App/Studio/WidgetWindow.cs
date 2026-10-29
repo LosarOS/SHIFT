@@ -100,7 +100,7 @@ internal sealed class WidgetWindow : Forms.Form
         header.Controls.Add(heading); header.Controls.Add(menuButton);
         body.Controls.Add(value); body.Controls.Add(detail);
         if (definition.Kind == WidgetKind.SystemMonitor) body.Controls.Add(secondaryDetail);
-        if (definition.Kind == WidgetKind.Notes) { body.Controls.Clear(); body.Controls.Add(notes); notes.Text = state.Notes; }
+        if (definition.Kind == WidgetKind.Notes) { body.Controls.Clear(); body.Controls.Add(notes); notes.Text = WidgetPresentation.ToNativeNotesText(state.Notes); }
         if (definition.Kind == WidgetKind.FocusTimer)
         {
             detail.Visible = false;
@@ -337,7 +337,7 @@ internal sealed class WidgetWindow : Forms.Form
         catch (OperationCanceledException) { }
         catch (Exception ex) { ShowError(ex); log.Error("Widget recovery draft could not be written", ex); }
     }
-    private WidgetRuntimeState Snapshot() => state with { Notes = notes.Text, Timer = timer.State };
+    private WidgetRuntimeState Snapshot() => state with { Notes = WidgetPresentation.FromNativeNotesText(notes.Text), Timer = timer.State };
     public WidgetRuntimeState CaptureState() => Snapshot();
     private async Task WriteDraftAsync()
     {
@@ -372,7 +372,7 @@ internal sealed class WidgetWindow : Forms.Form
             if (restored.Notes == state.Notes && restored.Timer == state.Timer) { File.Delete(draftPath); return; }
             StudioValidator.Validate(restored);
             if (restored.Revision != state.Revision) { saveConflict = true; conflictBaseRevision = restored.Revision; }
-            loading = true; notes.Text = restored.Notes; loading = false;
+            loading = true; notes.Text = WidgetPresentation.ToNativeNotesText(restored.Notes); loading = false;
             // Rebuild using the persisted deadline, never resume by counting UI ticks.
             timer = new FocusTimerController(restored.Timer);
             dirty = true; draftAvailable = true; generation++;
@@ -508,7 +508,7 @@ internal sealed class WidgetWindow : Forms.Form
             if (!keepCurrent)
             {
                 loading = true;
-                try { notes.Text = latest.Notes; timer = new FocusTimerController(latest.Timer); }
+                try { notes.Text = WidgetPresentation.ToNativeNotesText(latest.Notes); timer = new FocusTimerController(latest.Timer); }
                 finally { loading = false; }
                 await draftGate.WaitAsync();
                 try { if (File.Exists(draftPath)) File.Delete(draftPath); }

@@ -18,6 +18,14 @@ internal static class WidgetPresentation
         await operation.ConfigureAwait(false);
     }
 
+    // WinUI can return CR-only text; a Win32 multiline edit needs CRLF to render
+    // those breaks. Persist LF so native CRLF expansion cannot exceed the model's
+    // 20,000-character bound. Other Unicode whitespace remains unchanged.
+    public static string FromNativeNotesText(string text)
+        => text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
+    public static string ToNativeNotesText(string text)
+        => FromNativeNotesText(text).Replace("\n", "\r\n", StringComparison.Ordinal);
+
     public static CultureInfo Culture(string language) => CultureInfo.GetCultureInfo(language == "en" ? "en-US" : "ru-RU");
     public static string WindowTitle(string title, string language) => (language == "en" ? "SHIFT Widget — " : "SHIFT Виджет — ") + title;
     public static string Clock(DateTime local, WidgetContent content, string language)

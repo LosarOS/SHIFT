@@ -196,7 +196,7 @@ try {
  $second=$initial.IndexOf('Second line — local only',[StringComparison]::Ordinal)
  if($editor.Current.NativeWindowHandle -eq 0 -or $editor.Current.ProcessId -ne $process.Id){throw 'Expected the owned native Notes editor HWND.'}
  $nativeLine=if($second -ge 0){[StudioProbe]::SendMessage([intptr]$editor.Current.NativeWindowHandle,0x00C9,[intptr]$second,[intptr]::Zero).ToInt64()}else{-1}
- @{source_commit=$env:GITHUB_SHA;native_line=$nativeLine;initial_text=$initial;expected_second_line='Second line — local only'} | ConvertTo-Json | Set-Content (Join-Path $DiagnosticsDirectory 'native-notes-newline-proof.json')
+ @{source_commit=$env:GITHUB_SHA;native_line=$nativeLine;initial_text=$initial;expected_second_line='Second line — local only'} | ConvertTo-Json | Set-Content (Join-Path $DiagnosticsDirectory 'native-notes-newline-proof.json') -Encoding UTF8
  if($initial.Replace("`r`n","`n").Replace("`r","`n") -cne "Initial CI note`nSecond line — local only" -or $nativeLine -ne 1){throw 'Native Notes did not render the multiline template as two actual edit-control lines.'}
  $checks+='native_notes_multiline_initial_text'
  Capture 'desktop-multiline-notes'

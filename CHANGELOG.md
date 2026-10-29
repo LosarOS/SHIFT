@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.0-rc.6 — 2026-10-29
+
+- Fixed WinUI CR-only / imported LF Notes rendering in native multiline edit controls; CRLF is used only for display, LF for persisted snapshots.
+- Preserved Unicode, spaces, trailing blank lines and the20,000-character model boundary without growing native CRLF on each restart.
+- Added nine unit regressions and a real native EM_LINEFROMCHAR gate, reproduced against unchanged public RC5 binaries before the fix.
+- Recovery draft and database conflict reload use the same display boundary; no schema/dependency/consent changes.
+
 ## 1.0.0-rc.5 — 2026-10-29
 
 - Added strict portable Studio profile packs with private paths/runtime state excluded, preview, atomic import and explicit seed-text opt-in.
