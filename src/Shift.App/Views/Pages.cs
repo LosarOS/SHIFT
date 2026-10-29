@@ -215,7 +215,7 @@ public sealed partial class MainWindow
         var launch = AsyncButton("↗  " + s["Launch"], () => StartLaunchAsync(workspace), true, "Workspace.Launch");
         launch.IsEnabled = !vm.IsLaunching;
         actions.Children.Add(launch);
-        actions.Children.Add(AsyncButton(s["Edit"], () => EditWorkspaceAsync(workspace)));
+        actions.Children.Add(AsyncButton(s["Edit"], () => EditWorkspaceAsync(workspace), false, "Workspace.Edit"));
         actions.Children.Add(AsyncButton(s["Doctor.Check"], () => OpenDoctorAsync(workspace), false, "Workspace.Doctor"));
         var more = new DropDownButton { Content = "···", Padding = new Thickness(15, 9, 15, 9) };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(more, T("Действия с пространством", "Workspace actions"));
@@ -282,7 +282,7 @@ public sealed partial class MainWindow
             words.Children.Add(Text($"{s[item.Kind.ToString()]}  ·  {item.DelayMs} {s["Milliseconds"]}  ·  {s[item.Enabled ? "Enabled" : "Disabled"]}", 11, color: item.Kind == ItemKind.Command ? "#DEAF72" : palette.Muted));
             Grid.SetColumn(words, 1);
             row.Children.Add(words);
-            var edit = AsyncButton(s["Edit"], () => EditItemAsync(workspace, item));
+            var edit = AsyncButton(s["Edit"], () => EditItemAsync(workspace, item), false, "Item.Edit." + item.Id.ToString("N"));
             Grid.SetColumn(edit, 2);
             row.Children.Add(edit);
             content.Children.Add(row);

@@ -164,7 +164,7 @@ function Save-Export([string]$Id,[string]$Path,[string]$Expected){
     if(Test-Path -LiteralPath $Path){throw 'Refusing to overwrite existing file export fixture.'}
     Click '' 'Сохранить файл';Complete-FilePicker $Path
     $null=Wait-For {-not(Find $Id) -and (Test-Path -LiteralPath $Path -PathType Leaf)} 'application saved export file'
-    if([IO.File]::ReadAllText($Path) -cne $Expected){throw 'Saved export differs from the reviewed text.'}
+    if([IO.File]::ReadAllText($Path).Replace("`r`n","`n").Replace("`r","`n") -cne $Expected.Replace("`r`n","`n").Replace("`r","`n")){throw 'Saved export differs from the reviewed text.'}
     $bytes=[IO.File]::ReadAllBytes($Path)
     if($bytes.Length -ge 3 -and $bytes[0] -eq 239 -and $bytes[1] -eq 187 -and $bytes[2] -eq 191){throw 'Expected the application UTF-8 export without BOM.'}
 }
@@ -193,7 +193,7 @@ try {
     $toggle=$choice.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern)
     if($toggle.Current.ToggleState -ne [System.Windows.Automation.ToggleState]::Off){throw 'Initial note export is enabled by default.'}
     $toggle.Toggle()
-    $null=Wait-For {$changed=(Read-Output 'Studio.Pack.Output') | ConvertFrom-Json;$changed.InitialNotesIncluded -eq $true -and @($changed.Definitions | Where-Object {$_.Content.InitialNotes -eq 'Initial CI note'}).Count -eq 4} 'explicit initial text inclusion'
+    $null=Wait-For {$changed=(Read-Output 'Studio.Pack.Output') | ConvertFrom-Json;$changed.InitialNotesIncluded -eq $true -and @($changed.Definitions | Where-Object {$_.Content.InitialNotes.StartsWith('Initial CI note')}).Count -eq 4 -and @($changed.Definitions | Where-Object {$_.Content.InitialNotes.Contains('Second line — local only')}).Count -eq 1} 'explicit initial text inclusion'
     $choice=Wait-For {Find 'Studio.Pack.IncludeNotes'} 'initial notes opt-out'
     $choice.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Toggle()
     $null=Wait-For {(Read-Output 'Studio.Pack.Output') -ceq $defaultJson} 'privacy default restored'
@@ -206,7 +206,7 @@ try {
     $notes=Read-Output 'Studio.Notes.Output'
     if(-not $notes.Contains('Native CI note — Unicode')){throw 'Native notes preview did not include the saved Unicode note.'}
     Capture 'ru-notes';Click 'Studio.Notes.Copy'
-    $null=Wait-For {[System.Windows.Forms.Clipboard]::GetText() -ceq $notes} 'explicit notes clipboard copy'
+    $null=Wait-For {[System.Windows.Forms.Clipboard]::GetText().Replace("`r`n","`n").Replace("`r","`n") -ceq $notes.Replace("`r`n","`n").Replace("`r","`n")} 'explicit notes clipboard copy'
     Save-Export 'Studio.Notes.Output' (Join-Path $data 'studio-sharing-notes.txt') $notes;Assert-Environment
     $checks+='saved_unicode_notes_export'
     $checks+='real_file_picker_exports_and_clipboard'

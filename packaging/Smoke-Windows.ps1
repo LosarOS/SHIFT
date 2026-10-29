@@ -185,18 +185,43 @@ try {
         }
         Click '' 'Workspace.New'
         Set-Field 'Field.Name' 'SHIFT smoke workspace'
-        Set-Field 'Field.Description' 'Disposable launcher diagnostic context'
+        $expectedDescription='Disposable launcher diagnostic context'
+        if(-not $LegacyCompactLauncher){$expectedDescription+="`r`nSecond line — workspace description"}
+        Set-Field 'Field.Description' $expectedDescription
         Click 'Сохранить'
         $null = Wait-For { Find-Control 'SHIFT smoke workspace' ([System.Windows.Automation.ControlType]::Text) } 'saved workspace'
+        if(-not $LegacyCompactLauncher){
+            Click '' 'Workspace.Edit'
+            $field=Wait-For {Find-Control '' ([System.Windows.Automation.ControlType]::Edit) 'Field.Description'} 'reopened multiline workspace description'
+            if($field.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value.Replace("`r`n","`n").Replace("`r","`n") -cne $expectedDescription.Replace("`r`n","`n")){throw 'Workspace editor truncated multiline description.'}
+            Click 'Сохранить';$null=Wait-For {Find-Control '' ([System.Windows.Automation.ControlType]::Button) 'Item.New'} 'workspace edit saved'
+        }
         Click '' 'Item.New'
         Set-Field 'Field.Name' 'Explicit command proof'
         Select-Choice 'Field.Kind' 'Команда ⚠'
         $marker = Join-Path $data 'dispatch-proof.txt'
         $escaped = $marker.Replace("'","''")
-        Set-Field 'Field.Target' "[System.IO.File]::WriteAllText('$escaped', 'SHIFT smoke')"
+        $expectedCommand="[System.IO.File]::WriteAllText('$escaped', 'SHIFT smoke')"
+        if(-not $LegacyCompactLauncher){
+            $expectedCommand+="`r`n# multiline editor preservation"
+            Set-Field 'Field.Note' "First line`r`nSecond line — item note"
+        }
+        Set-Field 'Field.Target' $expectedCommand
         Click 'Сохранить'
         $null = Wait-For { $null -eq (Find-Control 'Сохранить' ([System.Windows.Automation.ControlType]::Button)) } 'item dialog closed'
         $null = Wait-For { Find-Control 'Explicit command proof' ([System.Windows.Automation.ControlType]::Text) } 'saved item detail'
+        if(-not $LegacyCompactLauncher){
+            $scope=[System.Windows.Automation.AutomationElement]::FromHandle($process.MainWindowHandle)
+            $buttons=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::Button)
+            $edit=$scope.FindAll([System.Windows.Automation.TreeScope]::Descendants,$buttons) | Where-Object {$_.Current.AutomationId.StartsWith('Item.Edit.')} | Select-Object -First 1
+            if(-not $edit){throw 'Expected the owned launch item edit action.'}
+            Click '' $edit.Current.AutomationId
+            $field=Wait-For {Find-Control '' ([System.Windows.Automation.ControlType]::Edit) 'Field.Target'} 'reopened multiline command'
+            if($field.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value.Replace("`r`n","`n").Replace("`r","`n") -cne $expectedCommand.Replace("`r`n","`n")){throw 'Item editor truncated multiline command.'}
+            $field=Wait-For {Find-Control '' ([System.Windows.Automation.ControlType]::Edit) 'Field.Note'} 'reopened multiline note'
+            if($field.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value.Replace("`r`n","`n").Replace("`r","`n") -cne "First line`nSecond line — item note"){throw 'Item editor truncated multiline note.'}
+            Click 'Сохранить';$null=Wait-For {$null -eq (Find-Control 'Сохранить' ([System.Windows.Automation.ControlType]::Button))} 'multiline item resaved'
+        }
         Capture 'workspace-detail'
         Click '' 'Workspace.Doctor'
         $null = Wait-For {
@@ -360,7 +385,7 @@ try {
     $checks=@('workspace_persistence','english_persistence','midnight_theme_persistence','command_proof_persistence','graceful_exit')
     if(-not $ResumeOwnedData){
         $checks+=@('workspace_create','item_create','doctor_read_only','doctor_repeat','command_refusal','command_approval','real_dispatch','compact_search','tray','second_instance_activation','restart')
-        if(-not $LegacyCompactLauncher){$checks+=@('compact_selection_pattern','compact_keyboard_navigation','compact_cross_field_search','compact_empty_actions','compact_review_without_dispatch','compact_keyboard_command_refusal')}
+        if(-not $LegacyCompactLauncher){$checks+=@('compact_selection_pattern','compact_keyboard_navigation','compact_cross_field_search','compact_empty_actions','compact_review_without_dispatch','compact_keyboard_command_refusal','multiline_workspace_and_item_editing')}
     }
     if($DiagnosticsDirectory){
         @{schema_version=1;status='passed';environment='disposable-windows-ui-automation';mode=$label;resumed=[bool]$ResumeOwnedData;legacy_compact_launcher=[bool]$LegacyCompactLauncher;portable_smoke_archive=[bool]$ExtractedArchive;checks=$checks;manual_acceptance=$false;timestamp_utc=[DateTime]::UtcNow.ToString('o')} |

@@ -170,6 +170,11 @@ try {
  Click 'Studio.Widget.Edit.00000000-0000-4000-8000-000000000010';Set-Field 'Studio.Widget.Foreground' '#EEDDCC';Capture 'properties';Click '' 'Save'
  $null=Wait-For {Find 'Studio.Widget.Edit.00000000-0000-4000-8000-000000000010'} 'Lab save finished'
  $null=Tool 'lab-check';$checks+='lab_preview_cancel_save_no_preview_writes'
+ Click 'Studio.Widget.Edit.00000000-0000-4000-8000-000000000013'
+ $initialNotes=Wait-For {Find 'Studio.Widget.Notes'} 'multiline initial Notes field'
+ if($initialNotes.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value.Replace("`r`n","`n").Replace("`r","`n") -cne "Initial CI note`nSecond line — local only"){throw 'Widget Lab lost multiline text while opening.'}
+ Click '' 'Save';$null=Wait-For {Find 'Studio.Widget.Search'} 'multiline Notes template saved';$null=Tool 'multiline-template-check'
+ $checks+='multiline_editor_content_preserved'
  # Reuse a real custom style, cancel once, then save only the new library declaration.
  foreach($saveStyle in @($false,$true)){
   Click 'Studio.Widget.Create.Clock';Set-Field 'Studio.Widget.Title' 'RC5 Reused style'
@@ -179,7 +184,10 @@ try {
  }
  $checks+='widget_lab_reuse_appearance_save_cancel'
  Click 'Studio.Tab.Profiles';Capture 'profiles'
- Click 'Studio.Profile.Edit.00000000-0000-4000-8000-000000000104';Capture 'monitors';Click '' 'Cancel'
+ Click 'Studio.Profile.Edit.00000000-0000-4000-8000-000000000104'
+ $description=Wait-For {Find 'Studio.Profile.Description'} 'multiline profile description'
+ if($description.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value.Replace("`r`n","`n").Replace("`r","`n") -cne "Multiline profile`nSecond line — local only"){throw 'Profile editor lost multiline description.'}
+ Capture 'monitors';Click '' 'Cancel'
  Apply 4
  $notes=Wait-For {@(Widgets | Where-Object {$_.Current.Name -like '*Notes'}) | Select-Object -First 1} 'Notes window'
  $editor=Wait-For {Find '' 'Note text, autosave' $notes} 'real Notes editor'
@@ -323,7 +331,7 @@ try {
  [void][StudioProbe]::PostMessage([intptr]$main.Current.NativeWindowHandle,0x0010,[intptr]::Zero,[intptr]::Zero)
  if(-not $process.WaitForExit(15000)){throw 'Restarted SHIFT did not exit cleanly.'}
  if($process.ExitCode -ne 0){throw "Restarted SHIFT exited with $($process.ExitCode)."}
- if([System.Windows.Forms.Clipboard]::GetText() -cne $expectedClipboard){throw 'Explicit note copy was lost after process exit.'}
+ if([System.Windows.Forms.Clipboard]::GetText().Replace("`r`n","`n").Replace("`r","`n") -cne $expectedClipboard.Replace("`r`n","`n").Replace("`r","`n")){throw 'Explicit note copy was lost after process exit.'}
  $checks+='notes_clipboard_survives_process_exit'
  $errors=Get-ChildItem (Join-Path $data 'logs') -Filter '*.log' | Select-String -Pattern '\sERROR\s'
  if($errors){throw 'Unexpected application ERROR during native Studio acceptance.'}

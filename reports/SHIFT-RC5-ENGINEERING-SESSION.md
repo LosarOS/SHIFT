@@ -94,3 +94,12 @@
 - CI https://github.com/LosarOS/SHIFT/actions/runs/40962766920, head `f69320a`: core **375/375**, предшествующие native этапы прошли. Broker dialog принял Enter и закрылся вместе с export dialog, но ожидаемый файл по заданному тестовому пути не появился. Результат не объявлялся успешным.
 - Для проверки shell filename model probe теперь вводит путь обычными клавишами после Ctrl+A, экранируя метасимволы SendKeys, проверяет фактическое значение поля и только затем нажимает Enter. Убрано прямое ValuePattern/WM_SETTEXT изменение filename, которое может обходить edit notifications.
 - При `SHIFT_STARTUP_TRACE=1` локальный журнал фиксирует возвращённый picker destination, чтобы следующая диагностика различала неправильный путь, расширение и отказ записи. В обычном запуске этот trace выключен. Нужен новый реальный Windows прогон.
+
+## Контрольная точка 11 — реальное сохранение и многострочный текст
+
+- CI https://github.com/LosarOS/SHIFT/actions/runs/40963759963, head `e782075`: core **375/375** и предыдущие native этапы прошли. Обычный ввод filename исправил probe: файл профиля записан приложением в ожидаемый owned path, прочитан обратно и совпал с предпросмотром. Это уже не только показ FileSavePicker.
+- Следующий gate обнаружил продуктовый UI-дефект: Notes preview содержал лишь заголовок. WinUI получал Text до AcceptsReturn=true и обрезал всё после первого перевода строки. Helper/SQLite сохраняли полный текст; проблема была в инициализации контрола. Та же последовательность найдена в редакторах workspace description, item command/note, profile description и initial Notes.
+- Все многострочные WinUI TextBox теперь включают multiline до присвоения текста. Export/copy заметок используют исходный authoritative snapshot, а не read-back из presentation control.
+- Добавлены настоящие GUI-проверки повторного открытия/сохранения многострочного workspace description, команды и item note; Notes template и profile description также проверяются на нескольких строках. Исторический RC2 не выдаётся за реализацию этих RC5-specific gates.
+- Native сохранённый Notes-файл дополнительно сравнивается **точно** с `StudioNotesExport` по исходным состояниям; сравнение UI допускает только нормализацию CR/LF. Ни символы, ни строки не игнорируются.
+- Публикация всё ещё ожидает полный green Windows/installer прогон. Проверки отказов не удалены.
