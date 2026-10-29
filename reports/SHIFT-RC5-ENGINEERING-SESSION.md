@@ -68,3 +68,10 @@
 - CI https://github.com/LosarOS/SHIFT/actions/runs/40958457986, head `fdd67b5`: Linux/Windows **375/375**, Windows publish и compact/consent UIA прошли. Studio seed с Cascadia Mono теперь прошёл; copy appearance cancel/save проверены на реальном EXE.
 - Первый Ctrl+S сохранил ожидаемую заметку, Shift+F10 показал настоящее меню в Desktop Mode. Прогон остановился при немедленном повторном SetFocus после Escape (`Target element cannot receive focus`, Smoke-Studio.ps1:199). Само сочетание не заменялось программным вызовом функции.
 - Probe теперь заново получает editor peer, дожидается keyboard-focusable/enabled, foreground HWND и PID, затем посылает каждое сочетание один раз. Повторяются только проверки готовности, а не команды. Ожидается следующий полный прогон.
+
+## Контрольная точка 7 — подтверждённый native menu crash
+
+- CI https://github.com/LosarOS/SHIFT/actions/runs/40959272665, head `82da63c`: core **375/375**, publish/portable и style-copy прошли; повторное получение фокуса не помогло. Анализ сохранённого desktop screenshot и `studio-app-logs` показал **продуктовый дефект**, а не только готовность UIA.
+- `ContextMenuStrip.Closed` синхронно вызывал `Dispose`, пока WinForms ещё выполнял `ProcessDialogKey/SetVisibleCore` после Escape. Получен `ObjectDisposedException`; Studio безопасно отключился, основная оболочка осталась доступна. Более ранняя гипотеза о чистой readiness-гонке была неполной.
+- Меню теперь принадлежит окну виджета и переиспользуется; items освобождаются перед следующим открытием, само меню — при dispose владельца. Темизация и font lifetime обновляются вместе с окном. Синхронного dispose внутри Closed больше нет.
+- Regression открывает/закрывает меню с клавиатуры дважды, возвращает фокус, сохраняет восстановленный текст и продолжает остальные native gates. Проверки не исключены; требуется новый полный Windows прогон.

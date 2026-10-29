@@ -100,6 +100,10 @@ function Focus-NotesEditor {
   return $null
  } 'ready owned Notes keyboard focus'
 }
+function Find-WidgetMenuEntry([string]$Name){
+ $condition=New-Object System.Windows.Automation.AndCondition((New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty,$process.Id)),(New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty,$Name)))
+ return [System.Windows.Automation.AutomationElement]::RootElement.FindFirst([System.Windows.Automation.TreeScope]::Descendants,$condition)
+}
 function Capture([string]$Name){
  Start-Sleep -Milliseconds 500
  [void][StudioProbe]::DwmFlush()
@@ -202,12 +206,12 @@ try {
  $editor=Focus-NotesEditor
  [System.Windows.Forms.SendKeys]::SendWait('^s');$null=Tool 'keyboard-note-check' 'RC5 keyboard note'
  [System.Windows.Forms.SendKeys]::SendWait('+{F10}')
- $null=Wait-For {
-  $condition=New-Object System.Windows.Automation.AndCondition((New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty,$process.Id)),(New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty,'Save text copy…')))
-  [System.Windows.Automation.AutomationElement]::RootElement.FindFirst([System.Windows.Automation.TreeScope]::Descendants,$condition)
- } 'widget context menu from keyboard in Desktop mode'
+ $null=Wait-For {Find-WidgetMenuEntry 'Save text copy…'} 'widget context menu from keyboard in Desktop mode'
  Capture 'desktop-keyboard-menu';[System.Windows.Forms.SendKeys]::SendWait('{ESC}')
  $editor=Focus-NotesEditor
+ [System.Windows.Forms.SendKeys]::SendWait('+{F10}')
+ $null=Wait-For {Find-WidgetMenuEntry 'Save text copy…'} 'widget menu remains usable after Escape'
+ [System.Windows.Forms.SendKeys]::SendWait('{ESC}');$editor=Focus-NotesEditor
  $editor.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue('Native CI note — Unicode')
  [System.Windows.Forms.SendKeys]::SendWait('^s');$null=Tool 'keyboard-note-check' 'Native CI note — Unicode'
  $checks+='widget_desktop_keyboard_save_and_menu'
