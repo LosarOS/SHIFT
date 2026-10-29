@@ -109,3 +109,9 @@
 - CI https://github.com/LosarOS/SHIFT/actions/runs/40965442259, head `1ef7621`: core **375/375**, publish, реальное создание/повторное открытие/сохранение многострочных описания, команды и заметки прошли. Безвредная PowerShell-команда с новой строкой и комментарием выполнилась только после consent; refusal не выполнял её.
 - После расширения fixture прежняя проверка Compact Review искала старое однострочное описание точным Name match. Приложение показало новое полное описание, поэтому ожидание старой строки корректно не выполнилось.
 - Probe теперь сравнивает с полным ожидаемым многострочным описанием (нормализует только CR/LF), сохраняя проверки отсутствия dispatch/history/marker изменений. Это согласование нового fixture, а не исключение Review-проверки.
+
+## Контрольная точка 13 — Notes экспорт подтверждён, Open variant
+
+- CI https://github.com/LosarOS/SHIFT/actions/runs/40966181849, head `c76063d`: core **375/375**, многострочные Workspace/Item/Widget Lab/Profile поля, copy/cancel/save, native меню, Note clipboard и настоящие SaveFilePicker-экспорты прошли. Полный Notes preview содержит Unicode-текст; сохранённый файл точно совпадает с authoritative export.
+- Invalid import и valid preview/cancel не записали данные. Последний импорт через файл дошёл до открытого системного Open dialog, но probe ожидал filename AutomationId1001, тогда как этот вариант использует1148. Screenshot/metadata подтвердили правильное окно и включённое поле.
+- Выбор поля теперь использует его semantic name `File name:` + Edit внутри owned file dialog, а проверка фокуса — точное совпадение RuntimeId, PID и foreground HWND. Нестабильный numeric control ID не используется; остальные ограничения сохраняются.

@@ -129,7 +129,7 @@ function Complete-FilePicker([string]$Path){
         foreach($window in $ownerWindow.FindAll([System.Windows.Automation.TreeScope]::Descendants,$dialogs)){
             if($window.Current.Name -notin @('Save As','Open')){continue}
             $condition=New-Object System.Windows.Automation.AndCondition(
-                (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::AutomationIdProperty,'1001')),
+                (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty,'File name:')),
                 (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::Edit)))
             $filename=$window.FindFirst([System.Windows.Automation.TreeScope]::Descendants,$condition)
             if($filename -and $filename.Current.IsEnabled){return @{window=$window;filename=$filename}}
@@ -143,7 +143,7 @@ function Complete-FilePicker([string]$Path){
         [void][StudioSharingProbe]::SetForegroundWindow([intptr]$picker.window.Current.NativeWindowHandle)
         try{$picker.filename.SetFocus()}catch{return $null}
         $focused=[System.Windows.Automation.AutomationElement]::FocusedElement
-        if($focused.Current.ProcessId -eq $picker.window.Current.ProcessId -and $focused.Current.AutomationId -eq '1001' -and [StudioSharingProbe]::GetForegroundWindow() -eq [intptr]$picker.window.Current.NativeWindowHandle){return $true}
+        if($focused.Current.ProcessId -eq $picker.window.Current.ProcessId -and ($focused.GetRuntimeId() -join ':') -ceq ($picker.filename.GetRuntimeId() -join ':') -and [StudioSharingProbe]::GetForegroundWindow() -eq [intptr]$picker.window.Current.NativeWindowHandle){return $true}
         return $null
     } 'owned file picker keyboard focus'
     # A direct WM_SETTEXT/ValuePattern update can bypass the shell broker's
