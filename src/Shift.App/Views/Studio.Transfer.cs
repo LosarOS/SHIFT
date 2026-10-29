@@ -164,18 +164,19 @@ public sealed partial class MainWindow
             states = latest.Values.ToList();
         }
         var text = StudioNotesExport.Export(profile, studioDefinitions, states, s.Culture);
-        var output = new TextBox { Text = text, IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 260 };
+        var output = new TextBox { IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 260, Text = text };
         AutomationProperties.SetAutomationId(output, "Studio.Notes.Output"); AutomationProperties.SetName(output, T("Текст заметок профиля", "Profile note text"));
         var body = Stack(14); body.Children.Add(Text(profile.Name, 23));
         body.Children.Add(Text(T("Снимок текста открытых виджетов и сохранённых скрытых заметок. Файл и буфер обмена не зашифрованы: проверьте текст перед передачей. Неоткрытые локальные recovery-черновики не включаются; для них используйте меню восстановления самого виджета.",
             "Snapshot of live widget text and saved hidden notes. The file and clipboard are unencrypted: review before sharing. Unopened local recovery drafts are excluded; use the widget's own recovery menu for them."), 13, true));
-        body.Children.Add(output); body.Children.Add(Button(T("Копировать заметки", "Copy notes"), () => CopyStudioText(output.Text), false, "Studio.Notes.Copy"));
-        await ShowStudioTextExportAsync(T("Сохранить заметки", "Export notes"), body, () => output.Text, "SHIFT-notes", ".txt");
+        body.Children.Add(output); body.Children.Add(Button(T("Копировать заметки", "Copy notes"), () => CopyStudioText(text), false, "Studio.Notes.Copy"));
+        // The read-only control is a view, never the authoritative export buffer.
+        await ShowStudioTextExportAsync(T("Сохранить заметки", "Export notes"), body, () => text, "SHIFT-notes", ".txt");
     }
 
     private static void CopyStudioText(string text)
     {
-        var package = new DataPackage(); package.SetText(text); Clipboard.SetContent(package);
+        var package = new DataPackage(); package.SetText(text); Clipboard.SetContent(package); Clipboard.Flush();
     }
 
     private async Task ShowStudioTextExportAsync(string title, StackPanel body, Func<string> content, string suggestedName, string extension)
@@ -193,6 +194,7 @@ public sealed partial class MainWindow
                 WinRT.Interop.InitializeWithWindow.Initialize(picker, Handle);
                 var file = await picker.PickSaveFileAsync();
                 if (file is null) { args.Cancel = true; return; }
+                if (Environment.GetEnvironmentVariable("SHIFT_STARTUP_TRACE") == "1") log.Info("Studio export destination: " + file.Path);
                 var temporary = file.Path + "." + Guid.NewGuid().ToString("N") + ".tmp";
                 try
                 {

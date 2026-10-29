@@ -59,7 +59,7 @@ public sealed partial class MainWindow
         var clock24 = new CheckBox { Content = T("24-часовой формат", "24-hour clock"), IsChecked = draft.Content.Use24Hour };
         var date = new TextBox { Text = draft.Content.DateFormat, MaxLength = 80 };
         var focus = Number(draft.Content.FocusMinutes, 1, 1440); var interval = Number(draft.Content.UpdateIntervalSeconds, 1, 3600);
-        var notes = new TextBox { Text = draft.Content.InitialNotes, MaxLength = 20000, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 80 };
+        var notes = new TextBox { MaxLength = 20000, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 80, Text = draft.Content.InitialNotes };
         var profile = new ComboBox { ItemsSource = new[] { T("Только библиотека", "Library only") }.Concat(studioProfiles.Select(p => p.Name)).ToArray(), SelectedIndex = 0 };
         var instance = studioProfiles.SelectMany(p => p.Widgets).FirstOrDefault(w => instanceId is Guid id ? w.Id == id : w.DefinitionId == existing?.Id);
         if (instance is not null)

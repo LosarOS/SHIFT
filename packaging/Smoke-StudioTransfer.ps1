@@ -35,6 +35,7 @@ public static class StudioSharingProbe {
  [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hwnd,out Rect rect);
  [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hwnd,int command);
  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hwnd);
+ [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
  [DllImport("dwmapi.dll")] public static extern int DwmFlush();
 }
 '@
@@ -115,33 +116,55 @@ function Close-Export([string]$Id){
     $null=Wait-For {-not(Find $Id)} 'export dialog dismissed'
 }
 function Complete-FilePicker([string]$Path){
-    # A real system file dialog on this disposable runner. No global keystrokes,
-    # pre-existing filenames or arbitrary owner paths are used.
+    # Real system dialog on this disposable runner. Input is sent only after
+    # owner/focus checks; no pre-existing filenames or arbitrary paths are used.
     if(-not [IO.Path]::GetFullPath($Path).StartsWith($data+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)){throw 'File picker target must belong to the owned test data.'}
     $picker=Wait-For {
-        foreach($window in [System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children,[System.Windows.Automation.Condition]::TrueCondition)){
-            if($window.Current.ClassName -ne '#32770'){continue}
+        $dialogs=New-Object System.Windows.Automation.AndCondition(
+            (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ClassNameProperty,'#32770')),
+            (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::Window)))
+        # UIA nests an owned modal HWND under its owner. It is not necessarily a
+        # direct child of the desktop, even though EnumWindows sees a top-level HWND.
+        $ownerWindow=Main-Window;if(-not $ownerWindow){return $null}
+        foreach($window in $ownerWindow.FindAll([System.Windows.Automation.TreeScope]::Descendants,$dialogs)){
+            if($window.Current.Name -notin @('Save As','Open')){continue}
             $condition=New-Object System.Windows.Automation.AndCondition(
-                (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::AutomationIdProperty,'1001')),
+                (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty,'File name:')),
                 (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::Edit)))
             $filename=$window.FindFirst([System.Windows.Automation.TreeScope]::Descendants,$condition)
             if($filename -and $filename.Current.IsEnabled){return @{window=$window;filename=$filename}}
         }
         return $null
     } 'actual system file picker'
-    $picker.filename.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($Path)
-    $condition=New-Object System.Windows.Automation.AndCondition(
-        (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::AutomationIdProperty,'1')),
-        (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::Button)))
-    $accept=$picker.window.FindFirst([System.Windows.Automation.TreeScope]::Descendants,$condition)
-    if(-not $accept -or -not $accept.Current.IsEnabled){throw 'System picker confirm button is unavailable.'}
-    $accept.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    # WinRT's broker cannot call the app back from a synchronous UIA/BM_CLICK
+    # input call (RPC_E_CANTCALLOUT_ININPUTSYNCCALL). Use ordinary input, once,
+    # only after validating focus and foreground in the discovered owned dialog.
+    $null=Wait-For {
+        [void][StudioSharingProbe]::SetForegroundWindow([intptr]$picker.window.Current.NativeWindowHandle)
+        try{$picker.filename.SetFocus()}catch{return $null}
+        $focused=[System.Windows.Automation.AutomationElement]::FocusedElement
+        if($focused.Current.ProcessId -eq $picker.window.Current.ProcessId -and ($focused.GetRuntimeId() -join ':') -ceq ($picker.filename.GetRuntimeId() -join ':') -and [StudioSharingProbe]::GetForegroundWindow() -eq [intptr]$picker.window.Current.NativeWindowHandle){return $true}
+        return $null
+    } 'owned file picker keyboard focus'
+    # A direct WM_SETTEXT/ValuePattern update can bypass the shell broker's
+    # filename model. Enter text as the user would, including edit notifications.
+    $typed=New-Object Text.StringBuilder
+    foreach($character in $Path.ToCharArray()){
+        if($character -eq '{'){[void]$typed.Append('{{}')}
+        elseif($character -eq '}'){[void]$typed.Append('{}}')}
+        elseif('+^%~()[]'.Contains([string]$character)){[void]$typed.Append('{'+$character+'}')}
+        else{[void]$typed.Append($character)}
+    }
+    [System.Windows.Forms.SendKeys]::SendWait('^a')
+    [System.Windows.Forms.SendKeys]::SendWait($typed.ToString())
+    $null=Wait-For {$picker.filename.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value -ceq $Path} 'actual typed owned file path'
+    [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
 }
 function Save-Export([string]$Id,[string]$Path,[string]$Expected){
     if(Test-Path -LiteralPath $Path){throw 'Refusing to overwrite existing file export fixture.'}
     Click '' 'Сохранить файл';Complete-FilePicker $Path
     $null=Wait-For {-not(Find $Id) -and (Test-Path -LiteralPath $Path -PathType Leaf)} 'application saved export file'
-    if([IO.File]::ReadAllText($Path) -cne $Expected){throw 'Saved export differs from the reviewed text.'}
+    if([IO.File]::ReadAllText($Path).Replace("`r`n","`n").Replace("`r","`n") -cne $Expected.Replace("`r`n","`n").Replace("`r","`n")){throw 'Saved export differs from the reviewed text.'}
     $bytes=[IO.File]::ReadAllBytes($Path)
     if($bytes.Length -ge 3 -and $bytes[0] -eq 239 -and $bytes[1] -eq 187 -and $bytes[2] -eq 191){throw 'Expected the application UTF-8 export without BOM.'}
 }
@@ -170,7 +193,7 @@ try {
     $toggle=$choice.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern)
     if($toggle.Current.ToggleState -ne [System.Windows.Automation.ToggleState]::Off){throw 'Initial note export is enabled by default.'}
     $toggle.Toggle()
-    $null=Wait-For {$changed=(Read-Output 'Studio.Pack.Output') | ConvertFrom-Json;$changed.InitialNotesIncluded -eq $true -and @($changed.Definitions | Where-Object {$_.Content.InitialNotes -eq 'Initial CI note'}).Count -eq 4} 'explicit initial text inclusion'
+    $null=Wait-For {$changed=(Read-Output 'Studio.Pack.Output') | ConvertFrom-Json;$changed.InitialNotesIncluded -eq $true -and @($changed.Definitions | Where-Object {$_.Content.InitialNotes.StartsWith('Initial CI note')}).Count -eq 4 -and @($changed.Definitions | Where-Object {$_.Content.InitialNotes.Contains('Second line — local only')}).Count -eq 1} 'explicit initial text inclusion'
     $choice=Wait-For {Find 'Studio.Pack.IncludeNotes'} 'initial notes opt-out'
     $choice.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Toggle()
     $null=Wait-For {(Read-Output 'Studio.Pack.Output') -ceq $defaultJson} 'privacy default restored'
@@ -183,7 +206,7 @@ try {
     $notes=Read-Output 'Studio.Notes.Output'
     if(-not $notes.Contains('Native CI note — Unicode')){throw 'Native notes preview did not include the saved Unicode note.'}
     Capture 'ru-notes';Click 'Studio.Notes.Copy'
-    $null=Wait-For {[System.Windows.Forms.Clipboard]::GetText() -ceq $notes} 'explicit notes clipboard copy'
+    $null=Wait-For {[System.Windows.Forms.Clipboard]::GetText().Replace("`r`n","`n").Replace("`r","`n") -ceq $notes.Replace("`r`n","`n").Replace("`r","`n")} 'explicit notes clipboard copy'
     Save-Export 'Studio.Notes.Output' (Join-Path $data 'studio-sharing-notes.txt') $notes;Assert-Environment
     $checks+='saved_unicode_notes_export'
     $checks+='real_file_picker_exports_and_clipboard'
@@ -227,6 +250,15 @@ try {
         $names=@($window.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition) |
             ForEach-Object {$_.Current.Name} | Where-Object {$_} | Select-Object -First 150)
         $names | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $DiagnosticsDirectory 'studio-sharing-ui-failure.json') -Encoding UTF8
+    }catch{}
+    try{
+        $condition=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::Window)
+        $windows=@([System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Descendants,$condition) | Select-Object -First 40 | ForEach-Object {
+            $window=$_
+            $editCondition=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::Edit)
+            @{name=$window.Current.Name;class=$window.Current.ClassName;id=$window.Current.AutomationId;process=$window.Current.ProcessId;edits=@($window.FindAll([System.Windows.Automation.TreeScope]::Descendants,$editCondition) | Select-Object -First 15 | ForEach-Object {@{name=$_.Current.Name;id=$_.Current.AutomationId;enabled=$_.Current.IsEnabled}})}
+        })
+        $windows | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $DiagnosticsDirectory 'studio-file-picker-failure.json') -Encoding UTF8
     }catch{}
     throw
 } finally {

@@ -39,7 +39,7 @@ if (stage == "seed")
     await store.SaveSettingsAsync(new AppSettings { OnboardingComplete = true, Language = "en", Theme = AppTheme.Midnight, MinimizeToTray = false, Notifications = false });
     var definitions = new List<WidgetDefinition>();
     foreach (var kind in Enum.GetValues<WidgetKind>()) definitions.Add(await store.SaveDefinitionAsync(new WidgetDefinition { Id = Id(10 + (int)kind), Title = "Studio CI " + kind,
-        Kind = kind, Style = StudioTemplates.For("Midnight") with { Opacity = .85, Surface = WidgetSurface.Translucent }, Content = new() { ShowSeconds = true, InitialNotes = "Initial CI note", FocusMinutes = 1, UpdateIntervalSeconds = 1 } }));
+        Kind = kind, Style = StudioTemplates.For("Midnight") with { Opacity = .85, Surface = WidgetSurface.Translucent }, Content = new() { ShowSeconds = true, InitialNotes = kind == WidgetKind.Notes ? "Initial CI note\r\nSecond line — local only" : "Initial CI note", FocusMinutes = 1, UpdateIntervalSeconds = 1 } }));
     // A valid declaration beyond the old editor's bounds must survive an unrelated edit.
     var boundary = await store.SaveDefinitionAsync(new WidgetDefinition { Id = Id(14), Title = "Studio CI preserved", Kind = WidgetKind.Notes,
         Style = StudioTemplates.For("Midnight") with { TemplateId = "Custom CI", CornerRadius = 64, Padding = 64, BorderWidth = 8, FontFamily = "Cascadia Mono", FontSize = 32, Shadow = false },
@@ -55,7 +55,7 @@ if (stage == "seed")
     var managed = await imageLibrary.ImportAsync(png);
     foreach (var count in new[] { 1, 4, 5, 10 })
     {
-        var profile = new DesktopProfile { Id = Id(100 + count), Name = "Studio CI " + count,
+        var profile = new DesktopProfile { Id = Id(100 + count), Name = "Studio CI " + count, Description = "Multiline profile\r\nSecond line — local only",
             Widgets = Enumerable.Range(0, count).Select(i => new WidgetInstance { Id = Id(count * 1000 + i), DefinitionId = definitions[i % 4].Id,
                 Layout = new WidgetLayout { MonitorId = monitors[0].DeviceId, Width = 280, Height = 210, X = count == 4 ? .15 + (i % 2) * .48 : (i % 4) * .24, Y = count == 4 ? .04 + (i / 2) * .48 : (i / 4) * .32 } }).ToArray() };
         if (count == 4 && original?.CanRestore == true) profile = profile with { Wallpapers = original.Wallpapers.Select(w => new WallpaperAssignment(w.MonitorId, managed)).ToArray(), ChangeWallpaperPosition = true, WallpaperPosition = WallpaperPlacement.Fill };
@@ -75,6 +75,12 @@ else if (stage == "lab-check")
     using var command = db.CreateCommand(); command.CommandText = "SELECT COUNT(*) FROM StudioWidgetState";
     if (Convert.ToInt32(command.ExecuteScalar()) != 4) throw new InvalidOperationException("Preview changed persisted state.");
     Console.WriteLine("LAB_SAVE_CANCEL_VERIFIED");
+}
+else if (stage == "multiline-template-check")
+{
+    if ((await store.ListDefinitionsAsync()).Single(d => d.Id == Id(13)).Content.InitialNotes.Replace("\r\n", "\n").Replace("\r", "\n") != "Initial CI note\nSecond line — local only")
+        throw new InvalidOperationException("Opening and saving Widget Lab truncated multiline initial notes.");
+    Console.WriteLine("MULTILINE_TEMPLATE_PRESERVED");
 }
 else if (stage is "lab-style-cancel-check" or "lab-style-save-check")
 {

@@ -20,6 +20,7 @@ internal sealed class WidgetWindow : Forms.Form
     private readonly Forms.Label detail = new() { Name = "Widget.Detail", AutoEllipsis = true, Dock = Forms.DockStyle.Bottom, Height = 25, TextAlign = Drawing.ContentAlignment.MiddleCenter };
     private readonly Forms.Label secondaryDetail = new() { Name = "Widget.SecondaryDetail", AutoEllipsis = true, Dock = Forms.DockStyle.Bottom, Height = 23, TextAlign = Drawing.ContentAlignment.MiddleCenter };
     private readonly Forms.ToolTip tips = new();
+    private readonly Forms.ContextMenuStrip widgetMenu = new() { ShowImageMargin = false };
     private SystemMetrics? lastMetrics;
     private readonly Forms.TextBox notes = new() { Name = "Widget.Notes", Multiline = true, Dock = Forms.DockStyle.Fill, ScrollBars = Forms.ScrollBars.Vertical, MaxLength = 20000, BorderStyle = Forms.BorderStyle.None, AcceptsReturn = true, AcceptsTab = true };
     private readonly Forms.TableLayoutPanel timerButtons = new() { Dock = Forms.DockStyle.Bottom, Height = 38, ColumnCount = 3, RowCount = 1, Padding = Forms.Padding.Empty, Margin = Forms.Padding.Empty };
@@ -161,6 +162,7 @@ internal sealed class WidgetWindow : Forms.Form
         start.FlatAppearance.MouseOverBackColor = Forms.ControlPaint.Light(accent, .1f);
         start.FlatAppearance.MouseDownBackColor = Forms.ControlPaint.Dark(accent, .1f);
         UpdateTimerButtons();
+        ApplyMenuStyle();
         foreach (var font in oldFonts) font.Dispose();
     }
     private static bool TransparencyEnabled()
@@ -429,11 +431,14 @@ internal sealed class WidgetWindow : Forms.Form
     }
     private void ShowMenu()
     {
-        var accessible = Forms.SystemInformation.HighContrast;
-        var accent = accessible ? Drawing.SystemColors.Highlight : Drawing.ColorTranslator.FromHtml(definition.Style.Accent);
-        var menu = new Forms.ContextMenuStrip { BackColor = BackColor, ForeColor = ForeColor, Font = Font, ShowImageMargin = false };
-        if (!accessible) menu.Renderer = new Forms.ToolStripProfessionalRenderer(new MenuColors(BackColor, accent));
-        menu.Closed += (_, _) => menu.Dispose();
+        // The menu belongs to this window. Disposing in Closed is too early:
+        // WinForms still uses its HWND while unwinding Escape/ProcessDialogKey.
+        // Reuse it after closing and dispose only with the owner.
+        var menu = widgetMenu;
+        if (menu.Visible) return;
+        foreach (var item in menu.Items.Cast<Forms.ToolStripItem>().ToArray()) item.Dispose();
+        menu.Items.Clear();
+        ApplyMenuStyle();
         void Add(string text, Action action)
         {
             var item = menu.Items.Add(text); item.ForeColor = ForeColor;
@@ -478,6 +483,13 @@ internal sealed class WidgetWindow : Forms.Form
         Add(preview ? L("Закрыть предпросмотр", "Close preview") : L("Скрыть виджет", "Hide widget"), () => HideRequested?.Invoke(this, EventArgs.Empty));
         if (menuButton.Visible) menu.Show(menuButton, 0, menuButton.Height);
         else menu.Show(this, new Drawing.Point(Padding.Left, Padding.Top));
+    }
+    private void ApplyMenuStyle()
+    {
+        widgetMenu.BackColor = BackColor; widgetMenu.ForeColor = ForeColor; widgetMenu.Font = Font;
+        if (Forms.SystemInformation.HighContrast) widgetMenu.RenderMode = Forms.ToolStripRenderMode.System;
+        else widgetMenu.Renderer = new Forms.ToolStripProfessionalRenderer(new MenuColors(BackColor, Drawing.ColorTranslator.FromHtml(definition.Style.Accent)));
+        foreach (Forms.ToolStripItem item in widgetMenu.Items) item.ForeColor = ForeColor;
     }
     private async Task ResolveConflictAsync(bool keepCurrent)
     {
@@ -553,7 +565,7 @@ internal sealed class WidgetWindow : Forms.Form
     }
     protected override void Dispose(bool disposing)
     {
-        if (disposing) { draftDelay?.Cancel(); draftDelay?.Dispose(); tips.Dispose(); foreach (var font in ownedFonts) font.Dispose(); }
+        if (disposing) { draftDelay?.Cancel(); draftDelay?.Dispose(); widgetMenu.Dispose(); tips.Dispose(); foreach (var font in ownedFonts) font.Dispose(); }
         base.Dispose(disposing);
     }
     protected override void WndProc(ref Forms.Message message)

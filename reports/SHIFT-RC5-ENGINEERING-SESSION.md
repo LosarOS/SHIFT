@@ -68,3 +68,50 @@
 - CI https://github.com/LosarOS/SHIFT/actions/runs/40958457986, head `fdd67b5`: Linux/Windows **375/375**, Windows publish и compact/consent UIA прошли. Studio seed с Cascadia Mono теперь прошёл; copy appearance cancel/save проверены на реальном EXE.
 - Первый Ctrl+S сохранил ожидаемую заметку, Shift+F10 показал настоящее меню в Desktop Mode. Прогон остановился при немедленном повторном SetFocus после Escape (`Target element cannot receive focus`, Smoke-Studio.ps1:199). Само сочетание не заменялось программным вызовом функции.
 - Probe теперь заново получает editor peer, дожидается keyboard-focusable/enabled, foreground HWND и PID, затем посылает каждое сочетание один раз. Повторяются только проверки готовности, а не команды. Ожидается следующий полный прогон.
+
+## Контрольная точка 7 — подтверждённый native menu crash
+
+- CI https://github.com/LosarOS/SHIFT/actions/runs/40959272665, head `82da63c`: core **375/375**, publish/portable и style-copy прошли; повторное получение фокуса не помогло. Анализ сохранённого desktop screenshot и `studio-app-logs` показал **продуктовый дефект**, а не только готовность UIA.
+- `ContextMenuStrip.Closed` синхронно вызывал `Dispose`, пока WinForms ещё выполнял `ProcessDialogKey/SetVisibleCore` после Escape. Получен `ObjectDisposedException`; Studio безопасно отключился, основная оболочка осталась доступна. Более ранняя гипотеза о чистой readiness-гонке была неполной.
+- Меню теперь принадлежит окну виджета и переиспользуется; items освобождаются перед следующим открытием, само меню — при dispose владельца. Темизация и font lifetime обновляются вместе с окном. Синхронного dispose внутри Closed больше нет.
+- Regression открывает/закрывает меню с клавиатуры дважды, возвращает фокус, сохраняет восстановленный текст и продолжает остальные native gates. Проверки не исключены; требуется новый полный Windows прогон.
+
+## Контрольная точка 8 — меню исправлено, Save As действительно открыт
+
+- CI https://github.com/LosarOS/SHIFT/actions/runs/40960534386, head `dc99a8f`: core **375/375**, native copy/cancel/save, повторные Shift+F10/Escape, возврат фокуса и Ctrl+S прошли; Studio продолжил сценарии до sharing. Продуктовый menu crash устранён в этом прогоне.
+- На настоящем screenshot `studio-sharing-failure.png` виден системный **Save As** с фильтром JSON. Исправление filter подтверждено; текущий timeout относится к probe: owned modal HWND вложен в UIA tree владельца, а поиск смотрел только desktop children. Поиск теперь ограничен Window/#32770 среди descendants; added bounded diagnostic metadata при отказе.
+- `Clipboard.Flush()` делает явное копирование независимым от времени жизни SHIFT. Добавлен обязательный native gate: скопировать заметки без промежуточного clipboard consumer, завершить процесс, сравнить текст после выхода.
+- До успешных real save/open/installer gates RC5 остаётся неопубликованным. Старая версия RC4 и её assets сохранены.
+
+## Контрольная точка 9 — broker file dialog input
+
+- CI https://github.com/LosarOS/SHIFT/actions/runs/40961694815, head `bac5076`: все core jobs **375/375**, меню/клавиатура и предшествующие native этапы прошли. Save As найден и заполнен, но подтверждение через UIA Invoke показало системное `An outgoing call cannot be made since the application is dispatching an input-synchronous call`.
+- Screenshot и metadata подтвердили отдельный picker process внутри UIA subtree SHIFT. Это ограничение синхронного automation/BM_CLICK call-out в broker, не доказательство отказа обычного пользовательского клика.
+- Probe теперь ищет только file dialogs внутри конкретного SHIFT owner tree, устанавливает путь в owned data и ждёт foreground HWND + filename focus + picker PID; затем один раз отправляет обычный Enter. Команда/путь не интерпретируются оболочкой. Сохранение, открытие и сравнение байтов остаются обязательными.
+
+## Контрольная точка 10 — ввод имени файла
+
+- CI https://github.com/LosarOS/SHIFT/actions/runs/40962766920, head `f69320a`: core **375/375**, предшествующие native этапы прошли. Broker dialog принял Enter и закрылся вместе с export dialog, но ожидаемый файл по заданному тестовому пути не появился. Результат не объявлялся успешным.
+- Для проверки shell filename model probe теперь вводит путь обычными клавишами после Ctrl+A, экранируя метасимволы SendKeys, проверяет фактическое значение поля и только затем нажимает Enter. Убрано прямое ValuePattern/WM_SETTEXT изменение filename, которое может обходить edit notifications.
+- При `SHIFT_STARTUP_TRACE=1` локальный журнал фиксирует возвращённый picker destination, чтобы следующая диагностика различала неправильный путь, расширение и отказ записи. В обычном запуске этот trace выключен. Нужен новый реальный Windows прогон.
+
+## Контрольная точка 11 — реальное сохранение и многострочный текст
+
+- CI https://github.com/LosarOS/SHIFT/actions/runs/40963759963, head `e782075`: core **375/375** и предыдущие native этапы прошли. Обычный ввод filename исправил probe: файл профиля записан приложением в ожидаемый owned path, прочитан обратно и совпал с предпросмотром. Это уже не только показ FileSavePicker.
+- Следующий gate обнаружил продуктовый UI-дефект: Notes preview содержал лишь заголовок. WinUI получал Text до AcceptsReturn=true и обрезал всё после первого перевода строки. Helper/SQLite сохраняли полный текст; проблема была в инициализации контрола. Та же последовательность найдена в редакторах workspace description, item command/note, profile description и initial Notes.
+- Все многострочные WinUI TextBox теперь включают multiline до присвоения текста. Export/copy заметок используют исходный authoritative snapshot, а не read-back из presentation control.
+- Добавлены настоящие GUI-проверки повторного открытия/сохранения многострочного workspace description, команды и item note; Notes template и profile description также проверяются на нескольких строках. Исторический RC2 не выдаётся за реализацию этих RC5-specific gates.
+- Native сохранённый Notes-файл дополнительно сравнивается **точно** с `StudioNotesExport` по исходным состояниям; сравнение UI допускает только нормализацию CR/LF. Ни символы, ни строки не игнорируются.
+- Публикация всё ещё ожидает полный green Windows/installer прогон. Проверки отказов не удалены.
+
+## Контрольная точка 12 — многострочная core UI-регрессия
+
+- CI https://github.com/LosarOS/SHIFT/actions/runs/40965442259, head `1ef7621`: core **375/375**, publish, реальное создание/повторное открытие/сохранение многострочных описания, команды и заметки прошли. Безвредная PowerShell-команда с новой строкой и комментарием выполнилась только после consent; refusal не выполнял её.
+- После расширения fixture прежняя проверка Compact Review искала старое однострочное описание точным Name match. Приложение показало новое полное описание, поэтому ожидание старой строки корректно не выполнилось.
+- Probe теперь сравнивает с полным ожидаемым многострочным описанием (нормализует только CR/LF), сохраняя проверки отсутствия dispatch/history/marker изменений. Это согласование нового fixture, а не исключение Review-проверки.
+
+## Контрольная точка 13 — Notes экспорт подтверждён, Open variant
+
+- CI https://github.com/LosarOS/SHIFT/actions/runs/40966181849, head `c76063d`: core **375/375**, многострочные Workspace/Item/Widget Lab/Profile поля, copy/cancel/save, native меню, Note clipboard и настоящие SaveFilePicker-экспорты прошли. Полный Notes preview содержит Unicode-текст; сохранённый файл точно совпадает с authoritative export.
+- Invalid import и valid preview/cancel не записали данные. Последний импорт через файл дошёл до открытого системного Open dialog, но probe ожидал filename AutomationId1001, тогда как этот вариант использует1148. Screenshot/metadata подтвердили правильное окно и включённое поле.
+- Выбор поля теперь использует его semantic name `File name:` + Edit внутри owned file dialog, а проверка фокуса — точное совпадение RuntimeId, PID и foreground HWND. Нестабильный numeric control ID не используется; остальные ограничения сохраняются.

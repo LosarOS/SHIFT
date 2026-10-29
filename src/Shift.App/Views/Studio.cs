@@ -205,7 +205,7 @@ public sealed partial class MainWindow
         if (existing is not null) existing = studioProfiles.FirstOrDefault(p => p.Id == existing.Id) ?? throw new InvalidOperationException("Desktop profile was not found.");
         var source = existing ?? new DesktopProfile { Name = T("Новое окружение", "New environment") };
         var name = new TextBox { Text = source.Name, MaxLength = 100 };
-        var description = new TextBox { Text = source.Description, MaxLength = 2000, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap };
+        var description = new TextBox { MaxLength = 2000, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Text = source.Description };
         var workspace = new ComboBox { ItemsSource = new[] { T("Не привязан", "Not linked") }.Concat(vm.Workspaces.Select(w => w.Name)).ToArray(), SelectedIndex = source.WorkspaceId is Guid id ? Math.Max(0, vm.Workspaces.ToList().FindIndex(w => w.Id == id) + 1) : 0 };
         var automatic = new CheckBox { Content = T("Автоприменение при запуске (профили без обоев)", "Apply on dispatch (profiles without wallpaper)"), IsChecked = source.ApplyOnWorkspaceLaunch };
         var enabled = new CheckBox { Content = T("Профиль включён", "Profile enabled"), IsChecked = source.Enabled };

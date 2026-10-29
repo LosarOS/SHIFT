@@ -38,6 +38,11 @@ internal static class StudioSharingAcceptance
                 || value.Contains(w.DefinitionId.ToString(), StringComparison.OrdinalIgnoreCase))))
             throw new InvalidOperationException("Native profile export did not preserve four declarations or excluded private paths, identities and notes.");
         var noteText = await ReadOwnedText(notesPath, 8 * 1024 * 1024);
+        var noteStates = new List<WidgetRuntimeState>();
+        foreach (var instance in source.Widgets)
+            if (await store.GetWidgetStateAsync(instance.Id) is { } state) noteStates.Add(state);
+        var expectedNoteText = StudioNotesExport.Export(source, definitions, noteStates, System.Globalization.CultureInfo.GetCultureInfo("ru-RU"));
+        if (noteText != expectedNoteText) throw new InvalidOperationException("Saved Notes file differs from the complete authoritative export buffer.");
         if (!noteText.Contains("Native CI note — Unicode", StringComparison.Ordinal) || !noteText.Contains(source.Name, StringComparison.Ordinal))
             throw new InvalidOperationException("Actual note export is missing the saved Unicode text or source profile heading.");
         if ((await store.GetWidgetStateAsync(Id(4003)))?.Notes != "Native CI note — Unicode")
