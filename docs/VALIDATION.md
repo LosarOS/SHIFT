@@ -1,3 +1,11 @@
+# Validation — SHIFT RC5
+
+**VERIFIED PRERELEASE WITH DISCLOSED LIMITATIONS.** [Russian report, downloads, SHA256, screenshots and raw evidence](../reports/SHIFT-RC5-VALIDATION-RU.md). Tagged binary source `176c27040929c37058354e35aa147f5634a204ec`; **375 passed,0failed,0skipped**. [Canonical tag workflow](https://github.com/LosarOS/SHIFT/actions/runs/40968079932) passed native portable/Studio/sharing/file-picker/clipboard/installed/installer preservation gates. All six public assets were independently downloaded and matched their API digests; binary hashes matched SHA256SUMS. No stable1.0 or physical Windows10/11/DPI/accessibility acceptance is claimed.
+
+[Real screenshots](screenshots/rc5/README.md) · [Uncompleted manual acceptance protocol](studio/RC5-MANUAL-ACCEPTANCE-RU.md) · [Engineering history](../reports/SHIFT-RC5-ENGINEERING-SESSION.md).
+
+## Historical RC4 validation
+
 # Validation — SHIFT RC4
 
 **VERIFIED PRERELEASE WITH DISCLOSED LIMITATIONS.** [Russian report, downloads, exact SHA256 and repeated original-byte proof](../reports/SHIFT-RC4-VALIDATION-RU.md). Tagged binary source `ebcae08bbe4c66bf1aece9bbc811cc706fbe3c99`;296tests and native tagged gates passed. Two extra full native passes used the unchanged downloaded public binaries with corrected UIA locale selection. Physical Windows/accessibility/multi-monitor/sleep acceptance remains outstanding.
