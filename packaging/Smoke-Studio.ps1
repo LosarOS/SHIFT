@@ -87,6 +87,19 @@ function Widgets {
  $condition=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty,$process.Id)
  return @([System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children,$condition) | Where-Object {($_.Current.Name -like 'SHIFT Widget*' -or $_.Current.Name -like 'SHIFT Виджет*')})
 }
+function Focus-NotesEditor {
+ return Wait-For {
+  $window=@(Widgets | Where-Object {$_.Current.Name -like '*Notes'}) | Select-Object -First 1
+  if(-not $window){return $null}
+  $candidate=Find '' 'Note text, autosave' $window
+  if(-not $candidate -or -not $candidate.Current.IsEnabled -or -not $candidate.Current.IsKeyboardFocusable){return $null}
+  [void][StudioProbe]::SetForegroundWindow([intptr]$window.Current.NativeWindowHandle)
+  try{$candidate.SetFocus()}catch{return $null}
+  $focused=[System.Windows.Automation.AutomationElement]::FocusedElement
+  if($focused.Current.ProcessId -eq $process.Id -and [StudioProbe]::GetForegroundWindow() -eq [intptr]$window.Current.NativeWindowHandle){return $candidate}
+  return $null
+ } 'ready owned Notes keyboard focus'
+}
 function Capture([string]$Name){
  Start-Sleep -Milliseconds 500
  [void][StudioProbe]::DwmFlush()
@@ -186,8 +199,7 @@ try {
  $notes=Wait-For {@(Widgets | Where-Object {$_.Current.Name -like '*Notes'}) | Select-Object -First 1} 'keyboard Notes window'
  $editor=Wait-For {Find '' 'Note text, autosave' $notes} 'keyboard Notes editor'
  $editor.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue('RC5 keyboard note')
- [void][StudioProbe]::SetForegroundWindow([intptr]$notes.Current.NativeWindowHandle);$editor.SetFocus()
- $null=Wait-For {$focused=[System.Windows.Automation.AutomationElement]::FocusedElement;if($focused.Current.ProcessId -eq $process.Id -and [StudioProbe]::GetForegroundWindow() -eq [intptr]$notes.Current.NativeWindowHandle){$true}} 'owned widget keyboard focus'
+ $editor=Focus-NotesEditor
  [System.Windows.Forms.SendKeys]::SendWait('^s');$null=Tool 'keyboard-note-check' 'RC5 keyboard note'
  [System.Windows.Forms.SendKeys]::SendWait('+{F10}')
  $null=Wait-For {
@@ -195,8 +207,9 @@ try {
   [System.Windows.Automation.AutomationElement]::RootElement.FindFirst([System.Windows.Automation.TreeScope]::Descendants,$condition)
  } 'widget context menu from keyboard in Desktop mode'
  Capture 'desktop-keyboard-menu';[System.Windows.Forms.SendKeys]::SendWait('{ESC}')
+ $editor=Focus-NotesEditor
  $editor.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue('Native CI note — Unicode')
- $editor.SetFocus();[System.Windows.Forms.SendKeys]::SendWait('^s');$null=Tool 'keyboard-note-check' 'Native CI note — Unicode'
+ [System.Windows.Forms.SendKeys]::SendWait('^s');$null=Tool 'keyboard-note-check' 'Native CI note — Unicode'
  $checks+='widget_desktop_keyboard_save_and_menu'
  Click 'Studio.Gather';Idle-Button 'Studio.Gather';$null=Tool 'gather-check';$checks+='recovery_gather_persists_geometry';Click 'Studio.EditMode';Idle-Button 'Studio.EditMode';Start-Sleep -Seconds 2
  Apply 4

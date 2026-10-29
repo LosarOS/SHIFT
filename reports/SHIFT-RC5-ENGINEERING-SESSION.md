@@ -62,3 +62,9 @@
 - Некорректный формат даты теперь имеет код Studio.DateFormat и русскую подсказку, а не непереведённую General-ошибку. Добавлена отдельная регрессия. Ошибочное содержимое нового виджета остаётся доступным при смене типа, а проверка во время ввода не прокручивает редактор от пользователя.
 - Подготовлен ADR `docs/studio/PROFILE-TRANSFER.md` с границами доверия, atomic import и различием между конфигурацией, live snapshot и backup.
 - Предыдущий SaveFilePicker blocker ещё не объявлен исправленным: последний прогон не дошёл до него. Публикации нет.
+
+## Контрольная точка 6 — native keyboard readiness
+
+- CI https://github.com/LosarOS/SHIFT/actions/runs/40958457986, head `fdd67b5`: Linux/Windows **375/375**, Windows publish и compact/consent UIA прошли. Studio seed с Cascadia Mono теперь прошёл; copy appearance cancel/save проверены на реальном EXE.
+- Первый Ctrl+S сохранил ожидаемую заметку, Shift+F10 показал настоящее меню в Desktop Mode. Прогон остановился при немедленном повторном SetFocus после Escape (`Target element cannot receive focus`, Smoke-Studio.ps1:199). Само сочетание не заменялось программным вызовом функции.
+- Probe теперь заново получает editor peer, дожидается keyboard-focusable/enabled, foreground HWND и PID, затем посылает каждое сочетание один раз. Повторяются только проверки готовности, а не команды. Ожидается следующий полный прогон.
