@@ -44,3 +44,12 @@
 - Linux core и diagnostics прошли. Windows core: **366 passed / 1 failed / 0 skipped**. Причина воспроизведена по stack trace: финальная очистка нового теста удаляла каталог без очистки SQLite pool; Windows удерживает файл `shift.db`. Исправлено закрытие idle pools, без изменения или исключения проверяемых assertions.
 - Packaging закономерно остановился на той же обязательной core-проверке. Нативные UI-сценарии этого запуска ещё не выполнены; новый релиз не публиковался.
 - Full solution locked restore прошёл локально. NuGet advisory audit шести проектов (включая App и transitive packages) не сообщил уязвимых пакетов на дату проверки; это не доказательство отсутствия неизвестных уязвимостей.
+
+## Контрольная точка 4 — второй Windows CI и UI polish
+
+- CI https://github.com/LosarOS/SHIFT/actions/runs/40956114031, head `ddbd395`: оба core jobs прошли, **367/367**. Настоящие Windows publish, portable CRUD/Doctor/consent/compact selection/keyboard/review/refusal, native Studio до sharing, RU/EN, preset и Quick Setup прошли соответствующие этапы.
+- Выпуск остановлен на настоящем SaveFilePicker: после кнопки «Сохранить файл» системный диалог не появился, приложение показало inline error. Снимок `studio-sharing-failure.png` получен из запущенного EXE, не макет. Точный этап не объявляется PASS.
+- Исправлена конфигурация file-type filter: одиночное `.json`, суффикс `.shiftstudio` перенесён в SuggestedFileName. Добавлены журналирование исключения и ограниченный UTF-8 UIA failure dump. Подтверждение исправления ожидает новый Windows прогон.
+- Widget Lab: копирование полного оформления библиотечного виджета в draft, рамка/тень и полный reset; содержание по типам с сохранением скрытых значений. Нет новой схемы, самостоятельной базы или автоматического применения.
+- Добавлены native-проверки copy/cancel/save (включая custom font/border/shadow), Ctrl+S и Shift+F10. Новая декларация теста создаётся явно; фиксированные ожидаемые counts тестового набора обновлены на неё, проверки отмены не ослаблены.
+- Локальные сборки acceptance tool и Windows-reference App: 0 errors/0 warnings, PowerShell parser и source hygiene прошли.

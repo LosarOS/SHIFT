@@ -34,7 +34,7 @@ public sealed partial class MainWindow
             "Initial text exceeds the 2 MiB profile limit. Export the appearance without text; use the separate notes export for note content."), 13, true));
         body.Children.Add(includeNotes); body.Children.Add(output);
         body.Children.Add(Button(T("Копировать JSON", "Copy JSON"), () => CopyStudioText(output.Text), false, "Studio.Pack.Copy"));
-        await ShowStudioTextExportAsync(T("Экспорт профиля", "Export profile"), body, () => output.Text, "SHIFT-profile", ".shiftstudio.json");
+        await ShowStudioTextExportAsync(T("Экспорт профиля", "Export profile"), body, () => output.Text, "SHIFT-profile.shiftstudio", ".json");
     }
 
     private async Task ImportStudioProfileAsync()
@@ -204,7 +204,7 @@ public sealed partial class MainWindow
                 finally { if (File.Exists(temporary)) File.Delete(temporary); }
             }
             catch (Exception ex)
-            { args.Cancel = true; error.Title = T("Файл не сохранён", "File was not saved"); error.Message = s.ErrorDetails(ex); error.IsOpen = true; DispatcherQueue.TryEnqueue(() => error.StartBringIntoView()); }
+            { args.Cancel = true; log.Error("Studio file export failed", ex); error.Title = T("Файл не сохранён", "File was not saved"); error.Message = s.ErrorDetails(ex); error.IsOpen = true; DispatcherQueue.TryEnqueue(() => error.StartBringIntoView(new BringIntoViewOptions { VerticalAlignmentRatio = 1 })); }
             finally { saving = false; form.IsEnabled = true; dialog.IsPrimaryButtonEnabled = true; deferral.Complete(); }
         };
         await ShowDialogAsync(dialog);

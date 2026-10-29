@@ -42,7 +42,7 @@ if (stage == "seed")
         Kind = kind, Style = StudioTemplates.For("Midnight") with { Opacity = .85, Surface = WidgetSurface.Translucent }, Content = new() { ShowSeconds = true, InitialNotes = "Initial CI note", FocusMinutes = 1, UpdateIntervalSeconds = 1 } }));
     // A valid declaration beyond the old editor's bounds must survive an unrelated edit.
     var boundary = await store.SaveDefinitionAsync(new WidgetDefinition { Id = Id(14), Title = "Studio CI preserved", Kind = WidgetKind.Notes,
-        Style = StudioTemplates.For("Midnight") with { TemplateId = "Custom CI", CornerRadius = 64, Padding = 64, BorderWidth = 8 },
+        Style = StudioTemplates.For("Midnight") with { TemplateId = "Custom CI", CornerRadius = 64, Padding = 64, BorderWidth = 8, FontFamily = "Cascadia Mono", FontSize = 32, Shadow = false },
         Content = new() { InitialNotes = new string('Я', 20000), FocusMinutes = 1440, UpdateIntervalSeconds = 3600 } });
     await store.SaveProfileAsync(new DesktopProfile { Id = Id(199), Name = "Studio CI editor preservation",
         Widgets = [new WidgetInstance { Id = Id(19900), DefinitionId = boundary.Id, Visible = false,
@@ -76,6 +76,22 @@ else if (stage == "lab-check")
     if (Convert.ToInt32(command.ExecuteScalar()) != 4) throw new InvalidOperationException("Preview changed persisted state.");
     Console.WriteLine("LAB_SAVE_CANCEL_VERIFIED");
 }
+else if (stage is "lab-style-cancel-check" or "lab-style-save-check")
+{
+    var definitions = await store.ListDefinitionsAsync();
+    var source = definitions.Single(d => d.Id == Id(14));
+    var created = definitions.SingleOrDefault(d => d.Title == "RC5 Reused style");
+    if ((await store.ListProfilesAsync()).Count != 5 || (await store.LoadStudioSettingsAsync()).ActiveProfileId is not null)
+        throw new InvalidOperationException("Style editing changed profile data or active environment.");
+    if (stage == "lab-style-cancel-check")
+    {
+        if (definitions.Count != 5 || created is not null) throw new InvalidOperationException("Style copy cancel persisted a draft.");
+    }
+    else if (definitions.Count != 6 || created is null || created.Kind != WidgetKind.Clock || created.Style != source.Style
+        || created.Content.InitialNotes.Length != 0 || created.Content.FocusMinutes != 25 || created.Revision != 1)
+        throw new InvalidOperationException("Full custom appearance was not saved independently from source content and identity.");
+    Console.WriteLine("WIDGET_APPEARANCE_COPY_VERIFIED");
+}
 else if (stage == "inspect")
 {
     var profiles = await store.ListProfilesAsync();
@@ -104,6 +120,12 @@ else if (stage == "gather-check")
     if (instance.Layout.MonitorId != primary.DeviceId || Math.Abs(actual.X - expected.X) > 2 || Math.Abs(actual.Y - expected.Y) > 2) throw new InvalidOperationException("Gather did not persist native recovery geometry.");
     Console.WriteLine("GATHER_GEOMETRY_PERSISTED");
 }
+else if (stage == "keyboard-note-check")
+{
+    if (args.Length < 4 || (await store.GetWidgetStateAsync(Id(4003)))?.Notes != args[3])
+        throw new InvalidOperationException("Widget keyboard save did not preserve the expected note text.");
+    Console.WriteLine("WIDGET_KEYBOARD_NOTE_SAVED");
+}
 else if (stage == "timer-restart-check")
 {
     var timer = (await store.GetWidgetStateAsync(Id(5002)))?.Timer;
@@ -114,21 +136,21 @@ else if (stage == "editor-preserve-check")
 {
     var definition = (await store.ListDefinitionsAsync()).Single(d => d.Id == Id(14));
     var instance = (await store.ListProfilesAsync()).Single(p => p.Id == Id(199)).Widgets.Single();
-    if (definition.Style.TemplateId != "Custom CI" || definition.Style.CornerRadius != 64 || definition.Style.Padding != 64 || definition.Content.FocusMinutes != 1440 || definition.Content.UpdateIntervalSeconds != 3600 || definition.Content.InitialNotes != new string('Я', 20000)
+    if (definition.Style.TemplateId != "Custom CI" || definition.Style.CornerRadius != 64 || definition.Style.Padding != 64 || definition.Style.BorderWidth != 8 || definition.Style.FontFamily != "Cascadia Mono" || definition.Style.FontSize != 32 || definition.Style.Shadow || definition.Content.FocusMinutes != 1440 || definition.Content.UpdateIntervalSeconds != 3600 || definition.Content.InitialNotes != new string('Я', 20000)
         || instance.Layout.Width != 1600 || instance.Layout.Height != 1200 || instance.Layout.MonitorId != "temporarily-disconnected-ci-display" || instance.Visible)
         throw new InvalidOperationException("Editing changed valid boundary values or the unavailable display association.");
     Console.WriteLine("EDITOR_VALUES_PRESERVED");
 }
 else if (stage == "preset-cancel-check")
 {
-    if ((await store.ListProfilesAsync()).Count != 5 || (await store.ListDefinitionsAsync()).Count != 5) throw new InvalidOperationException("Preset cancel wrote data.");
+    if ((await store.ListProfilesAsync()).Count != 5 || (await store.ListDefinitionsAsync()).Count != 6) throw new InvalidOperationException("Preset cancel wrote data.");
     Console.WriteLine("PRESET_CANCEL_READONLY");
 }
 else if (stage == "preset-check")
 {
     var profiles = await store.ListProfilesAsync(); var definitions = await store.ListDefinitionsAsync();
     var created = profiles.Single(p => p.Name == "RC4 Фокус");
-    if (profiles.Count != 6 || definitions.Count != 8 || created.Wallpapers.Count != 0 || created.ApplyOnWorkspaceLaunch || created.WorkspaceId is not null || created.Widgets.Count != 3
+    if (profiles.Count != 6 || definitions.Count != 9 || created.Wallpapers.Count != 0 || created.ApplyOnWorkspaceLaunch || created.WorkspaceId is not null || created.Widgets.Count != 3
         || (await store.LoadStudioSettingsAsync()).ActiveProfileId != Id(110)) throw new InvalidOperationException("Starter preset changed the active environment or was not saved completely.");
     Console.WriteLine(JsonSerializer.Serialize(new { profile_id = created.Id, widget_count = created.Widgets.Count, no_automatic_apply = true }, json));
 }

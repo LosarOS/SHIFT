@@ -27,6 +27,8 @@ public static class StudioProbe {
 [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr h,IntPtr after,int x,int y,int w,int height,uint flags);
 [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h,uint msg,IntPtr w,IntPtr l);
 [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h,int cmd);
+[DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+[DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
 [DllImport("dwmapi.dll")] public static extern int DwmFlush();
 }
 '@
@@ -151,6 +153,14 @@ try {
  Click 'Studio.Widget.Edit.00000000-0000-4000-8000-000000000010';Set-Field 'Studio.Widget.Foreground' '#EEDDCC';Capture 'properties';Click '' 'Save'
  $null=Wait-For {Find 'Studio.Widget.Edit.00000000-0000-4000-8000-000000000010'} 'Lab save finished'
  $null=Tool 'lab-check';$checks+='lab_preview_cancel_save_no_preview_writes'
+ # Reuse a real custom style, cancel once, then save only the new library declaration.
+ foreach($saveStyle in @($false,$true)){
+  Click 'Studio.Widget.Create.Clock';Set-Field 'Studio.Widget.Title' 'RC5 Reused style'
+  Select-Value 'Studio.Widget.StyleSource' 'Studio CI preserved · Notes';Click 'Studio.Widget.CopyAppearance'
+  if($saveStyle){Capture 'widget-lab-reuse';Click '' 'Save';$null=Wait-For {Find 'Studio.Widget.Search'} 'copied style saved';$null=Tool 'lab-style-save-check'}
+  else{Click '' 'Cancel';$null=Wait-For {Find 'Studio.Widget.Search'} 'copied style cancelled';$null=Tool 'lab-style-cancel-check'}
+ }
+ $checks+='widget_lab_reuse_appearance_save_cancel'
  Click 'Studio.Tab.Profiles';Capture 'profiles'
  Click 'Studio.Profile.Edit.00000000-0000-4000-8000-000000000104';Capture 'monitors';Click '' 'Cancel'
  Apply 4
@@ -172,6 +182,22 @@ try {
  [void][StudioProbe]::GetWindowRect([intptr]$clock.Current.NativeWindowHandle,[ref]$rect)
  [void][StudioProbe]::SetWindowPos([intptr]$clock.Current.NativeWindowHandle,[intptr]::Zero,80,90,300,220,0x0014)
  Click 'Studio.DesktopMode';Idle-Button 'Studio.DesktopMode';$null=Tool 'mode-check';$checks+='mode_change_preserves_geometry'
+ # Real keyboard commands with the editor focused in the exact owned widget HWND.
+ $notes=Wait-For {@(Widgets | Where-Object {$_.Current.Name -like '*Notes'}) | Select-Object -First 1} 'keyboard Notes window'
+ $editor=Wait-For {Find '' 'Note text, autosave' $notes} 'keyboard Notes editor'
+ $editor.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue('RC5 keyboard note')
+ [void][StudioProbe]::SetForegroundWindow([intptr]$notes.Current.NativeWindowHandle);$editor.SetFocus()
+ $null=Wait-For {$focused=[System.Windows.Automation.AutomationElement]::FocusedElement;if($focused.Current.ProcessId -eq $process.Id -and [StudioProbe]::GetForegroundWindow() -eq [intptr]$notes.Current.NativeWindowHandle){$true}} 'owned widget keyboard focus'
+ [System.Windows.Forms.SendKeys]::SendWait('^s');$null=Tool 'keyboard-note-check' 'RC5 keyboard note'
+ [System.Windows.Forms.SendKeys]::SendWait('+{F10}')
+ $null=Wait-For {
+  $condition=New-Object System.Windows.Automation.AndCondition((New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty,$process.Id)),(New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty,'Save text copy…')))
+  [System.Windows.Automation.AutomationElement]::RootElement.FindFirst([System.Windows.Automation.TreeScope]::Descendants,$condition)
+ } 'widget context menu from keyboard in Desktop mode'
+ Capture 'desktop-keyboard-menu';[System.Windows.Forms.SendKeys]::SendWait('{ESC}')
+ $editor.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue('Native CI note — Unicode')
+ $editor.SetFocus();[System.Windows.Forms.SendKeys]::SendWait('^s');$null=Tool 'keyboard-note-check' 'Native CI note — Unicode'
+ $checks+='widget_desktop_keyboard_save_and_menu'
  Click 'Studio.Gather';Idle-Button 'Studio.Gather';$null=Tool 'gather-check';$checks+='recovery_gather_persists_geometry';Click 'Studio.EditMode';Idle-Button 'Studio.EditMode';Start-Sleep -Seconds 2
  Apply 4
  $notes=Wait-For {@(Widgets | Where-Object {$_.Current.Name -like '*Notes'}) | Select-Object -First 1} 'reapplied Notes window'

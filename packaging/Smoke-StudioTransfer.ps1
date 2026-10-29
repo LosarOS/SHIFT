@@ -222,6 +222,12 @@ try {
     Copy-Item -LiteralPath $proofPath -Destination (Join-Path $DiagnosticsDirectory 'studio-sharing-smoke.json')
 } catch {
     try{Capture 'failure'}catch{}
+    try{
+        $window=Main-Window
+        $names=@($window.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition) |
+            ForEach-Object {$_.Current.Name} | Where-Object {$_} | Select-Object -First 150)
+        $names | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $DiagnosticsDirectory 'studio-sharing-ui-failure.json') -Encoding UTF8
+    }catch{}
     throw
 } finally {
     # Deliberately leave only synthetic evidence in this GUID-owned data tree for the parent smoke cleanup.

@@ -72,7 +72,7 @@ jobs:
           foreach ($gate in @('compact_selection_pattern','compact_keyboard_navigation','compact_cross_field_search','compact_empty_actions','compact_review_without_dispatch','compact_keyboard_command_refusal')) {
             if ($gate -notin $portableEvidence.checks) { throw "Missing compact launcher gate: $gate" }
           }
-          foreach ($gate in @('lab_preview_cancel_save_no_preview_writes','four_real_windows_notes_timer','reapply_no_duplicate_windows','wallpaper_apply_restore','disable_reenable','restart_persistence_and_quit','mode_change_preserves_geometry','timer_restart_after_completion','russian_live_language_without_recreation','editor_preserves_boundaries_custom_style_and_missing_monitor','starter_preset_cancel_atomic_save_and_apply','russian_quick_setup_order_save_cancel','disabled_profile_stays_disabled_after_restart','recovery_gather_persists_geometry')) {
+          foreach ($gate in @('lab_preview_cancel_save_no_preview_writes','four_real_windows_notes_timer','reapply_no_duplicate_windows','wallpaper_apply_restore','disable_reenable','restart_persistence_and_quit','mode_change_preserves_geometry','timer_restart_after_completion','russian_live_language_without_recreation','editor_preserves_boundaries_custom_style_and_missing_monitor','starter_preset_cancel_atomic_save_and_apply','russian_quick_setup_order_save_cancel','disabled_profile_stays_disabled_after_restart','recovery_gather_persists_geometry','russian_profile_transfer_and_notes_export','widget_desktop_keyboard_save_and_menu','widget_lab_reuse_appearance_save_cancel')) {
             if ($gate -notin $studio.checks) { throw "Missing Studio gate: $gate" }
           }
           $report = [ordered]@{
@@ -82,7 +82,7 @@ jobs:
             core_tests = @{ total = [int]$counts.total; passed = [int]$counts.passed; failed = [int]$counts.failed; skipped = [int]$counts.notExecuted }
             locked_restore = 'passed'; windows_self_contained_publish = 'passed'
             russian_localization = 'passed'; quick_workspace_setup = 'passed'; studio_starter_presets = 'passed'
-            studio_profile_transfer = 'passed'; studio_notes_export = 'passed'; real_file_pickers_and_clipboard = 'passed'; compact_launcher_selection_and_keyboard = 'passed'
+            widget_lab_reuse_appearance = 'passed'; widget_desktop_keyboard = 'passed'; studio_profile_transfer = 'passed'; studio_notes_export = 'passed'; real_file_pickers_and_clipboard = 'passed'; compact_launcher_selection_and_keyboard = 'passed'
             studio_widgets = 'passed'; studio_wallpaper_recovery = 'passed'; actual_rc2_migration = 'passed'
             studio_alpha_attribute_verified = $studio.alpha_attribute_verified; studio_actual_alpha = $studio.actual_alpha
             portable_smoke_archive = $true
