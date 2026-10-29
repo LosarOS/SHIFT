@@ -85,6 +85,20 @@ public sealed class StudioWidgetRuntime : IWidgetRuntime
         try { if (host is { } current && !current.Exited.IsCompleted) await current.InvokeAsync(current.FlushAsync).ConfigureAwait(false); }
         finally { operations.Release(); }
     }
+    /// <summary>Reads current UI state without resolving conflicts or requiring a database write.</summary>
+    public async Task<IReadOnlyList<WidgetRuntimeState>> CaptureLiveStatesAsync(Guid profileId, CancellationToken token = default)
+    {
+        await operations.WaitAsync(token).ConfigureAwait(false);
+        try
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            if (host is not { } current || current.Exited.IsCompleted) return [];
+            IReadOnlyList<WidgetRuntimeState> captured = [];
+            await current.InvokeAsync(() => { captured = current.CaptureStates(profileId); return Task.CompletedTask; }).ConfigureAwait(false);
+            return captured;
+        }
+        finally { operations.Release(); }
+    }
     public async Task StopAsync(CancellationToken token = default)
     {
         await operations.WaitAsync(token).ConfigureAwait(false);
@@ -99,6 +113,9 @@ public sealed class StudioWidgetRuntime : IWidgetRuntime
             // If both SQLite and the recovery directory are unavailable, keep the unsaved
             // window visible rather than silently discard text. The caller displays the error.
             await current.InvokeAsync(current.StopAsync).ConfigureAwait(false);
+            // Let the final action acknowledge its task before ending the dispatcher;
+            // its async continuation must not depend on a message pump we just stopped.
+            current.RequestExit();
             await current.Exited.ConfigureAwait(false);
         }
         host = null;
@@ -203,6 +220,7 @@ internal sealed class WidgetHost
         if (control is null || control.IsDisposed) return;
         try { control.BeginInvoke(action); } catch (InvalidOperationException) { }
     }
+    public void RequestExit() => Post(() => context?.ExitThread());
     public Task InvokeAsync(Func<Task> action)
     {
         if (Exited.IsCompleted) return Task.FromException(new InvalidOperationException("Widget host has stopped."));
@@ -216,43 +234,54 @@ internal sealed class WidgetHost
             }));
         }
         catch (Exception ex) { result.TrySetException(ex); }
-        return result.Task;
+        return WidgetPresentation.AwaitHostOperationAsync(result.Task, Exited);
     }
     public async Task ApplyAsync(DesktopProfile next, IReadOnlyList<WidgetDefinition> definitions,
         IReadOnlyList<MonitorIdentity> topologySnapshot)
     {
-        await FlushAsync();
-        // Read after flush: reapplying must not recreate a note from the pre-flush revision.
-        var states = new Dictionary<Guid, WidgetRuntimeState?>();
-        foreach (var instance in next.Widgets.Where(w => w.Visible))
-            states[instance.Id] = await store.GetWidgetStateAsync(instance.Id);
-        var dictionary = definitions.ToDictionary(d => d.Id);
-        foreach (var instance in next.Widgets.Where(w => w.Visible))
-        {
-            if (!dictionary.TryGetValue(instance.DefinitionId, out var definition)) throw new InvalidDataException("Widget definition is missing.");
-            WidgetWindow.Validate(definition, instance.Layout);
-        }
-        ClosePreview();
-        foreach (var window in windows.Values) window.CloseOwned();
-        windows.Clear();
-        profile = next;
-        monitors = topologySnapshot;
+        // Input can otherwise change a note after its flush while later database reads
+        // await IO. Freeze the old and replacement windows until the hand-off completes.
+        var inputSuspensions = windows.Values.Select(w => w.SuspendInput()).ToList();
         try
         {
+            await FlushAsync();
+            // Read after flush: reapplying must not recreate a note from the pre-flush revision.
+            var states = new Dictionary<Guid, WidgetRuntimeState?>();
+            foreach (var instance in next.Widgets.Where(w => w.Visible))
+                states[instance.Id] = await store.GetWidgetStateAsync(instance.Id);
+            var dictionary = definitions.ToDictionary(d => d.Id);
             foreach (var instance in next.Widgets.Where(w => w.Visible))
             {
-                var window = CreateWindow(instance, dictionary[instance.DefinitionId], states[instance.Id], false);
-                windows.Add(instance.Id, window);
-                await window.RestoreDraftAsync();
-                window.Show();
+                if (!dictionary.TryGetValue(instance.DefinitionId, out var definition)) throw new InvalidDataException("Widget definition is missing.");
+                WidgetWindow.Validate(definition, instance.Layout);
             }
-            countChanged(windows.Count);
-            if (windows.Count > 0) scheduler!.Start(); else scheduler!.Stop();
-        }
-        catch
-        {
+            ClosePreview();
             foreach (var window in windows.Values) window.CloseOwned();
-            windows.Clear(); countChanged(0); throw;
+            windows.Clear();
+            profile = next;
+            monitors = topologySnapshot;
+            try
+            {
+                foreach (var instance in next.Widgets.Where(w => w.Visible))
+                {
+                    var window = CreateWindow(instance, dictionary[instance.DefinitionId], states[instance.Id], false);
+                    inputSuspensions.Add(window.SuspendInput());
+                    windows.Add(instance.Id, window);
+                    await window.RestoreDraftAsync();
+                    window.Show();
+                }
+                countChanged(windows.Count);
+                if (windows.Count > 0) scheduler!.Start(); else scheduler!.Stop();
+            }
+            catch
+            {
+                foreach (var window in windows.Values) window.CloseOwned();
+                windows.Clear(); countChanged(0); throw;
+            }
+        }
+        finally
+        {
+            foreach (var input in inputSuspensions) input.Dispose();
         }
     }
     private WidgetWindow CreateWindow(WidgetInstance instance, WidgetDefinition definition, WidgetRuntimeState? state, bool isPreview)
@@ -262,9 +291,11 @@ internal sealed class WidgetHost
         window.HideRequested += async (_, _) =>
         {
             await hostGate.WaitAsync();
+            IDisposable? input = null;
             try
             {
                 if (window.IsDisposed) return;
+                input = window.SuspendInput();
                 await window.FlushForCloseAsync();
                 if (isPreview) { ClosePreview(); return; }
                 if (profile is null) return;
@@ -274,7 +305,7 @@ internal sealed class WidgetHost
                 if (windows.Count == 0 && preview is null) scheduler?.Stop();
             }
             catch (Exception ex) { if (!window.IsDisposed) window.ShowError(ex); log.Error("Widget could not be hidden safely", ex); }
-            finally { hostGate.Release(); }
+            finally { input?.Dispose(); hostGate.Release(); }
         };
         return window;
     }
@@ -364,6 +395,8 @@ internal sealed class WidgetHost
         foreach (var instance in WidgetPresentation.WrittenInstances(saved, edits.Keys))
             if (windows.TryGetValue(instance.Id, out var window)) window.LayoutSaved(instance);
     }
+    public IReadOnlyList<WidgetRuntimeState> CaptureStates(Guid profileId)
+        => profile?.Id == profileId ? windows.Values.Where(w => !w.IsDisposed).Select(w => w.CaptureState()).ToArray() : [];
     public async Task FlushAsync()
     {
         foreach (var window in windows.Values.ToArray()) await window.FlushForCloseAsync();
@@ -379,11 +412,15 @@ internal sealed class WidgetHost
     public async Task StopAsync()
     {
         stopping = true; scheduler?.Stop();
-        try { await FlushAsync(); }
-        catch { stopping = false; scheduler?.Start(); throw; }
-        ClosePreview();
-        foreach (var window in windows.Values) window.CloseOwned();
-        windows.Clear(); countChanged(0);
-        context!.ExitThread();
+        var inputSuspensions = windows.Values.Select(w => w.SuspendInput()).ToArray();
+        try
+        {
+            try { await FlushAsync(); }
+            catch { stopping = false; scheduler?.Start(); throw; }
+            ClosePreview();
+            foreach (var window in windows.Values) window.CloseOwned();
+            windows.Clear(); countChanged(0);
+        }
+        finally { foreach (var input in inputSuspensions) input.Dispose(); }
     }
 }

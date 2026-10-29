@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Threading.Tasks;
 using Shift.Domain;
 
 namespace Shift.App.Studio;
@@ -9,6 +10,14 @@ namespace Shift.App.Studio;
 /// <summary>Pure text and edit merging; native windows remain responsible for rendering and persistence.</summary>
 internal static class WidgetPresentation
 {
+    public static async Task AwaitHostOperationAsync(Task operation, Task hostExited)
+    {
+        await Task.WhenAny(operation, hostExited).ConfigureAwait(false);
+        // Prefer the operation result if shutdown and acknowledgement arrived together.
+        if (!operation.IsCompleted) throw new InvalidOperationException("Widget host stopped before the operation completed.");
+        await operation.ConfigureAwait(false);
+    }
+
     public static CultureInfo Culture(string language) => CultureInfo.GetCultureInfo(language == "en" ? "en-US" : "ru-RU");
     public static string WindowTitle(string title, string language) => (language == "en" ? "SHIFT Widget — " : "SHIFT Виджет — ") + title;
     public static string Clock(DateTime local, WidgetContent content, string language)

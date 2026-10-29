@@ -45,6 +45,9 @@ internal sealed class WidgetWindow : Forms.Form
     private bool saveConflict;
     private long? conflictBaseRevision;
     private bool draftAvailable;
+    private bool resolvingConflict;
+    private int inputSuspensions;
+    private bool enabledBeforeSuspension;
     private int generation;
     private CancellationTokenSource? draftDelay;
     private Task draftWrite = Task.CompletedTask;
@@ -56,6 +59,21 @@ internal sealed class WidgetWindow : Forms.Form
     protected override Forms.CreateParams CreateParams
     {
         get { var value = base.CreateParams; value.ExStyle |= 0x00000080; if (definition is not null && definition.Style.Shadow && !Forms.SystemInformation.HighContrast) value.ClassStyle |= 0x00020000; return value; } // WS_EX_TOOLWINDOW
+    }
+    public IDisposable SuspendInput()
+    {
+        if (inputSuspensions++ == 0) { enabledBeforeSuspension = Enabled; Enabled = false; }
+        return new InputSuspension(this);
+    }
+    private sealed class InputSuspension(WidgetWindow window) : IDisposable
+    {
+        private WidgetWindow? owner = window;
+        public void Dispose()
+        {
+            var current = Interlocked.Exchange(ref owner, null);
+            if (current is not null && --current.inputSuspensions == 0 && !current.IsDisposed)
+                current.Enabled = current.enabledBeforeSuspension;
+        }
     }
     private string L(string ru, string en) => language == "en" ? en : ru;
     public WidgetWindow(WidgetInstance instance, WidgetDefinition definition, WidgetRuntimeState? saved,
@@ -196,7 +214,7 @@ internal sealed class WidgetWindow : Forms.Form
     }
     private void ShowSurfaceStatus()
     {
-        if (saveConflict) { status.Text = L("Конфликт · сохраните копию / выберите текст в меню", "Conflict · save a copy / choose text in menu"); status.Visible = true; return; }
+        if (saveConflict) { status.Text = definition.Kind == WidgetKind.Notes ? L("Конфликт · сохраните копию / выберите текст в меню", "Conflict · save a copy / choose text in menu") : L("Конфликт состояния · выберите версию в меню", "State conflict · choose a version in the menu"); status.Visible = true; return; }
         if (dirty) { status.Text = draftAvailable ? L("Локальный черновик сохранён", "Local draft retained") : L("Сохранение…", "Saving…"); status.Visible = true; return; }
         status.Text = preview ? L("Черновик: изменения не сохраняются", "Draft: changes are not saved")
             : definition.Style.Surface is WidgetSurface.Acrylic or WidgetSurface.Mica
@@ -259,7 +277,7 @@ internal sealed class WidgetWindow : Forms.Form
     public bool MetricsDue(DateTimeOffset now) => definition.Kind == WidgetKind.SystemMonitor && DisplayActive && now >= nextUpdate;
     public async Task TickAsync(DateTimeOffset now, SystemMetrics? metrics)
     {
-        if (IsDisposed) return;
+        if (IsDisposed || resolvingConflict) return;
         if (Forms.SystemInformation.HighContrast && Opacity != 1) { Opacity = 1; ApplyStyle(); }
         if (DisplayActive && now >= nextUpdate)
         {
@@ -318,6 +336,7 @@ internal sealed class WidgetWindow : Forms.Form
         catch (Exception ex) { ShowError(ex); log.Error("Widget recovery draft could not be written", ex); }
     }
     private WidgetRuntimeState Snapshot() => state with { Notes = notes.Text, Timer = timer.State };
+    public WidgetRuntimeState CaptureState() => Snapshot();
     private async Task WriteDraftAsync()
     {
         if (preview) return;
@@ -405,7 +424,7 @@ internal sealed class WidgetWindow : Forms.Form
     }
     public void ShowError(Exception error)
     {
-        status.Text = saveConflict ? L("Конфликт · сохраните копию / выберите текст в меню", "Conflict · save a copy / choose text in menu") : draftAvailable ? L("Не сохранено в базе · черновик сохранён, повторите", "Database save failed · draft retained, retry") : L("Не сохранено · оставьте окно открытым, сохраните копию", "Not saved · keep window open, save a copy");
+        status.Text = saveConflict ? (definition.Kind == WidgetKind.Notes ? L("Конфликт · сохраните копию / выберите текст в меню", "Conflict · save a copy / choose text in menu") : L("Конфликт состояния · выберите версию в меню", "State conflict · choose a version in the menu")) : draftAvailable ? L("Не сохранено в базе · черновик сохранён, повторите", "Database save failed · draft retained, retry") : L("Не сохранено · оставьте окно открытым, сохраните копию", "Not saved · keep window open, save a copy");
         status.Visible = true;
     }
     private void ShowMenu()
@@ -436,27 +455,78 @@ internal sealed class WidgetWindow : Forms.Form
             if (definition.Kind == WidgetKind.Notes)
             {
                 Add(L("Сохранить текст в файл…", "Save text copy…"), ExportNote);
-                if (saveConflict)
-                {
-                    AddAsync(L("Использовать текст этого окна…", "Use this window's text…"), async () =>
-                    {
-                        if (Forms.MessageBox.Show(this, L("Заменить сохранённый текст текущим черновиком?", "Replace the saved text with this draft?"), "SHIFT", Forms.MessageBoxButtons.YesNo, Forms.MessageBoxIcon.Warning) != Forms.DialogResult.Yes) return;
-                        state = await store.GetWidgetStateAsync(Instance.Id) ?? state; saveConflict = false; conflictBaseRevision = null;
-                        try { await FlushAsync(); } catch (Exception ex) { ShowError(ex); }
-                    });
-                    AddAsync(L("Оставить текст из базы…", "Keep database text…"), async () =>
-                    {
-                        if (Forms.MessageBox.Show(this, L("Отбросить локальный черновик? Сначала можно сохранить копию.", "Discard this local draft? You can save a copy first."), "SHIFT", Forms.MessageBoxButtons.YesNo, Forms.MessageBoxIcon.Warning) != Forms.DialogResult.Yes) return;
-                        state = await store.GetWidgetStateAsync(Instance.Id) ?? state; saveConflict = false; conflictBaseRevision = null;
-                        loading = true; notes.Text = state.Notes; loading = false; dirty = false;
-                        await draftGate.WaitAsync(); try { if (File.Exists(draftPath)) File.Delete(draftPath); } finally { draftGate.Release(); }
-                        ShowSurfaceStatus();
-                    });
-                }
             }
         }
+        if (!preview && saveConflict)
+        {
+            var isNote = definition.Kind == WidgetKind.Notes;
+            AddAsync(isNote ? L("Использовать текст этого окна…", "Use this window's text…")
+                : L("Использовать состояние этого виджета…", "Use this widget's state…"), async () =>
+            {
+                if (Forms.MessageBox.Show(this, isNote ? L("Заменить сохранённый текст текущим черновиком?", "Replace the saved text with this draft?")
+                    : L("Заменить сохранённое состояние текущим черновиком?", "Replace the saved widget state with this draft?"), "SHIFT", Forms.MessageBoxButtons.YesNo, Forms.MessageBoxIcon.Warning) != Forms.DialogResult.Yes) return;
+                await ResolveConflictAsync(keepCurrent: true);
+            });
+            AddAsync(isNote ? L("Оставить текст из базы…", "Keep database text…")
+                : L("Оставить состояние из базы…", "Keep database state…"), async () =>
+            {
+                if (Forms.MessageBox.Show(this, isNote ? L("Отбросить локальный черновик? Сначала можно сохранить копию.", "Discard this local draft? You can save a copy first.")
+                    : L("Отбросить локальный черновик и восстановить сохранённый таймер?", "Discard this local draft and restore the saved timer?"), "SHIFT", Forms.MessageBoxButtons.YesNo, Forms.MessageBoxIcon.Warning) != Forms.DialogResult.Yes) return;
+                await ResolveConflictAsync(keepCurrent: false);
+            });
+        }
         Add(preview ? L("Закрыть предпросмотр", "Close preview") : L("Скрыть виджет", "Hide widget"), () => HideRequested?.Invoke(this, EventArgs.Empty));
-        menu.Show(menuButton, 0, menuButton.Height);
+        if (menuButton.Visible) menu.Show(menuButton, 0, menuButton.Height);
+        else menu.Show(this, new Drawing.Point(Padding.Left, Padding.Top));
+    }
+    private async Task ResolveConflictAsync(bool keepCurrent)
+    {
+        using var input = SuspendInput();
+        resolvingConflict = true;
+        await saving.WaitAsync();
+        try
+        {
+            // Invalidate and drain delayed writes before deleting/replacing the draft. An
+            // old debounce must never resurrect text the user explicitly discarded.
+            generation++; draftDelay?.Cancel(); await draftWrite;
+            var latest = await store.GetWidgetStateAsync(Instance.Id)
+                ?? throw new InvalidOperationException(L("Сохранённое состояние удалено. Сначала сохраните копию заметки.", "The saved widget state was deleted. Save a note copy first."));
+            StudioValidator.Validate(latest);
+            state = latest;
+            if (!keepCurrent)
+            {
+                loading = true;
+                try { notes.Text = latest.Notes; timer = new FocusTimerController(latest.Timer); }
+                finally { loading = false; }
+                await draftGate.WaitAsync();
+                try { if (File.Exists(draftPath)) File.Delete(draftPath); }
+                finally { draftGate.Release(); }
+                dirty = false; draftAvailable = false;
+            }
+            else dirty = true;
+            saveConflict = false; conflictBaseRevision = null;
+            RenderReading(); UpdateTimerButtons(); ShowSurfaceStatus();
+        }
+        finally
+        {
+            saving.Release(); resolvingConflict = false;
+        }
+        if (keepCurrent) await FlushAsync();
+    }
+    protected override bool ProcessCmdKey(ref Forms.Message message, Forms.Keys keyData)
+    {
+        if (keyData is Forms.Keys.Apps || keyData == (Forms.Keys.Shift | Forms.Keys.F10))
+        { ShowMenu(); return true; }
+        if (!preview && keyData == (Forms.Keys.Control | Forms.Keys.S))
+        { _ = SaveFromShortcutAsync(); return true; }
+        if (!preview && definition.Kind == WidgetKind.Notes && keyData == (Forms.Keys.Control | Forms.Keys.Shift | Forms.Keys.S))
+        { ExportNote(); return true; }
+        return base.ProcessCmdKey(ref message, keyData);
+    }
+    private async Task SaveFromShortcutAsync()
+    {
+        try { await FlushAsync(); }
+        catch (Exception ex) { ShowError(ex); log.Error("Widget keyboard save failed", ex); }
     }
     private sealed class MenuColors(Drawing.Color background, Drawing.Color accent) : Forms.ProfessionalColorTable
     {
