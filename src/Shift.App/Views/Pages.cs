@@ -167,7 +167,7 @@ public sealed partial class MainWindow
         if (workspace.Tags.Count > 0)
             content.Children.Add(Text(string.Join("   ·   ", workspace.Tags.Take(4)), 11, color: palette.Accent));
         var usage = vm.Usage.Workspaces.FirstOrDefault(u => u.WorkspaceId == workspace.Id);
-        content.Children.Add(Text(usage is null ? s["NeverUsed"] : $"{usage.LaunchCount} {s["LaunchCount"]}  ·  {usage.LastLaunchedAt?.ToLocalTime():g}", 11, true));
+        content.Children.Add(Text(usage is null ? s["NeverUsed"] : $"{usage.LaunchCount} {s["LaunchCount"]}  ·  {s.FormatDate(usage.LastLaunchedAt)}", 11, true));
         var footer = new Grid();
         footer.ColumnDefinitions.Add(new()
         {
@@ -218,6 +218,8 @@ public sealed partial class MainWindow
         actions.Children.Add(AsyncButton(s["Edit"], () => EditWorkspaceAsync(workspace)));
         actions.Children.Add(AsyncButton(s["Doctor.Check"], () => OpenDoctorAsync(workspace), false, "Workspace.Doctor"));
         var more = new DropDownButton { Content = "···", Padding = new Thickness(15, 9, 15, 9) };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(more, T("Действия с пространством", "Workspace actions"));
+        ToolTipService.SetToolTip(more, T("Действия с пространством", "Workspace actions"));
         var menu = new MenuFlyout();
         void Menu(string label, Func<Task> action)
         {
@@ -390,7 +392,10 @@ public sealed partial class MainWindow
             retry.IsEnabled = !vm.IsLaunching;
             content.Children.Add(retry);
         }
-        return new Expander { Header = header, Content = content, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch };
+        var card = new Expander { Header = header, Content = content, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(card,
+            run.WorkspaceName + ". " + s.FormatDate(run.StartedAt) + ". " + s[run.Status.ToString()]);
+        return card;
     }
     private StackPanel RunItems(LaunchRun run)
     {

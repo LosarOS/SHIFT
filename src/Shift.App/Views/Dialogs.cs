@@ -107,7 +107,7 @@ public sealed partial class MainWindow
                 await vm.SaveAsync(candidate);
                 saved = candidate;
             }
-            catch (Exception ex) { args.Cancel = true; errors.Title = s["ValidationHint"]; errors.Message = s.ErrorDetails(ex); errors.IsOpen = true; log.Error("Workspace save failed", ex); }
+            catch (Exception ex) { args.Cancel = true; errors.Title = s["ValidationHint"]; errors.Message = s.ErrorDetails(ex); errors.IsOpen = true; errors.StartBringIntoView(); log.Error("Workspace save failed", ex); }
             finally { saving = false; dialog.IsPrimaryButtonEnabled = true; deferral.Complete(); }
         };
         if (await ShowDialogAsync(dialog) == ContentDialogResult.Primary && saved is not null)
@@ -202,7 +202,7 @@ public sealed partial class MainWindow
                 };
                 await vm.SaveAsync(updated);
             }
-            catch (Exception ex) { args.Cancel = true; errors.Title = s["ValidationHint"]; errors.Message = s.ErrorDetails(ex); errors.IsOpen = true; log.Error("Item save failed", ex); }
+            catch (Exception ex) { args.Cancel = true; errors.Title = s["ValidationHint"]; errors.Message = s.ErrorDetails(ex); errors.IsOpen = true; errors.StartBringIntoView(); log.Error("Item save failed", ex); }
             finally { saving = false; dialog.IsPrimaryButtonEnabled = true; deferral.Complete(); }
         };
         if (await ShowDialogAsync(dialog) == ContentDialogResult.Primary)
