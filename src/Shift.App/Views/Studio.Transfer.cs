@@ -193,6 +193,7 @@ public sealed partial class MainWindow
                 WinRT.Interop.InitializeWithWindow.Initialize(picker, Handle);
                 var file = await picker.PickSaveFileAsync();
                 if (file is null) { args.Cancel = true; return; }
+                if (Environment.GetEnvironmentVariable("SHIFT_STARTUP_TRACE") == "1") log.Info("Studio export destination: " + file.Path);
                 var temporary = file.Path + "." + Guid.NewGuid().ToString("N") + ".tmp";
                 try
                 {

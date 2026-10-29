@@ -88,3 +88,9 @@
 - CI https://github.com/LosarOS/SHIFT/actions/runs/40961694815, head `bac5076`: все core jobs **375/375**, меню/клавиатура и предшествующие native этапы прошли. Save As найден и заполнен, но подтверждение через UIA Invoke показало системное `An outgoing call cannot be made since the application is dispatching an input-synchronous call`.
 - Screenshot и metadata подтвердили отдельный picker process внутри UIA subtree SHIFT. Это ограничение синхронного automation/BM_CLICK call-out в broker, не доказательство отказа обычного пользовательского клика.
 - Probe теперь ищет только file dialogs внутри конкретного SHIFT owner tree, устанавливает путь в owned data и ждёт foreground HWND + filename focus + picker PID; затем один раз отправляет обычный Enter. Команда/путь не интерпретируются оболочкой. Сохранение, открытие и сравнение байтов остаются обязательными.
+
+## Контрольная точка 10 — ввод имени файла
+
+- CI https://github.com/LosarOS/SHIFT/actions/runs/40962766920, head `f69320a`: core **375/375**, предшествующие native этапы прошли. Broker dialog принял Enter и закрылся вместе с export dialog, но ожидаемый файл по заданному тестовому пути не появился. Результат не объявлялся успешным.
+- Для проверки shell filename model probe теперь вводит путь обычными клавишами после Ctrl+A, экранируя метасимволы SendKeys, проверяет фактическое значение поля и только затем нажимает Enter. Убрано прямое ValuePattern/WM_SETTEXT изменение filename, которое может обходить edit notifications.
+- При `SHIFT_STARTUP_TRACE=1` локальный журнал фиксирует возвращённый picker destination, чтобы следующая диагностика различала неправильный путь, расширение и отказ записи. В обычном запуске этот trace выключен. Нужен новый реальный Windows прогон.

@@ -116,8 +116,8 @@ function Close-Export([string]$Id){
     $null=Wait-For {-not(Find $Id)} 'export dialog dismissed'
 }
 function Complete-FilePicker([string]$Path){
-    # A real system file dialog on this disposable runner. No global keystrokes,
-    # pre-existing filenames or arbitrary owner paths are used.
+    # Real system dialog on this disposable runner. Input is sent only after
+    # owner/focus checks; no pre-existing filenames or arbitrary paths are used.
     if(-not [IO.Path]::GetFullPath($Path).StartsWith($data+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)){throw 'File picker target must belong to the owned test data.'}
     $picker=Wait-For {
         $dialogs=New-Object System.Windows.Automation.AndCondition(
@@ -136,7 +136,6 @@ function Complete-FilePicker([string]$Path){
         }
         return $null
     } 'actual system file picker'
-    $picker.filename.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($Path)
     # WinRT's broker cannot call the app back from a synchronous UIA/BM_CLICK
     # input call (RPC_E_CANTCALLOUT_ININPUTSYNCCALL). Use ordinary input, once,
     # only after validating focus and foreground in the discovered owned dialog.
@@ -147,6 +146,18 @@ function Complete-FilePicker([string]$Path){
         if($focused.Current.ProcessId -eq $picker.window.Current.ProcessId -and $focused.Current.AutomationId -eq '1001' -and [StudioSharingProbe]::GetForegroundWindow() -eq [intptr]$picker.window.Current.NativeWindowHandle){return $true}
         return $null
     } 'owned file picker keyboard focus'
+    # A direct WM_SETTEXT/ValuePattern update can bypass the shell broker's
+    # filename model. Enter text as the user would, including edit notifications.
+    $typed=New-Object Text.StringBuilder
+    foreach($character in $Path.ToCharArray()){
+        if($character -eq '{'){[void]$typed.Append('{{}')}
+        elseif($character -eq '}'){[void]$typed.Append('{}}')}
+        elseif('+^%~()[]'.Contains([string]$character)){[void]$typed.Append('{'+$character+'}')}
+        else{[void]$typed.Append($character)}
+    }
+    [System.Windows.Forms.SendKeys]::SendWait('^a')
+    [System.Windows.Forms.SendKeys]::SendWait($typed.ToString())
+    $null=Wait-For {$picker.filename.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value -ceq $Path} 'actual typed owned file path'
     [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
 }
 function Save-Export([string]$Id,[string]$Path,[string]$Expected){
