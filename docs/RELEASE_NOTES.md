@@ -13,6 +13,8 @@
 
 ## Исправления
 
+Исправлено аварийное отключение Studio после закрытия меню виджета клавишей Escape. Многострочные описания, команды, заметки и шаблоны больше не теряют строки при открытии редактора; экспорт заметок сохраняет полный исходный текст. Скопированный текст остаётся в буфере после выхода из SHIFT. Согласована проверка шрифтов/пользовательских стилей и переведена подсказка неправильного формата даты.
+
 Защищён финальный hand-off заметок при смене профиля и закрытии. Ожидающие вызовы завершаются при выходе STA; Stop подтверждается до остановки message pump. Конфликты состояния разрешаются и для Focus Timer. Версия приложения теперь берётся из общего источника. Сохранены schema2, пространства, история и подтверждение команд.
 
 ## Установка и данные
@@ -33,6 +35,6 @@ Windows Server UIA не заменяет физическую приёмку Win
 
 ## English
 
-RC5 adds strict privacy-first Studio profile packs, atomic reviewed import, current/hidden Notes text export, searchable profiles and an accessible compact launcher with multi-term search and Review without dispatch. Native widgets gain keyboard actions, safe final input hand-off and bounded host shutdown; timer-state conflicts can be resolved explicitly.
+RC5 adds strict privacy-first Studio profile packs, atomic reviewed import, current/hidden Notes text export, searchable profiles and an accessible compact launcher with multi-term search and Review without dispatch. Multiline editors retain their complete text; note exports retain their authoritative snapshot and clipboard content survives exit. Repeated widget menu Escape no longer disables Studio. Persisted fonts and custom style limits match the editor. Native widgets gain keyboard actions, safe final input hand-off and bounded host shutdown; timer-state conflicts can be resolved explicitly.
 
 Profile packs transfer configuration, never wallpaper/files/workspace links/current state or automatic consent. Initial note templates are opt-in. Existing schema2 data and command confirmation stay compatible. Back up the whole data directory before updating. Unsigned Windows x64 prerelease; physical Windows/DPI/accessibility acceptance remains separate from disposable Server UIA. See attached validation and known limitations.
