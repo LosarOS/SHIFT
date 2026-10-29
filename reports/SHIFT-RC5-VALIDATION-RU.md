@@ -4,7 +4,7 @@
 
 [Скачать RC5](https://github.com/LosarOS/SHIFT/releases/tag/v1.0.0-rc.5) · [PR18](https://github.com/LosarOS/SHIFT/pull/18) · [Tagged Windows build](https://github.com/LosarOS/SHIFT/actions/runs/40968079932) · [Инженерный журнал](SHIFT-RC5-ENGINEERING-SESSION.md) · [Независимая загрузка публичных байтов](evidence/rc5/independent-public-verification.json).
 
-**Дополнительная проверка после публикации:** на неизменённом RC5 подтверждён дефект отображения Notes после WinUI-редактора: CR-only перевод строки native-контрол отображает слитно. [Native evidence](evidence/rc5/native-notes-newline-baseline.json), [run40969409884](https://github.com/LosarOS/SHIFT/actions/runs/40969409884). Исправление RC6 проверяется отдельно; утверждение о полностью проверенной многострочности desktop Notes для RC5 не делается.
+**Дополнительная проверка после публикации:** на неизменённом RC5 подтверждён дефект отображения Notes после WinUI-редактора: CR-only перевод строки native-контрол отображает слитно. [Native evidence](evidence/rc5/native-notes-newline-baseline.json), [run40969409884](https://github.com/LosarOS/SHIFT/actions/runs/40969409884). **Исправлено в [RC6](https://github.com/LosarOS/SHIFT/releases/tag/v1.0.0-rc.6), включая новый обязательный native gate;** утверждение о полностью проверенной многострочности desktop Notes для RC5 не делается.
 
 ## 1. Executive Summary
 

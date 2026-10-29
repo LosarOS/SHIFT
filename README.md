@@ -1,9 +1,7 @@
-> **Known RC5 issue:** WinUI-edited CR-only Notes can render adjacent lines in native widgets. Confirmed against unchanged public bytes; a separately verified RC6 fix is in progress. [Evidence](reports/evidence/rc5/native-notes-newline-baseline.json).
-
 <div align="center">
 
-> **SHIFT RC5:** [Windows prerelease](https://github.com/LosarOS/SHIFT/releases/tag/v1.0.0-rc.5) · [Русский быстрый старт](docs/QUICKSTART-RU.md) · [Validation report](reports/SHIFT-RC5-VALIDATION-RU.md). Portable Studio profiles, readable Notes export, reusable widget styles and a keyboard-friendly launcher. Studio remains opt-in.
-[Installer](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.5/SHIFT-1.0.0-rc.5-win-x64-setup.exe) · [Portable](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.5/SHIFT-1.0.0-rc.5-win-x64-portable.zip) · [SHA256](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.5/SHA256SUMS.txt) · [Русский](README.ru.md)
+> **SHIFT RC6:** [Windows prerelease](https://github.com/LosarOS/SHIFT/releases/tag/v1.0.0-rc.6) · [Русский быстрый старт](docs/QUICKSTART-RU.md) · [Validation report](reports/SHIFT-RC6-VALIDATION-RU.md). Portable Studio profiles, readable Notes export, reusable widget styles and a keyboard-friendly launcher. Studio remains opt-in.
+[Installer](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.6/SHIFT-1.0.0-rc.6-win-x64-setup.exe) · [Portable](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.6/SHIFT-1.0.0-rc.6-win-x64-portable.zip) · [SHA256](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.6/SHA256SUMS.txt) · [Русский](README.ru.md)
 
 ![SHIFT — Your work. One SHIFT away.](docs/assets/shift-cover.svg)
 
@@ -15,11 +13,15 @@
 
 Bring your apps, folders, documents, projects and links into a workspace. Open your context in one action, see what happened, and move on with your day.
 
-**1.0.0-rc.5 is available as an unsigned Windows prerelease.** [Windows downloads and checksums](https://github.com/LosarOS/SHIFT/releases). Native build, portable/installed UI Automation and installer preservation have passed; publication additionally verifies the extracted distribution and GitHub-downloaded bytes. Manual Windows 10/11, accessibility and DPI acceptance remain required before stable1.0. The exact verified state is recorded in [VALIDATION](docs/VALIDATION.md). A version number is not a substitute for testing.
+**1.0.0-rc.6 is available as an unsigned Windows prerelease.** [Windows downloads and checksums](https://github.com/LosarOS/SHIFT/releases). Native build, portable/installed UI Automation and installer preservation have passed; publication additionally verifies the extracted distribution and GitHub-downloaded bytes. Manual Windows 10/11, accessibility and DPI acceptance remain required before stable1.0. The exact verified state is recorded in [VALIDATION](docs/VALIDATION.md). A version number is not a substitute for testing.
 
-![SHIFT Studio — actual Windows CI capture](docs/screenshots/rc5/studio-overview.png)
+![SHIFT Studio — actual Windows CI capture](docs/screenshots/rc6/studio-overview.png)
 
-Actual Windows runner capture with synthetic acceptance data. [Native RC5 views and exact limits](docs/screenshots/rc5/README.md).
+Actual Windows runner capture with synthetic acceptance data. [Native RC6 views and exact limits](docs/screenshots/rc6/README.md).
+
+## RC6 reliability update
+
+Native Notes now renders CR/LF/CRLF text from WinUI and imported templates correctly. The defect was reproduced against unchanged RC5 downloads; a real Windows edit-control line check verifies the fix. Existing data needs no migration.
 
 ## Designed for your working day
 

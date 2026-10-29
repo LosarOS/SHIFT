@@ -1,3 +1,13 @@
+# Validation — SHIFT RC6
+
+**VERIFIED PRERELEASE WITH DISCLOSED LIMITATIONS.** [Final Russian report, hashes, raw evidence and downloads](../reports/SHIFT-RC6-VALIDATION-RU.md). Tagged binary source `de8e744d6993b3293b55ed56675cb6472ef68fab`. **384 unique tests passed,0failed,0skipped**. [Tagged Windows workflow](https://github.com/LosarOS/SHIFT/actions/runs/40970869902) passed20Studio gates including actual native Notes line1, portable/installed/installer preservation. All6public assets were independently downloaded and matched their API digests/checksum list. Physical Windows10/11/DPI/accessibility acceptance remains outstanding; binaries are unsigned.
+
+RC6 fixes a CR-only/native Notes defect found after RC5 publication. [Unchanged RC5 baseline](../reports/evidence/rc5/native-notes-newline-baseline.json) → [fixed native HWND proof](../reports/evidence/rc6/native-notes-newline-proof.json). Prior tag/assets were preserved. [Real screenshots](screenshots/rc6/README.md).
+
+## Historical RC5 validation
+
+RC5's original gates passed; the additional native multiline regression subsequently exposed the defect above. Prefer RC6. Historical proof and limitations below are retained.
+
 # Validation — SHIFT RC5
 
 **VERIFIED PRERELEASE WITH DISCLOSED LIMITATIONS.** [Russian report, downloads, SHA256, screenshots and raw evidence](../reports/SHIFT-RC5-VALIDATION-RU.md). Tagged binary source `176c27040929c37058354e35aa147f5634a204ec`; **375 passed,0failed,0skipped**. [Canonical tag workflow](https://github.com/LosarOS/SHIFT/actions/runs/40968079932) passed native portable/Studio/sharing/file-picker/clipboard/installed/installer preservation gates. All six public assets were independently downloaded and matched their API digests; binary hashes matched SHA256SUMS. No stable1.0 or physical Windows10/11/DPI/accessibility acceptance is claimed.

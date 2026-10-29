@@ -1,5 +1,11 @@
 # План развития SHIFT
 
+## RC6 — подтверждённое исправление Notes
+
+- CR/LF/CRLF текст отображается как реальные строки native-виджета, runtime сохраняет LF без роста 20k model bound.
+- Исправление охватывает initial/recovery/database reload; девять новых тестов, всего 384.
+- Реальное unchanged-RC5 воспроизведение и новый обязательный 20-й Studio gate; [RC6 evidence](../reports/SHIFT-RC6-VALIDATION-RU.md).
+
 ## RC5 — опубликовано как prerelease
 
 - Переносимые профили Studio: строгий JSON, preview/back/cancel и атомарный импорт без запуска.

@@ -1,6 +1,6 @@
 # Studio validation matrix
 
-This file records scope, not an assertion that every row passed. Current RC5 evidence is in [the final report](../../reports/SHIFT-RC5-VALIDATION-RU.md) and attached native JSON/TRX. The [physical manual protocol](RC5-MANUAL-ACCEPTANCE-RU.md) remains uncompleted.
+This file records scope, not an assertion that every row passed. Current RC6 evidence is in [the final report](../../reports/SHIFT-RC6-VALIDATION-RU.md) and attached native JSON/TRX. The [physical manual protocol](RC5-MANUAL-ACCEPTANCE-RU.md) remains uncompleted.
 
 | Area | Automation | Outstanding manual scope |
 |---|---|---|
@@ -14,4 +14,4 @@ This file records scope, not an assertion that every row passed. Current RC5 evi
 | Installer | Existing install/start/repair/uninstall/preservation gates | Interactive Studio widgets under installed paths |
 | Accessibility | Localized labels, keyboard reachable recovery actions, high-contrast opaque fallback | DPI100/125/150/200%, large text, Narrator, transparency/reduced-motion system changes |
 
-RC5 passed its required prerelease native gates; stable1.0 remains blocked on the outstanding physical/manual matrix. A Windows Server runner is not physical Windows11 acceptance. A matching HWND alpha attribute is distinct from a full compositor/pixel/accessibility matrix. Unsigned artifacts may trigger SmartScreen.
+RC6 passed its required prerelease native gates; stable1.0 remains blocked on the outstanding physical/manual matrix. A Windows Server runner is not physical Windows11 acceptance. A matching HWND alpha attribute is distinct from a full compositor/pixel/accessibility matrix. Unsigned artifacts may trigger SmartScreen.

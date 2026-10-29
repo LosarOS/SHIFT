@@ -1,0 +1,43 @@
+{
+  "binary_source_commit": "de8e744d6993b3293b55ed56675cb6472ef68fab",
+  "archive_url": "https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.6/SHIFT-Windows-UI-Evidence.zip",
+  "archive_sha256": "00ba14e0032f7bc5b6d5479d120a4c549733d999a1c219a4ccf87ce31fcdf6ee",
+  "images": [
+    {
+      "file": "studio-overview.png",
+      "original_archive_entry": "studio-ru-overview.png",
+      "sha256": "7a0fc34765f7a9f8f4d3391d77d0097f3f4a3f4fca2586645a66cbc9dde9ae01",
+      "unaltered": true
+    },
+    {
+      "file": "native-multiline-notes.png",
+      "original_archive_entry": "studio-settings-recovery.png",
+      "sha256": "2db0829b350c65db3b95cdf98be51dd0f359e35e7a940dfb24d46ae81875ce5a",
+      "unaltered": true
+    },
+    {
+      "file": "notes-export.png",
+      "original_archive_entry": "studio-sharing-ru-notes.png",
+      "sha256": "aee21596ac704dd637792575c37f928bf7c8c2106d1f24f271f3c450b412d4cc",
+      "unaltered": true
+    },
+    {
+      "file": "studio-gallery.png",
+      "original_archive_entry": "studio-ru-gallery.png",
+      "sha256": "89898040531bfe2d824deaa3177d219bd25532c11ed49c1565a4e77e2748cb98",
+      "unaltered": true
+    },
+    {
+      "file": "compact-launcher.png",
+      "original_archive_entry": "portable-quick-launcher.png",
+      "sha256": "49d5b39042909408c8c72bf56c65c8f68b203ead81354b9471d0aac8a7d1011c",
+      "unaltered": true
+    },
+    {
+      "file": "desktop-widgets.png",
+      "original_archive_entry": "studio-desktop-clock-monitor.png",
+      "sha256": "add7942beeb4a6f60d625f15a2082b41732a71008ecf2eb7a414b268385d978c",
+      "unaltered": true
+    }
+  ]
+}

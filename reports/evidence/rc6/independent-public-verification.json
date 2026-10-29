@@ -1,0 +1,58 @@
+{
+  "release": "https://github.com/LosarOS/SHIFT/releases/tag/v1.0.0-rc.6",
+  "tag": "v1.0.0-rc.6",
+  "source_commit": "de8e744d6993b3293b55ed56675cb6472ef68fab",
+  "status": "VERIFIED PRERELEASE WITH DISCLOSED LIMITATIONS",
+  "published_assets": [
+    {
+      "name": "SHA256SUMS.txt",
+      "size": 207,
+      "sha256": "55ffcd47d768aefc43381e46d3b2eccc22bd6c575f5bc7ec1955dd59e408e5d7",
+      "url": "https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.6/SHA256SUMS.txt"
+    },
+    {
+      "name": "SHIFT-1.0.0-rc.6-win-x64-portable.zip",
+      "size": 106613701,
+      "sha256": "e627c30f3e4a3a24765337ca8e55d84cbb47794479274f3c92136caf389195cf",
+      "url": "https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.6/SHIFT-1.0.0-rc.6-win-x64-portable.zip"
+    },
+    {
+      "name": "SHIFT-1.0.0-rc.6-win-x64-setup.exe",
+      "size": 72542204,
+      "sha256": "4f893f8a05210f5ad9930f028d1288e2a92fdbe33cedefd8113f65894037eaae",
+      "url": "https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.6/SHIFT-1.0.0-rc.6-win-x64-setup.exe"
+    },
+    {
+      "name": "SHIFT-Native-Smoke-Evidence.zip",
+      "size": 5426,
+      "sha256": "ab5b5ccaba950578e28ec798cdc49dab3a2582effd72227d5abc8b4de50d91a2",
+      "url": "https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.6/SHIFT-Native-Smoke-Evidence.zip"
+    },
+    {
+      "name": "SHIFT-Windows-UI-Evidence.zip",
+      "size": 3132059,
+      "sha256": "00ba14e0032f7bc5b6d5479d120a4c549733d999a1c219a4ccf87ce31fcdf6ee",
+      "url": "https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.6/SHIFT-Windows-UI-Evidence.zip"
+    },
+    {
+      "name": "WINDOWS-VALIDATION.json",
+      "size": 1556,
+      "sha256": "ce8aa4c77f5eb1842ad9f3b750bbc5083f737cbd2d8839d123aecfe27da90fb3",
+      "url": "https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.6/WINDOWS-VALIDATION.json"
+    }
+  ],
+  "core_tests": {
+    "total": 384,
+    "skipped": 0,
+    "passed": 384,
+    "failed": 0
+  },
+  "windows_validation_workflow": "https://github.com/LosarOS/SHIFT/actions/runs/40970869902",
+  "physical_windows_acceptance": "not_verified",
+  "signature": "unsigned",
+  "public_bytes_independently_downloaded": true,
+  "source_zip_is_not_a_binary": true,
+  "native_notes_line": 1,
+  "download_verified_at_utc": "2026-10-29T23:14:12.151061+00:00",
+  "main_ci_workflow": "https://github.com/LosarOS/SHIFT/actions/runs/40970866586"
+}
