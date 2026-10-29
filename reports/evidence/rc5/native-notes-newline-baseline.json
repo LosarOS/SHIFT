@@ -1,0 +1,12 @@
+{
+  "native_line": 0,
+  "source_commit": "55505c2330bb13bd3ee21cb63da29ed6c51e140a",
+  "expected_second_line": "Second line — local only",
+  "initial_text": "Initial CI note\rSecond line — local only",
+  "binary_source_commit": "176c27040929c37058354e35aa147f5634a204ec",
+  "workflow": "https://github.com/LosarOS/SHIFT/actions/runs/40969409884",
+  "status": "failed",
+  "expected_native_line": 1,
+  "original_report_encoding": "Windows-1252 (PowerShell 5 default)",
+  "original_report_sha256": "67ab49b744752a00c5e39392b403aca934d00053e06982efd1e2c4f62e321468"
+}

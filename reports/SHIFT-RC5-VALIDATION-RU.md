@@ -1,203 +1,172 @@
-# SHIFT 1.0.0-rc.5 — технический отчёт и статус проверки
+# SHIFT 1.0.0-rc.5 — технический отчёт
 
-Контрольная точка: **2026-10-29, 21:38 UTC**. Целевая версия — `1.0.0-rc.5`; документ не объявляет выпуск опубликованным. Значения ниже относятся к указанным коммитам и прогонам, а не ко всем возможным конфигурациям Windows.
+Фактическая контрольная точка: **2026-10-29 22:51 UTC**. Binary/tag source: `176c27040929c37058354e35aa147f5634a204ec`. Статус выпуска: **VERIFIED PRERELEASE WITH DISCLOSED LIMITATIONS**. Это неподписанный prerelease; stable 1.0 не объявлен.
+
+[Скачать RC5](https://github.com/LosarOS/SHIFT/releases/tag/v1.0.0-rc.5) · [PR18](https://github.com/LosarOS/SHIFT/pull/18) · [Tagged Windows build](https://github.com/LosarOS/SHIFT/actions/runs/40968079932) · [Инженерный журнал](SHIFT-RC5-ENGINEERING-SESSION.md) · [Независимая загрузка публичных байтов](evidence/rc5/independent-public-verification.json).
+
+**Дополнительная проверка после публикации:** на неизменённом RC5 подтверждён дефект отображения Notes после WinUI-редактора: CR-only перевод строки native-контрол отображает слитно. [Native evidence](evidence/rc5/native-notes-newline-baseline.json), [run40969409884](https://github.com/LosarOS/SHIFT/actions/runs/40969409884). Исправление RC6 проверяется отдельно; утверждение о полностью проверенной многострочности desktop Notes для RC5 не делается.
 
 ## 1. Executive Summary
 
-SHIFT развивается поверх RC4: переносимые профили Studio, текстовый экспорт заметок профиля, повторное использование полного оформления в мастерской, поиск профилей и доступный компактный лаунчер. Исправлены подтверждённые расхождения валидации шрифтов/стилей и проблемы жизненного цикла native-host.
+Выпущено расширение работающего SHIFT: перенос профилей Studio, читаемый экспорт заметок, повторное использование оформления в Widget Lab, поиск профилей и доступный компактный лаунчер. Все новые действия имеют RU/EN. Исправлены подтверждённые native-дефекты меню, многострочных редакторов и рассогласованной валидации стилей.
 
-Фактический release status этой контрольной точки: **BLOCKED** — финальные Windows GUI/installer gates ещё не завершены. Состояние работы: **PARTIAL**. Это не stable 1.0 и не подтверждённый готовый prerelease.
+**375 уникальных тестов, 0 failed, 0 skipped.** Полный suite выполнен на Windows и Linux. На disposable Windows runner действительно запущены извлечённый portable EXE и установленная программа; выполнены Studio, файловые диалоги, clipboard, restart и installer preservation. Шесть опубликованных файлов повторно скачаны: размеры, API digests, SHA256SUMS, tag/source и содержимое portable проверены отдельно. Неизменённые предыдущие релизы сохранены.
 
-Последний завершённый core-прогон: **375 passed, 0 failed, 0 skipped** на Linux и Windows, commit `fdd67b51e467ffe5334081ddd61a5df0815637ac`. Последний исходный HEAD — `82da63c4b040d7a606ccc3819ce11282c9331ee9`; после предыдущего коммита изменён только PowerShell probe готовности клавиатурного фокуса, код приложения не менялся. На нём оба core jobs также прошли; Windows packaging job ещё выполняется.
-
-[PR18](https://github.com/LosarOS/SHIFT/pull/18) · [Инженерный журнал](SHIFT-RC5-ENGINEERING-SESSION.md) · [ADR переноса профилей](../docs/studio/PROFILE-TRANSFER.md) · [Инструкция на русском](../docs/STUDIO-SHARING-RU.md).
+Физическая Windows 10/11, специальные возможности, mixed DPI/multi-monitor и длительные аппаратные сценарии требуют отдельной приёмки. Эти ограничения не скрываются за зелёным CI.
 
 ## 2. Архитектура SHIFT Studio
 
-**IMPLEMENTED / PARTIAL RUNTIME VERIFIED.** Сохранены C#/.NET10, WinUI3 / Windows App SDK, SQLite и направленные слои Domain → Application → Infrastructure / Presentation. Основная оболочка остаётся WinUI; простые виджеты — управляемые native-окна в том же процессе на одном STA. Нового сервиса, Electron, обязательного WebView2 или фонового облака нет.
+**VERIFIED для перечисленных автоматических сценариев.** Сохранены C#/.NET 10, WinUI 3 / Windows App SDK, SQLite и направленные слои Domain → Application → Infrastructure / Presentation. Лёгкие виджеты работают в собственных управляемых native-окнах одного STA в процессе SHIFT. Electron, облачный backend и обязательный WebView2 не добавлены.
 
-`StudioProfileTransfer` использует собственные декларативные DTO; `StudioNotesExport` строит читаемый текст отдельно от конфигурации. Существующий `IStudioPresetStore` выполняет атомарную вставку импортируемого набора. UI отвечает за review и пользовательскую запись; SQLite не вызывается напрямую из представления. Read-only `CaptureLiveStatesAsync` отделяет фактическое состояние открытых виджетов от сохранённого состояния базы.
+`StudioProfileTransfer` отвечает за декларативный формат; `StudioNotesExport` — за читаемый снимок текста. `IStudioPresetStore` сохраняет импортируемый graph одной insert-only транзакцией. UI показывает review и вызывает application contracts, без прямого SQL. `CaptureLiveStatesAsync` получает текущий текст окон отдельно от persistence. [ADR](../docs/studio/PROFILE-TRANSFER.md).
 
-Новые функции не меняют разрешения launch coordinator, не разрешают команды и не включают Studio автоматически.
+## 3. Desktop Profiles
 
-## 3. Desktop Profiles и переносимые наборы
+**VERIFIED:** поиск по имени/описанию/Workspace; default-private экспорт; explicit InitialNotes opt-in; реальное сохранение JSON; импорт через системный Open; preview/cancel без записи; atomic save с новыми IDs без активации и изменения десяти существующих HWND.
 
-**IMPLEMENTED / PARTIAL.** На карточках профилей доступны поиск, экспорт оформления и отдельное сохранение заметок. Поиск учитывает имя, описание и название связанного Workspace.
+Формат `SHIFT.StudioProfile`, schema1, ограничен2 МиБ UTF-8, глубиной16 и64 экземплярами/используемыми определениями. Неизвестные/повторяющиеся поля, неподдерживаемые версии, enum и неверные ссылки отклоняются. UTF-8 BOM принимается, UTF-16 не угадывается. Обои/файлы/пути/monitor IDs, Workspace binding, автоприменение, current Notes/Timer state и recovery в пакет не входят. Названия и добровольно включённый начальный текст могут содержать личные сведения.
 
-Формат `SHIFT.StudioProfile`, schema1: не более **2 МиБ UTF-8**, глубина JSON16, 1–64 экземпляра и используемых определения. Проверяются неизвестные/повторяющиеся поля, enum, версии, ссылки и domain-границы. UTF-8 BOM принимается; UTF-16 не угадывается. Экспорт сохраняет общий graph определений, стили, размеры и нормализованные позиции без изменения исходных записей.
+Импорт по умолчанию готовит видимые окна к размещению на основном экране и Edit Mode, выключает topmost/click-through. Не открывает окна и не меняет Windows. Обои и autoapply не разрешаются импортом.
 
-Обои, внешние файлы и пути, monitor IDs, исходные GUID/ревизии, workspace binding, автоприменение, runtime notes/timers, consent и recovery не входят в пакет. Начальный текст шаблонов — явный opt-in, выключенный по умолчанию. Если он превышает лимит, вариант отключается с объяснением; обработчик checkbox не выбрасывает исключение в dispatcher.
+## 4. Widget Runtime
 
-Импорт показывает состав и имя, поддерживает Back/Cancel. По умолчанию видимые экземпляры раскладываются на основном экране с предупреждением при нехватке места. Save создаёт новые IDs одной insert-only транзакцией; коллизия или поздняя ошибка откатывает весь набор. Окна не открываются, активный профиль и обои не меняются. Импортированные окна подготовлены к Edit Mode, без topmost и click-through.
+**VERIFIED в native CI:** Clock, System Monitor, Notes и Focus Timer; окна0/1/5/10; отсутствие дубликатов после reapply; alpha attribute; режимы, геометрия, gather; локализация без пересоздания; restart/disable/enable/Quit. Центральный scheduler сохранён.
 
-Core/SQLite проверки — **VERIFIED**. Полный native round-trip через исправленный системный FileSavePicker и итоговый GUI-прогон — **PENDING** на этой контрольной точке.
+Финальный hand-off состояния блокирует ввод на ограниченное время; ожидающие STA-вызовы завершаются при выходе, Stop подтверждается до остановки message pump. Меню принадлежит окну и больше не Dispose-ится внутри Closed: повторные Shift+F10/Escape, возврат фокуса и Ctrl+S прошли на EXE.
 
-## 4. Widget Runtime и заметки
+**VERIFIED:** Notes export объединяет live snapshot открытых окон выбранного профиля и сохранённый текст остальных экземпляров, различает пустой текст и отсутствие состояния, помечает hidden/InitialNotes. Файл точно сравнен с authoritative buffer; clipboard проверен после Quit. Лимит8 МиБ. Неоткрытые recovery drafts исключены; текст не зашифрован. Это снимок, а не live feed или полный backup.
 
-**IMPLEMENTED / PARTIAL RUNTIME VERIFIED.** Сохраняются Clock, System Monitor, Notes и Focus Timer с существующим централизованным scheduler. Новых типов с фиктивными источниками данных нет.
-
-Экспорт заметок связывает состояние по InstanceId: два экземпляра одного определения сохраняют разные тексты. Текущий текст открытых окон выбранного активного профиля накладывается на сохранённые состояния; скрытые экземпляры используют базу. Сохранённая пустая строка не заменяется начальным текстом. При отсутствии состояния используется подписанный InitialNotes. Скрытые заметки помечаются; чужие профили и timer state не выводятся. Максимум экспорта — 8 МиБ.
-
-Это снимок на момент открытия предпросмотра, без последующего live-обновления. Неоткрытые recovery drafts в него не включаются. Файл — обычный UTF-8, буфер обмена и файл не зашифрованы. Копирование/запись выполняются только по действию пользователя.
-
-Runtime получил блокировку ввода на финальной передаче состояния, завершение ожидающих вызовов при выходе STA и подтверждение Stop до выхода message pump. Конфликт таймера можно разрешить через меню так же явно, как конфликт заметки. Эти изменения не означают, что все аппаратные sleep/crash/disk-failure сценарии уже проверены.
-
-Нативно подтверждены Ctrl+S с записью ожидаемой заметки и Shift+F10 с открытием меню. Повторная последовательность клавиатуры и полный sharing flow ещё ожидали итогового прогона.
+**IMPLEMENTED / NOT RUNTIME VERIFIED:** все варианты принудительного timer-conflict выбора и дисковых/аппаратных отказов. Их реализация не означает полную fault-матрицу.
 
 ## 5. Widget Lab
 
-**VERIFIED в перечисленных native сценариях; остальное PARTIAL.** В мастерскую добавлено копирование полного оформления другого библиотечного виджета в черновик. Копируются параметры внешнего вида, а не содержание и runtime-данные. Доступны рамка/тень и полный сброс оформления. Видимые поля содержимого зависят от типа; скрытые значения остаются в черновике.
+**VERIFIED:** полный стиль библиотечного виджета переносится в draft; Cancel не пишет данные; Save сохраняет палитру/opacity/font/border/shadow. Проверены Cascadia Mono, font32, border8, Shadow=false и предельные значения. Содержание не копируется вместе со стилем; поля по типам сохраняют скрытые значения черновика.
 
-На настоящем EXE проверены copy appearance → Cancel без изменения базы и copy appearance → Save. Fixture включает `Cascadia Mono`, font size32, border8 и Shadow=false. Сохранение определения и размещения использует существующий атомарный editor contract; применение активного профиля остаётся отдельным действием.
+Исправлена обрезка многострочного текста при WinUI TextBox.Text до AcceptsReturn. Проверены Notes template и profile description при повторном открытии/сохранении. Общий `StudioValidator.SafeFonts` используется и persistence; лимит custom TemplateId согласован100. Ошибка формата даты получила RU-подсказку. Проверка во время ввода не прокручивает редактор от пользователя.
 
-Подтверждён и устранён продуктовый дефект: domain/редактор предлагали `Cascadia Mono`, но persistence его отвергал. Второе расхождение — пользовательский TemplateId до100символов против старого storage-лимита64. Store теперь использует общий `StudioValidator.SafeFonts` и согласованный лимит100. Формат даты получил стабильный код `Studio.DateFormat` и русскую подсказку. Проверка во время ввода больше не прокручивает редактор от пользователя.
-
-Широкая двухпанельная мастерская, физические DPI и экранные дикторы отдельно не подтверждены.
+**NOT RUNTIME VERIFIED:** широкая мастерская на всех физических DPI, Narrator и переключение всех системных accessibility-настроек.
 
 ## 6. Workspace Integration
 
-**Сохранено / PARTIAL REGRESSION VERIFIED.** Профиль существует независимо от Workspace. Пользователь может запускать только приложения, применять только профиль либо отдельно включить widget-only автоприменение при dispatch. Импорт не создаёт привязку и не включает автоматическое правило. Автоматическое изменение обоев не разрешается пакетом или сохранением профиля.
+**VERIFIED в указанных regression gates:** CRUD, Doctor без dispatch, command consent/refusal, безвредная подтверждённая команда, история, tray, second instance, restart. Новая multiline-регрессия проверяет полное описание Workspace, command target и item note после повторного открытия/сохранения.
 
-Отказ или частичная ошибка оформления не создаёт повторный dispatch приложений. Команды продолжают проходить существующий consent flow. Профиль, Windows-оформление и dispatch не выдаются за одну атомарную системную транзакцию.
-
-В native portable smoke выполнены существующие CRUD/Doctor/consent проверки; полный набор физических пользовательских сценариев не заявляется пройденным.
+Compact Launcher использует настоящий ListView/SelectionPattern, поиск слов по имени/описанию/тегам, стрелки/Enter, пустое состояние и Review без dispatch/history/marker изменений. Выполнены семь дополнительных compact/multiline gates. Включение визуального профиля отдельно от приложений сохранено; ошибка оформления не повторяет запуск приложений. Успех dispatch означает принятие запроса Windows, а не готовность сторонней программы.
 
 ## 7. Windows API и ограничения
 
-**IMPLEMENTED / ограничения сохранены.** Обои меняются существующим адаптером поддерживаемого `IDesktopWallpaper`; собственные окна используют документированный Win32 interop. Нет Explorer injection, WorkerW parenting, shell extensions, elevation или изменения системных политик.
+**VERIFIED в disposable Windows Server 2025 x64, один виртуальный монитор.** Поддерживаемый `IDesktopWallpaper` применяет подтверждённые статичные локальные обои; native smoke проверяет точное восстановление. Документированный Win32 interop управляет собственными окнами. Нет WorkerW/Explorer injection, shell extensions или elevation.
 
-Always on Top выключен по умолчанию. Не обещается гарантированное положение ниже всех приложений и одновременно выше значков рабочего стола. Обычные alpha-окна не называются настоящим Acrylic/Mica: эти поверхности используют явно обозначенный fallback. Whole-window alpha влияет и на текст.
+Alpha217 при opacity0.85 подтверждена HWND attribute. Это не pixel-perfect compositor/accessibility benchmark. Mica/Acrylic имеют явно обозначенный fallback; whole-window alpha влияет и на текст. Topmost выключен по умолчанию. Гарантированное размещение между значками и всеми обычными окнами не обещается. Spotlight/slideshow provider restoration не поддерживается.
 
-Поддерживается только подтверждённое пользователем статичное оформление. Spotlight и восстановление provider/slideshow configuration не поддерживаются. Native CI — disposable Windows Server; его результаты не заменяют проверку физической Windows10/11.
+## 8. Recovery / безопасность
 
-## 8. Recovery и безопасность
+**VERIFIED:** core staged apply/cancel/rollback/conflicts и native static wallpaper apply/restore, disable/gather/restart. Перед изменением сохраняются доступное исходное состояние и durable journal. Неопределённая операция не повторяется автоматически; более поздние изменения пользователя требуют решения.
 
-**Core VERIFIED; полная fault matrix NOT VERIFIED.** Сохраняется staged apply: validation, capture, durable journal, действия Windows, результат. После сбоя операция не выполняется повторно автоматически. Откат проверяет более поздние изменения пользователя и требует явного решения при конфликте.
+Команды Workspace по-прежнему требуют отдельного consent. Импорт не содержит executable paths/JS/native host calls, не исполняет команды, не скачивает ресурсы и не повышает права. Телеметрия/платные API не добавлены. Буфер и файлы экспорта обычные, без шифрования; перед передачей нужно проверить текст.
 
-Отключить Studio, вернуть оформление и собрать окна остаются доступны из основной оболочки. Эти действия не требуют открытия мастерской. Данные виджетов и журналы не удаляются при простом отключении.
+**PARTIAL:** полная fault-isolation/crash/power/disk-failure матрица и физические shutdown/sleep сценарии. Общая оболочка оставалась доступной даже при обнаруженном до исправления menu crash. Все desktop/destructive smoke выполнялись только в ownership-guarded одноразовых каталогах CI.
 
-Импорт не запускает команды/JS и не загружает файлы по сети. Предпросмотр не является доверенным хранилищем; пользовательские названия/описание и opt-in начальный текст нужно проверить перед передачей. Секреты не должны храниться в командах, аргументах или публикуемых файлах.
+## 9. SQLite migrations и совместимость
 
-Source hygiene и dependency audit ограничены известными шаблонами/публичными advisories и не доказывают отсутствие всех уязвимостей. Полная security/crash/storage fault matrix остаётся отдельной работой.
+**VERIFIED в автоматических сценариях:** schema2 сохранена, новой миграции RC4→RC5 нет. Профили/история/настройки совместимы; atomic import не перезаписывает существующие данные, транзакция откатывается при поздней ошибке. Existing settings/history/runtime в sharing smoke остаются неизменными. Проверены upgrade данных, созданных настоящим опубликованным RC2, и current-version installer data preservation.
 
-## 9. SQLite, миграции и совместимость
+SQLite backup не включает Studio/Images и Studio/RecoveryNotes. Полная копия — весь каталог после Quit, не отдельный активный shift.db без WAL. Старый RC4 может отвергать новые допустимые style values Cascadia Mono/TemplateId65–100; downgrade требует отдельной копии данных. Удаление профиля/экземпляра удаляет его runtime-данные — сначала экспорт/backup.
 
-**VERIFIED на уровне core/указанной native migration; новая миграция не требуется.** В RC5 сохраняется schema2, новые таблицы не добавлялись. Existing workspace/settings/history, transaction/CAS/FK и backup/restore contracts сохранены.
-
-SQLite integration проверяет независимые импорты, коллизии, rollback после поздней ошибки и сохранность owner data/активного Studio-состояния. В предыдущих native этапах подтверждён upgrade данных из настоящей опубликованной RC2; это не доказательство каждого сочетания installed-upgrade.
-
-RC5 расширяет согласованную валидацию допустимых стилей. **Downgrade на RC4 может отвергнуть сохранённый Cascadia Mono или TemplateId длиннее64символов**, хотя номер схемы остаётся2. Перед обновлением сохраните весь каталог данных. Forward upgrade поддерживается; бесшовное понижение версии с такими новыми значениями не обещается.
-
-SQLite backup содержит ссылки на изображения, а не сами изображения и локальные drafts. Полная копия после выхода включает весь каталог данных, `Studio/Images`, `Studio/RecoveryNotes` и `migration-backups`.
+**NOT RUNTIME VERIFIED:** все прежние версии установщика и полный installed Studio upgrade на физических машинах.
 
 ## 10. UI/UX и RU/EN
 
-**IMPLEMENTED / частично VERIFIED нативно.** Профили имеют поиск и явные действия «Экспорт»/«Сохранить заметки»; импорт разделён на ввод и review, с предупреждениями и отменой без записи. Русская инструкция обновлена; добавлено отдельное руководство по различию оформления, текста и backup.
+**VERIFIED в CI-сценариях:** русские Studio/Quick Setup/пресеты/импорт/экспорт, real language change без пересоздания10 окон, многострочные поля, понятные inline validation errors, copy-style draft/cancel и клавиатурный список. Сохранены Dark, Light, Midnight и Forest. Ctrl+S сохраняет, Ctrl+Shift+S экспортирует отдельную Notes, Shift+F10 открывает меню.
 
-Compact Launcher использует настоящий ListView/SelectionPattern вместо декоративной рамки. Поиск сопоставляет слова из названия, описания и тегов. ↑/↓ выбирают строку, Enter запускает, Tab переводит к действиям, «Открыть детали» показывает состав без запуска. Доступные имена кнопок включают выбранное пространство; есть результат/пустое состояние.
+[Русский быстрый старт](../docs/QUICKSTART-RU.md), [перенос и заметки](../docs/STUDIO-SHARING-RU.md), [реальные снимки](../docs/screenshots/rc5/README.md). Снимки получены из Windows-приложения с синтетическими данными; генеративных подмен нет. Видимость элементов в этих кадрах не доказывает весь DPI/Narrator protocol.
 
-Native portable проверил шесть новых compact gates, включая выделение, клавиатуру, review без dispatch и безопасное отсутствие запуска при неподходящем состоянии. Точная последовательность и предыдущие failures сохраняются в инженерном журнале. Это не полная Narrator/high contrast/DPI приёмка.
+## 11. Performance
 
-В виджетах реализованы Ctrl+S, Ctrl+Shift+S для Notes и Shift+F10/клавиша меню. Действия с клавиатуры продолжают использовать обычные механизмы сохранения/подтверждения.
+**VERIFIED только как короткие измерения процесса в CI.** Working set/private bytes — MiB; CPU нормирован на всю машину, интервал около2секунд. Это не steady-state idle, battery benchmark или сравнение с физическим ПК.
 
-## 11. Производительность
+| Окон | Working set MiB | Private MiB | CPU всей машины | Sample ms |
+| --- | --- | --- | --- | --- |
+| 0 | 160.3 | 65.4 | 0.00% | 2003 |
+| 1 | 297.5 | 182.3 | 0.00% | 2001 |
+| 5 | 302.8 | 183.5 | 0.20% | 2000 |
+| 10 | 307.5 | 188.0 | 0.19% | 2010 |
 
-**NOT MEASURED для итогового RC5 на этой контрольной точке.** Нет подтверждённых финальных raw samples памяти/CPU для 0/1/5/10окон, времени открытия Lab, полного переключения профиля и физического sleep/resume. Показатели RC4 не выдаются за RC5.
+[Сырые значения](evidence/rc5/studio-performance-raw.json) · [Окружение](evidence/rc5/studio-native-environment.json).
 
-Сохранены один scheduler, обновление метрик с ограничением частоты, notes по вводу и таймер на устойчивой модели времени. Наличие этих решений не заменяет benchmark. Короткий CI process sample после полного прогона также не будет означать длительный idle/battery benchmark.
+**NOT MEASURED:** длительный idle, потребление батареи, Lab-open/profile-switch latency и физический sleep/resume. Значения не заменяются нулями.
 
-## 12. Автоматические тесты
+## 12. Tests
 
-**375 уникальных тестов: 375 passed, 0 failed, 0 skipped** на Linux и Windows в [CI40958457986](https://github.com/LosarOS/SHIFT/actions/runs/40958457986), source `fdd67b51e467ffe5334081ddd61a5df0815637ac`. Это одна suite, повторённая в двух средах: не 750 уникальных тестов. Базовый RC4 имел296; прирост RC5 — **79** тестов. Повторные запуски не суммируются.
+**375 passed / 0 failed / 0 skipped.** Это375 уникальных тестов, не сумма одинаковой suite в Linux/Windows/повторных native builds. Прирост к296 RC4: **79** — transfer/encoding/atomic integration48, Notes18, host presentation5, style compatibility7, localized date error1.
 
-Новые проверки охватывают строгий profile format, приватность, Unicode/BOM, границы, fresh IDs, общие definitions, отсутствие мутаций, атомарный rollback, notes per-instance/пустой текст/скрытые экземпляры, допустимые стили и локализованную ошибку даты.
+Финальные [PR CI](https://github.com/LosarOS/SHIFT/actions/runs/40967161106), [main CI](https://github.com/LosarOS/SHIFT/actions/runs/40968071236) и [tag build](https://github.com/LosarOS/SHIFT/actions/runs/40968079932) связываются с конкретным source. Полный suite, locked restore, publish и обязательные gates записи validation прошли для тега; [WINDOWS-VALIDATION](evidence/rc5/WINDOWS-VALIDATION.json).
 
-Текущий [CI40959272665](https://github.com/LosarOS/SHIFT/actions/runs/40959272665), source `82da63c4b040d7a606ccc3819ce11282c9331ee9`: Linux core, Windows core и diagnostics — SUCCESS на момент checkpoint; Windows-app — IN PROGRESS. До полного исхода он не считается целиком зелёным CI.
+Дополнительно выполнены локальная Windows-reference compilation0warnings/errors (только compile), PowerShell parser, source hygiene и NuGet advisory audit шести проектов/transitive packages без reported vulnerabilities на дату проверки. Это не абсолютная гарантия отсутствия уязвимостей.
 
-Locked restore, source hygiene, PowerShell parser и локальная Windows-reference C# compilation прошли соответствующие этапы. Reference compilation имела0errors/0warnings и **не считается запуском Windows EXE**. NuGet audit шести проектов с transitive packages не сообщил известных уязвимых пакетов на дату проверки.
-
-Ни один проблемный тест не исключён ради зелёного результата. Первое Windows падение нового теста было вызвано cleanup SQLite pool; исправлено освобождение idle pools, assertions не ослаблены.
+Неудачные прогоны сохранены в журнале: pool cleanup, native picker extension/probe, общий font contract, преждевременное Dispose меню и многострочные TextBox. Assertions не отключались ради зелёного CI.
 
 ## 13. Windows Runtime Validation
 
-**PARTIAL.** Следующее действительно выполнялось на disposable GitHub Actions Windows x64 runner, с изолированными тестовыми данными:
-
-| Проверка | Фактический результат на checkpoint |
+| Gate | Статус |
 | --- | --- |
-| Locked restore и375core tests на Windows | VERIFIED |
-| Self-contained WinUI publish, `resources.pri` | VERIFIED в завершённых этапах предыдущего CI |
-| Запуск настоящего извлечённого portable EXE | VERIFIED в завершённых этапах предыдущего CI |
-| Portable CRUD, Doctor, command consent/refusal | VERIFIED в завершённых native этапах |
-| Шесть новых Compact Launcher gates | VERIFIED в завершённых native этапах |
-| Upgrade из настоящего опубликованного RC2 | VERIFIED в завершённых Studio этапах |
-| Studio seed с Cascadia Mono | VERIFIED после исправления общего allowlist |
-| Copy style → Cancel/Save, font32/border8/Shadow=false | VERIFIED на настоящем EXE |
-| Ctrl+S сохраняет ожидаемый текст, Shift+F10 открывает меню | VERIFIED для указанной первой последовательности |
-| Повтор клавиатурных действий после Escape | PENDING: probe readiness исправлен, итоговый run выполняется |
-| Исправленный системный SaveFilePicker и полный sharing flow | NOT VERIFIED до достижения этапа в новом прогоне |
-| RC5 installer/start/repair/uninstall/preservation | PENDING |
-| Полная отдельная installed Studio матрица | NOT VERIFIED |
-| Физическая Windows10/11, mixedDPI, Narrator, sleep/RDP | NOT VERIFIED |
+| Locked restore /375tests / self-contained publish / resources.pri | VERIFIED |
+| Запуск EXE из распространяемого portable ZIP | VERIFIED |
+| Native core, compact, consent, multiline редакторы | VERIFIED |
+|19 Studio gates: widgets/Lab/transfer/Notes/keyboard/recovery | VERIFIED |
+| Настоящие SaveAs/Open и clipboard после выхода | VERIFIED |
+| Статичные обои: применение и точное восстановление | VERIFIED |
+| Real RC2 DB upgrade без потери Workspace/history | VERIFIED |
+| Install/shortcut/installed UI/repair/uninstall/reinstall/SQLite preservation | VERIFIED |
+| Полная отдельная installed Studio матрица | NOT RUNTIME VERIFIED |
+| Физическая Windows 10/11, mixedDPI/monitor/accessibility/sleep/RDP/fullscreen | NOT RUNTIME VERIFIED |
 
-Все тесты, меняющие desktop, разрешены только на disposable runner. Они не запускаются на настоящем профиле владельца и не удаляют `%LOCALAPPDATA%\SHIFT` пользователя. Старые RC4 evidence сохранены отдельно и не объявлены доказательством RC5.
+Проверены реальные программы, а не только Windows references на Linux. Но disposable Server UIA не является интерактивной физической Windows 11 приёмкой. [Незаполненный ручной протокол](../docs/studio/RC5-MANUAL-ACCEPTANCE-RU.md) содержит ожидаемые результаты и оставшиеся строки.
 
-Предыдущие неуспешные прогоны не скрываются:
+## 14. GitHub PR / commits
 
-- [40955664773](https://github.com/LosarOS/SHIFT/actions/runs/40955664773): Windows fixture cleanup удерживал SQLite-файл; исправлено освобождение pool.
-- [40956114031](https://github.com/LosarOS/SHIFT/actions/runs/40956114031): настоящий SaveFilePicker не открылся. Compound extension заменён на `.json`, суффикс перенесён в SuggestedFileName. Исправление ещё должно пройти этот этап.
-- [40957432770](https://github.com/LosarOS/SHIFT/actions/runs/40957432770): persistence отвергал предложенный редактором шрифт; общий style contract исправлен и проверен core/native seed.
-- [40958457986](https://github.com/LosarOS/SHIFT/actions/runs/40958457986): мгновенный `SetFocus` после Escape вызвал `Target element cannot receive focus`. Первый Ctrl+S и настоящее меню уже прошли. Новый probe ждёт readiness и отправляет каждую команду один раз; повторяются только проверки готовности.
-
-Реальные failure screenshots и UIA-логи используются для диагностики. Они не заменены макетами или генеративными изображениями. Полный финальный набор пользовательских скриншотов RC5 ещё не подтверждён.
-
-## 14. GitHub: ветка, коммиты и PR
-
-Рабочая ветка — `feature/shift-studio-rc5`; [PR18](https://github.com/LosarOS/SHIFT/pull/18). База — `00bc877adaed78cd1a9ab457fa87bd76123d09f3`; последний HEAD на момент отчёта — `82da63c4b040d7a606ccc3819ce11282c9331ee9`.
-
-Ключевые checkpoints: `43e8b33` — style reuse; `07f8cc7` — file picker filter/native tests; `fdd67b5` — согласованная style validation и375tests; `82da63c` — готовность фокуса в PowerShell probe. Итоговый merge/tag/source SHA указываются только после их фактического создания. Существующие releases/tags не заменяются; force-push в main не требуется.
-
-Субагенты работали в отдельных worktrees с разделёнными зонами ответственности; результаты интегрировались после review. Сам отчёт субагента не использовался как замена CI/native evidence.
+- [PR18](https://github.com/LosarOS/SHIFT/pull/18) объединён; head `c87adc4b0eab711632d88640263623c37388c314`, проверенный PR CI.
+- Merge/tag source `176c27040929c37058354e35aa147f5634a204ec`; tree совпал с проверенным head перед отправкой тега.
+- Annotated tag `v1.0.0-rc.5`; [tag workflow](https://github.com/LosarOS/SHIFT/actions/runs/40968079932). Отчёт/снимки добавляются отдельным docs-only PR без изменения собранного source.
+- Force-push, удаление релизов/истории и работа напрямую вmain не выполнялись. Субагенты работали в отдельных зонах; их отчёты не заменяли фактические логи.
 
 ## 15. Release artifacts
 
-**PENDING / NOT PUBLISHED для RC5.** Требуемые итоговые файлы:
+Все шесть файлов реально прикреплены к публичному prerelease и повторно скачаны независимо. Сверены ненулевые размеры, API SHA256 digests, обе записи SHA256SUMS, tag/source и validation. Portable проверен на ZIP integrity, наличие MZ/SHIFT.exe/resources.pri/portable.flag и отсутствие пользовательской DB/data.
 
-- `SHIFT-1.0.0-rc.5-win-x64-portable.zip`;
-- `SHIFT-1.0.0-rc.5-win-x64-setup.exe`;
-- `SHA256SUMS.txt`;
-- фактический `WINDOWS-VALIDATION.json`, native/UI evidence и release notes RU/EN.
+| Файл | Байт | SHA256 |
+| --- | --- | --- |
+| [SHA256SUMS.txt](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.5/SHA256SUMS.txt) | 207 | `e8a11a4486ba0b42ca59d7cf168a069c57434db98c89fffb0ecd3322a5fb680c` |
+| [SHIFT-1.0.0-rc.5-win-x64-portable.zip](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.5/SHIFT-1.0.0-rc.5-win-x64-portable.zip) | 106,613,624 | `a703d5ba6ece5de2110883dddd17c5e4dad464305e2ecb87efaa823b6a224aaa` |
+| [SHIFT-1.0.0-rc.5-win-x64-setup.exe](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.5/SHIFT-1.0.0-rc.5-win-x64-setup.exe) | 72,555,513 | `4ab162e0996791be213a0fc8fd98f630dfc40600748d643fe17d91837051d68f` |
+| [SHIFT-Native-Smoke-Evidence.zip](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.5/SHIFT-Native-Smoke-Evidence.zip) | 5,137 | `8b9da75c89d65765e05a637bd84aad5e2d23852fb13474c5f706bed76cec26ea` |
+| [SHIFT-Windows-UI-Evidence.zip](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.5/SHIFT-Windows-UI-Evidence.zip) | 3,028,924 | `16f6de55bc714ffe4c83b45d6129c5465ecf9dbf02586d8f3e200e099334976c` |
+| [WINDOWS-VALIDATION.json](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.5/WINDOWS-VALIDATION.json) | 1,504 | `f2d58165510c421cbec1d1a14eceedc69d6c6b7f69ac8be27a09d83518c7ff60` |
 
-Отдельный успешно завершённый publish внутри неуспешного общего CI не объявляется готовым дистрибутивом. Сначала должны пройти установщик и минимальные runtime gates, затем сверяются version/source commit и скачанные GitHub bytes. Размеры и SHA-256 RC5 здесь ещё не указаны: подтверждённых публичных assets нет.
-
-Бинарники планируются **неподписанными**; наличие Authenticode-подписи не заявлено. Возможны предупреждения SmartScreen.
+Бинарники **unsigned**. SmartScreen может предупреждать; отсутствие предупреждений не заявлено. Source ZIP GitHub не выдаётся за Windows-дистрибутив.
 
 ## 16. Download links
 
-**RC5: пока нет подтверждённых ссылок на публичные бинарники.** Не заменять их source ZIP, не создавать фиктивные installer URLs и не использовать RC4 checksum как RC5 checksum.
+[Установщик](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.5/SHIFT-1.0.0-rc.5-win-x64-setup.exe) · [Portable](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.5/SHIFT-1.0.0-rc.5-win-x64-portable.zip) · [Контрольные суммы](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.5/SHA256SUMS.txt) · [Весь релиз](https://github.com/LosarOS/SHIFT/releases/tag/v1.0.0-rc.5).
 
-[GitHub Releases](https://github.com/LosarOS/SHIFT/releases) · [Последний подтверждённый публичный RC4](https://github.com/LosarOS/SHIFT/releases/tag/v1.0.0-rc.4).
-
-После публикации этого раздела недостаточно обновить номер версии: необходимо повторно скачать оба RC5 файла, подтвердить ненулевой размер, SHA256, соответствие `SHA256SUMS.txt`, source/tag commit и доступность ссылок.
+Установщик — для текущего пользователя. Portable распаковать полностью в доступную для записи папку; portable.flag оставить рядом с SHIFT.exe. Перед обновлением: Quit и копия всей папки данных. [Инструкция](../docs/INSTALLATION.md).
 
 ## 17. Known Limitations
 
-- Финальные runtime/sharing/installer gates RC5 на checkpoint не завершены; release status остаётся BLOCKED.
-- Не выполнена полная физическая Windows10/11, DPI100/125/150/200%, large text, mixed-DPI multi-monitor/hotplug, Narrator/high contrast/reduced motion, sleep/resume/RDP/fullscreen/Windows+D матрица.
-- Полная отдельная installed Studio матрица не подтверждена. Server UIA не заменяет пользовательскую приёмку физической Windows11.
-- Только статичные обои с явным подтверждением; Spotlight/slideshow provider restoration не поддерживается. Автоприменение ограничено widget-only профилями.
-- Mica/Acrylic — объявленный fallback; whole-window alpha не является гарантией настоящего стекла.
-- Profile pack — конфигурация без обоев и runtime. Notes export — снимок без неоткрытых recovery drafts; это не полная резервная копия.
-- Экспорты, clipboard, SQLite, логи и backups не зашифрованы. Пользовательские тексты могут содержать личные сведения.
-- Удаление профиля/экземпляра удаляет runtime-данные. Перед удалением нужны экспорт и/или полная копия.
-- RC4 может отвергнуть новые допустимые style values RC5. Безопасный downgrade требует сохранённой отдельной копии данных.
-- Подпись отсутствует; предупреждения SmartScreen возможны. Производительность итогового RC5 пока NOT MEASURED.
+- Подтверждённый P1: CR-only текст из WinUI-редактора отображается без ожидаемого разрыва в native Notes. Исходный текст содержит CR; отдельная Windows-регрессия получила native line0 вместо1. RC6 исправляет границу отображения/хранения; его новый gate не объявляется пройденным для RC5.
+
+- Не stable1.0: физическая Windows 10/11/DPI/multi-monitor/Narrator/highcontrast/reducedmotion/sleep/RDP/fullscreen матрица не выполнена.
+- Native Studio проверен в portable; установленный core/installer проверен, полная отдельная installed Studio матрица — нет.
+- Только static wallpaper с явным подтверждением, без Spotlight/slideshow; autoapply — widget-only. Mica/Acrylic fallback не называется настоящим стеклом.
+- Profile pack — конфигурация без файлов/runtime. Notes export — снимок без неоткрытых recovery drafts. Нужна отдельная полная копия для переноса всех данных.
+- Notes/clipboard/SQLite/backups не зашифрованы; могут содержать личные сведения. Удаление профиля/экземпляра удаляет его runtime.
+- Downgrade старого RC4 может отклонить новые допустимые style values; сохраняйте отдельную копию данных.
+- Короткие process samples не подтверждают долговременную производительность. Полная fault/conflict/power matrix не проверена.
+- Нет Authenticode-подписи; предупреждения SmartScreen возможны. Готовность сторонних приложений после dispatch не гарантируется.
 
 ## 18. Roadmap следующего выпуска
 
-**P0:** завершить текущий native run, диагностировать любое падение без отключения проверок, выполнить installer/repair/uninstall/preservation и точный финальный regression. При успешных gates — merge, tag, реально собранный prerelease, повторная загрузка/проверка SHA256 и обновление этого отчёта фактическими результатами.
+**P0 перед stable:** физическая Windows 11/поддерживаемая Windows 10, DPI/accessibility/monitor/sleep/RDP, installed Studio upgrade и долгий Notes/Timer/disk-failure soak, решение о подписи. При FAIL — воспроизведение и регрессия, а не исключение строки.
 
-**P0 перед stable1.0:** физическая Windows11/поддерживаемая Windows10, DPI/accessibility/multi-monitor, sleep/RDP/fullscreen, длительный Notes/Timer/дисковый fault soak, полная installed upgrade-матрица и решение о подписи.
+**P1:** долгие raw performance measurements и time-to-Lab/profile-switch, согласованный backup managed images/recovery drafts, улучшения широкой мастерской по фактической обратной связи.
 
-**P1:** долгие raw performance measurements, широкая мастерская на разных дисплеях, улучшение backup managed resources с явной моделью согласованности и восстановления, usability по пользовательской обратной связи.
-
-**P2:** Quick Links и дополнительные безопасные действия/пресеты после основной приёмки. Arbitrary JS, Explorer hacks, скрытые платные API и elevation не добавляются ради демонстрации возможностей.
+**P2:** Quick Links и дополнительные безопасные действия/пресеты. Произвольный JS, Explorer hacks, скрытые платные API и повышение прав ради внешнего вида не планируются.

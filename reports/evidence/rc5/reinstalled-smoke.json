@@ -1,0 +1,18 @@
+{
+    "mode":  "installed",
+    "schema_version":  1,
+    "environment":  "disposable-windows-ui-automation",
+    "legacy_compact_launcher":  false,
+    "portable_smoke_archive":  false,
+    "timestamp_utc":  "2026-10-29T22:50:26.8963262Z",
+    "resumed":  true,
+    "status":  "passed",
+    "manual_acceptance":  false,
+    "checks":  [
+                   "workspace_persistence",
+                   "english_persistence",
+                   "midnight_theme_persistence",
+                   "command_proof_persistence",
+                   "graceful_exit"
+               ]
+}

@@ -1,5 +1,14 @@
 # План развития SHIFT
 
+## RC5 — опубликовано как prerelease
+
+- Переносимые профили Studio: строгий JSON, preview/back/cancel и атомарный импорт без запуска.
+- Полный Notes export в UTF-8/clipboard, включая текущие открытые и сохранённые скрытые заметки.
+- Повторное использование оформления в мастерской, рамка/тень, сохранение многострочного содержимого.
+- Доступный Compact Launcher: выделение, поиск по словам/тегам, просмотр без запуска.
+- Native lifecycle/menu fixes, единый style contract, RU/EN новых действий.
+- **375 уникальных тестов** и реальные tagged portable/installed/Studio/installer gates. [RC5 evidence](../reports/SHIFT-RC5-VALIDATION-RU.md).
+
 ## RC4 — реализовано
 
 - Локальные пространства: CRUD, clone, избранное, теги, поиск, пять типов элементов, последовательный запуск, отмена и command consent.

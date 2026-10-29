@@ -1,0 +1,18 @@
+{
+  "environment": "disposable-windows-ui-automation",
+  "schema_version": 1,
+  "version": "1.0.0-rc.5",
+  "status": "passed",
+  "manual_acceptance": false,
+  "checks": [
+    "per_user_install",
+    "start_menu_shortcut",
+    "installed_ui",
+    "in_place_same_version_reinstall",
+    "uninstall",
+    "registry_cleanup",
+    "reinstall",
+    "saved_workspace_settings",
+    "sqlite_sha256_preservation"
+  ]
+}

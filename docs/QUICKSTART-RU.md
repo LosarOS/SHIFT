@@ -2,7 +2,7 @@
 
 SHIFT хранит рабочие пространства локально и открывает выбранные приложения, файлы, папки и ссылки по порядку. Русский интерфейс включён по умолчанию; язык и тема меняются в «Настройки».
 
-В этом руководстве описаны исходники RC5. Доступность готового выпуска и фактические результаты Windows-проверок смотрите в [GitHub Releases](https://github.com/LosarOS/SHIFT/releases) и [журнале RC5](../reports/SHIFT-RC5-ENGINEERING-SESSION.md). Разработка функции не означает завершённую runtime-приёмку.
+Руководство для [RC5](https://github.com/LosarOS/SHIFT/releases/tag/v1.0.0-rc.5). [Скачать установщик](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.5/SHIFT-1.0.0-rc.5-win-x64-setup.exe) или [portable](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.5/SHIFT-1.0.0-rc.5-win-x64-portable.zip); сверяйте [SHA256](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.5/SHA256SUMS.txt). [Результаты проверки](../reports/SHIFT-RC5-VALIDATION-RU.md) относятся к disposable Windows CI и не заменяют физическую DPI/accessibility приёмку. Бинарники неподписанные.
 
 ## Первое пространство
 

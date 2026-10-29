@@ -2,7 +2,7 @@
 
 В RC5 есть два независимых действия: перенести **настройки окружения** и сохранить **текст заметок**. Они не запускают приложения, не применяют оформление Windows и не заменяют полную резервную копию данных.
 
-Статус сборки и проверки RC5: [инженерный журнал](../reports/SHIFT-RC5-ENGINEERING-SESSION.md). Готовые бинарники публикуются в [GitHub Releases](https://github.com/LosarOS/SHIFT/releases) после прохождения необходимых проверок. Этот документ описывает поведение исходников RC5; он сам по себе не является доказательством Windows runtime validation.
+Функции опубликованы в [RC5](https://github.com/LosarOS/SHIFT/releases/tag/v1.0.0-rc.5). Реальные file-picker, Notes/clipboard и import/cancel сценарии прошли на Windows runner: [технический отчёт](../reports/SHIFT-RC5-VALIDATION-RU.md). Физическая Windows10/11/DPI/accessibility матрица остаётся непроверенной.
 
 ## Экспорт профиля
 
