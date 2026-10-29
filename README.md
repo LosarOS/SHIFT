@@ -1,7 +1,9 @@
+> **Known RC5 issue:** WinUI-edited CR-only Notes can render adjacent lines in native widgets. Confirmed against unchanged public bytes; a separately verified RC6 fix is in progress. [Evidence](reports/evidence/rc5/native-notes-newline-baseline.json).
+
 <div align="center">
 
-> **SHIFT RC4:** [Windows prerelease](https://github.com/LosarOS/SHIFT/releases/tag/v1.0.0-rc.4) · [Русский быстрый старт](docs/QUICKSTART-RU.md) · [Validation report](reports/SHIFT-RC4-VALIDATION-RU.md). Quick Setup, starter environments, Russian Studio and atomic widget editing. Studio remains opt-in; physical Windows/accessibility limits are disclosed.
-[Русский быстрый старт](docs/QUICKSTART-RU.md) · [RC4 engineering journal](reports/SHIFT-RC4-ENGINEERING-SESSION.md) · [Отчёт RC4](reports/SHIFT-RC4-VALIDATION-RU.md)
+> **SHIFT RC5:** [Windows prerelease](https://github.com/LosarOS/SHIFT/releases/tag/v1.0.0-rc.5) · [Русский быстрый старт](docs/QUICKSTART-RU.md) · [Validation report](reports/SHIFT-RC5-VALIDATION-RU.md). Portable Studio profiles, readable Notes export, reusable widget styles and a keyboard-friendly launcher. Studio remains opt-in.
+[Installer](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.5/SHIFT-1.0.0-rc.5-win-x64-setup.exe) · [Portable](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.5/SHIFT-1.0.0-rc.5-win-x64-portable.zip) · [SHA256](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.5/SHA256SUMS.txt) · [Русский](README.ru.md)
 
 ![SHIFT — Your work. One SHIFT away.](docs/assets/shift-cover.svg)
 
@@ -13,21 +15,23 @@
 
 Bring your apps, folders, documents, projects and links into a workspace. Open your context in one action, see what happened, and move on with your day.
 
-**1.0.0-rc.4 is available as an unsigned Windows prerelease.** [Windows downloads and checksums](https://github.com/LosarOS/SHIFT/releases). Native build, portable/installed UI Automation and installer preservation have passed; publication additionally verifies the extracted distribution and GitHub-downloaded bytes. Manual Windows 10/11, accessibility and DPI acceptance remain required before stable1.0. The exact verified state is recorded in [VALIDATION](docs/VALIDATION.md). A version number is not a substitute for testing.
+**1.0.0-rc.5 is available as an unsigned Windows prerelease.** [Windows downloads and checksums](https://github.com/LosarOS/SHIFT/releases). Native build, portable/installed UI Automation and installer preservation have passed; publication additionally verifies the extracted distribution and GitHub-downloaded bytes. Manual Windows 10/11, accessibility and DPI acceptance remain required before stable1.0. The exact verified state is recorded in [VALIDATION](docs/VALIDATION.md). A version number is not a substitute for testing.
 
-![SHIFT Overview — actual Windows CI capture](docs/screenshots/rc2/overview.png)
+![SHIFT Studio — actual Windows CI capture](docs/screenshots/rc5/studio-overview.png)
 
-Actual Windows runner capture with synthetic acceptance data. [Doctor and other native views](docs/screenshots/rc2/README.md).
+Actual Windows runner capture with synthetic acceptance data. [Native RC5 views and exact limits](docs/screenshots/rc5/README.md).
 
 ## Designed for your working day
 
 - **Workspaces that stay yours.** Create, edit, clone, tag, search and favorite. Sort by recency, name or frequency of use.
 - **One visible launch queue.** Set order and delays; disable optional steps; cancel remaining steps. One failure does not stop the other items.
 - **Inspect before launching.** Workspace Doctor checks local paths, executable headers, URL format and shell availability without opening targets. Review warnings and jump directly to the item editor. Shortcut targets, arbitrary arguments and application readiness are explicitly unverified.
-- **A compact launcher.** Press Ctrl+K in SHIFT or opt into the Ctrl+Alt+Space global shortcut. Search a workspace and press Enter.
+- **A compact launcher.** Press Ctrl+K in SHIFT or opt into Ctrl+Alt+Space. Search across names, descriptions and tags, select with arrow keys, review without launching or press Enter with the usual command consent.
 - **History with useful detail.** Results per item, Unicode search, failure filtering, pagination, retry and local usage counts across the full database.
 - **Control over executable actions.** Review and confirm commands on every launch. Importing a workspace never starts it.
 - **Data without a service.** SQLite, versioned JSON import/export, online backups, validated restore with a safety backup and interrupted-run recovery.
+- **Studio environments.** Opt-in visual profiles, reversible static wallpaper, Clock, System Monitor, Notes and Focus Timer. Native windows, no Explorer injection.
+- **Your environment, portable.** Share reviewed Studio configuration packs without wallpaper/paths/current notes. Export actual Notes as readable text; reuse full styles in Widget Lab with preview and cancel. [Guide in Russian](docs/STUDIO-SHARING-RU.md).
 - **Windows at home.** Native WinUI controls, four palettes, RU/EN, tray, notifications, per-user startup and existing-instance activation.
 
 No account, telemetry, paid API, backend, Docker or cloud dependency. Opening a site or app can of course let that site or app access the network.

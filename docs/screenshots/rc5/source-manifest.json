@@ -1,0 +1,61 @@
+{
+  "binary_source_commit": "176c27040929c37058354e35aa147f5634a204ec",
+  "archive_url": "https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.5/SHIFT-Windows-UI-Evidence.zip",
+  "archive_sha256": "16f6de55bc714ffe4c83b45d6129c5465ecf9dbf02586d8f3e200e099334976c",
+  "images": [
+    {
+      "file": "studio-overview.png",
+      "original_archive_entry": "studio-ru-overview.png",
+      "sha256": "4ac8d79f8166c06b1bba09b0dba67a5669c424e8b83659d33081b9454b83e586",
+      "unaltered": true
+    },
+    {
+      "file": "studio-profiles.png",
+      "original_archive_entry": "studio-profiles.png",
+      "sha256": "1b117450f466e7eaa67109a146788ab9667d1cdcb32375be4fc1fa2ba34ea4db",
+      "unaltered": true
+    },
+    {
+      "file": "studio-gallery.png",
+      "original_archive_entry": "studio-ru-gallery.png",
+      "sha256": "770dcd41e42ec6601852e35949966da10de4717111df9617a58585ae1c850c01",
+      "unaltered": true
+    },
+    {
+      "file": "studio-widget-lab.png",
+      "original_archive_entry": "studio-ru-widget-lab.png",
+      "sha256": "6d73dac66cb485502a420fdfc37bfa39a318c7f80ff34ea7a7e6dea856e71f93",
+      "unaltered": true
+    },
+    {
+      "file": "desktop-widgets.png",
+      "original_archive_entry": "studio-desktop-clock-monitor.png",
+      "sha256": "4574071dd80d78c8b7d37643ae23a4eef7e0e65a08a383511ba39c3e5c766db5",
+      "unaltered": true
+    },
+    {
+      "file": "profile-export.png",
+      "original_archive_entry": "studio-sharing-ru-export.png",
+      "sha256": "0a7920e8a5a81b41ba66cb0fc30fd2978728234ea0679b2b29b3a1d821c9d934",
+      "unaltered": true
+    },
+    {
+      "file": "profile-import.png",
+      "original_archive_entry": "studio-sharing-ru-import-preview.png",
+      "sha256": "cea27581748225237eda36283ff25d0620831343639934ea0e5dc52196c725e9",
+      "unaltered": true
+    },
+    {
+      "file": "notes-export.png",
+      "original_archive_entry": "studio-sharing-ru-notes.png",
+      "sha256": "75c0593c7ab3fee6172746bddd449a6b01456891cd67e92def9de906538e2143",
+      "unaltered": true
+    },
+    {
+      "file": "compact-launcher.png",
+      "original_archive_entry": "portable-quick-launcher.png",
+      "sha256": "06b987dc1773c620deedbd2a866c03510a6e349146f463a7ebe34f9934408a94",
+      "unaltered": true
+    }
+  ]
+}

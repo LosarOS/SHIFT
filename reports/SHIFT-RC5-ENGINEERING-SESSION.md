@@ -115,3 +115,19 @@
 - CI https://github.com/LosarOS/SHIFT/actions/runs/40966181849, head `c76063d`: core **375/375**, многострочные Workspace/Item/Widget Lab/Profile поля, copy/cancel/save, native меню, Note clipboard и настоящие SaveFilePicker-экспорты прошли. Полный Notes preview содержит Unicode-текст; сохранённый файл точно совпадает с authoritative export.
 - Invalid import и valid preview/cancel не записали данные. Последний импорт через файл дошёл до открытого системного Open dialog, но probe ожидал filename AutomationId1001, тогда как этот вариант использует1148. Screenshot/metadata подтвердили правильное окно и включённое поле.
 - Выбор поля теперь использует его semantic name `File name:` + Edit внутри owned file dialog, а проверка фокуса — точное совпадение RuntimeId, PID и foreground HWND. Нестабильный numeric control ID не используется; остальные ограничения сохраняются.
+
+## Контрольная точка 14 — PR18 прошёл и объединён
+
+- Финальный PR CI [40967161106](https://github.com/LosarOS/SHIFT/actions/runs/40967161106), source `c87adc4b0eab711632d88640263623c37388c314`: все четыре jobs SUCCESS. Core — **375 passed, 0 failed, 0 skipped**, Windows и Linux; это375 уникальных тестов, а не сумма повторных запусков.
+- Реальные native gates завершены: мультирядные редакторы, повторные Shift+F10/Escape/Ctrl+S, appearance copy/cancel/save, сохранение/открытие файла через системные диалоги, полные Notes bytes, clipboard после Quit, import preview/cancel/save, сохранение десяти HWND, RC2 migration, static wallpaper apply/exact restore и disable/restart persistence.
+- Installer smoke подтвердил per-user install/shortcut, установленный UI, same-version repair, uninstall/registry cleanup, reinstall с сохранёнными Workspace/settings и неизменённым SQLite SHA256.
+- [PR18](https://github.com/LosarOS/SHIFT/pull/18) объединён 2026-10-29 22:43 UTC. Merge/tag source — `176c27040929c37058354e35aa147f5634a204ec`; его tree совпадает с проверенным head. Создан и отправлен аннотированный `v1.0.0-rc.5`; старые tags/assets не менялись.
+- Запущен канонический tagged workflow [40968079932](https://github.com/LosarOS/SHIFT/actions/runs/40968079932). На этой контрольной точке публикация и независимая загрузка публичных assets ещё ожидаются. Main CI — [40968071236](https://github.com/LosarOS/SHIFT/actions/runs/40968071236).
+- Для физической Windows/DPI/accessibility/monitor/sleep приёмки добавлен отдельный незаполненный протокол. Эти строки не выдаются за PASS по Server CI.
+
+
+## Контрольная точка 15 — публичные bytes и дополнительный P1
+
+- Tag workflow40968079932 и main CI40968071236 SUCCESS. Public RC5 prerelease опубликован; все6assets повторно скачаны и проверены: API digest/size, SHA256SUMS, source/tag, portable ZIP/MZ/PRI/clean data,19Studio gates и installer proofs. Сохранены raw reports,9неизменённых кадров и полный validation report.
+- При визуальном review обнаружено подозрение на WinUI/native CR-only interoperability. Отдельный [run40969409884](https://github.com/LosarOS/SHIFT/actions/runs/40969409884) загрузил **неизменённые** RC5 bytes и проверил реальные EM_LINEFROMCHAR. Подтверждено: initial text `Initial CI note\rSecond line — local only`, native_line0 вместо1. Прежний smoke проверял многострочный WinUI editor и storage, но не этот rendering boundary.
+- RC5 assets/tag не заменены. Known issue раскрыт; отдельная ветка RC6 добавляет нормализацию CR/LF только на native boundary и9unit-регрессий. Локально384/384; Windows fixed-binary gate ещё требуется.

@@ -6,6 +6,10 @@
 - Added profile search and readable current/hidden Notes export with live snapshot, file save and explicit clipboard actions.
 - Replaced compact launcher decoration-only selection with native ListView selection, multi-term search, Review without launch and accessible actions.
 - Fixed note edits racing final profile hand-off, queued host operations surviving STA exit and timer-state conflict recovery; added widget keyboard commands.
+- Added Widget Lab appearance reuse with draft/cancel, border/shadow editing and full appearance reset.
+- Fixed native widget menu disposal during Escape; owned menus now remain usable across repeated keyboard actions.
+- Preserved multiline workspace descriptions, commands, notes, profile descriptions and Notes templates on editor reopen/save. Notes export uses the authoritative snapshot and clipboard text survives application exit.
+- Unified persisted style validation with the editor (including Cascadia Mono and custom template IDs); localized invalid date-format guidance.
 - Centralized application version metadata and expanded native sharing/keyboard/consent/legacy RC2 migration gates.
 - Existing SQLite schema2, workspaces, history and command consent remain compatible; physical Windows/accessibility validation remains separate.
 

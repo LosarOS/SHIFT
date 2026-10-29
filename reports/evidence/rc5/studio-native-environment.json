@@ -1,0 +1,25 @@
+{
+  "source_commit": "176c27040929c37058354e35aa147f5634a204ec",
+  "upgraded_from_actual_rc2": true,
+  "original": {
+    "Wallpapers": [
+      {
+        "MonitorId": "\\\\?\\DISPLAY#MSH062E#5\u00261a097cd8\u00260\u0026UID5527112#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}",
+        "ImagePath": "C:\\Windows\\web\\wallpaper\\Windows\\img0.jpg"
+      }
+    ],
+    "Position": 4,
+    "CanRestore": true,
+    "SlideshowActive": false,
+    "Limitation": "Only static image values and position are captured. Windows Spotlight/provider configuration is not detectable or restorable through this API.",
+    "CanCompare": true
+  },
+  "wallpaper_eligible": true,
+  "limitation": null,
+  "metrics": {
+    "CpuPercent": 3.9285714285714284,
+    "TotalMemoryBytes": 17174360064,
+    "AvailableMemoryBytes": 12808630272
+  },
+  "monitor_count": 1
+}
