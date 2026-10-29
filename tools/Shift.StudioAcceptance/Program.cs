@@ -10,6 +10,11 @@ if (args.Length < 3 || !Guid.TryParse(args[2], out var owner)) throw new Argumen
 var stage = args[0]; var data = Path.GetFullPath(args[1]);
 if (!File.Exists(Path.Combine(data, ".studio-ci-owner")) || File.ReadAllText(Path.Combine(data, ".studio-ci-owner")).Trim() != owner.ToString()) throw new InvalidOperationException("Unowned test data refused.");
 var store = new SqliteStore(Path.Combine(data, "shift.db"));
+if (stage.StartsWith("sharing-", StringComparison.Ordinal))
+{
+    await StudioSharingAcceptance.RunAsync(stage, store, data);
+    return;
+}
 var json = new JsonSerializerOptions { WriteIndented = true, PropertyNameCaseInsensitive = true };
 var proofPath = Path.Combine(data, "studio-ci.json");
 var wallpaper = new WindowsWallpaperService();
