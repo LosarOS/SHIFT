@@ -50,6 +50,23 @@ public sealed partial class Strings
     }
     private static readonly (string English, string Russian)[] OperationalMessages =
     [
+        ("Studio profile file exceeds the supported size.", "Файл профиля превышает лимит 2 МиБ."),
+        ("Studio profile pack exceeds the supported size.", "Пакет профиля пуст или превышает лимит 2 МиБ."),
+        ("Unsupported Studio profile pack format or version.", "Формат или версия пакета профиля не поддерживается."),
+        ("Invalid declarative Studio profile pack.", "Некорректный JSON профиля. Проверьте версию, поля и отсутствие дубликатов."),
+        ("A Studio profile pack must contain widgets.", "Добавьте в профиль хотя бы один виджет перед экспортом."),
+        ("A Studio profile pack must contain 1–64 widgets and definitions.", "Пакет должен содержать от 1 до 64 виджетов и определений."),
+        ("Studio profile widget references are missing or ambiguous.", "В профиле отсутствует определение виджета или встречаются дублирующиеся определения."),
+        ("Studio profile pack contains invalid or duplicate definition keys.", "Пакет содержит некорректные или повторяющиеся ключи виджетов."),
+        ("Studio profile pack widget references do not match its definitions.", "Ссылки виджетов в пакете не соответствуют определениям."),
+        ("Studio profile pack appearance and content are required.", "В пакете должны быть указаны оформление и содержимое виджетов."),
+        ("Studio profile pack note privacy metadata does not match its content.", "Содержимое заметок не соответствует отметке о включении начального текста."),
+        ("Studio note export exceeds the supported record count.", "Слишком много записей для экспорта заметок."),
+        ("Studio note export contains duplicate or invalid widget definitions.", "Экспорт заметок обнаружил некорректные или повторяющиеся определения виджетов."),
+        ("Studio note export contains duplicate or invalid instance states.", "Экспорт заметок обнаружил некорректные или повторяющиеся состояния экземпляров."),
+        ("A widget definition required by this profile is missing.", "Не найдено определение виджета, необходимое этому профилю."),
+        ("Studio note export exceeds the supported size.", "Экспорт заметок превышает лимит 8 МиБ."),
+        ("Widget host has stopped.", "Фоновый поток виджетов завершился. Отключите и снова включите Studio."),
         ("A workspace launch is already in progress.", "Пространство уже запускается. Дождитесь завершения очереди."),
         ("Command execution was declined.", "Выполнение команд отклонено пользователем."),
         ("Launch cancelled before dispatch.", "Запуск отменён до отправки запроса Windows."),

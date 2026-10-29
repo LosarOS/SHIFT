@@ -128,7 +128,7 @@ try {
  if((Get-FileHash $oldZip -Algorithm SHA256).Hash.ToLowerInvariant() -ne '928545e13ec3f6b22e584723c4c3c292beb043074e7eca8f990503ed68c10a4e'){throw 'Published RC2 checksum mismatch.'}
  Expand-Archive -LiteralPath $oldZip -DestinationPath $oldRoot
  $oldApp=Join-Path $oldRoot 'SHIFT-1.0.0-rc.2-win-x64-portable'
- & powershell.exe -NoProfile -File (Join-Path $PSScriptRoot 'Smoke-Windows.ps1') -AppDirectory $oldApp -DataOwner $owner -PreserveData -DiagnosticsDirectory (Join-Path $DiagnosticsDirectory 'rc2-upgrade-baseline')
+ & powershell.exe -NoProfile -File (Join-Path $PSScriptRoot 'Smoke-Windows.ps1') -AppDirectory $oldApp -LegacyCompactLauncher -DataOwner $owner -PreserveData -DiagnosticsDirectory (Join-Path $DiagnosticsDirectory 'rc2-upgrade-baseline')
  if($LASTEXITCODE -ne 0){throw 'Actual RC2 profile preparation failed.'}
  $null=Tool 'seed' (Join-Path $oldApp 'data/shift.db')
  $proof=Get-Content (Join-Path $data 'studio-ci.json') -Raw | ConvertFrom-Json
@@ -228,6 +228,9 @@ try {
  & powershell.exe -NoProfile -File (Join-Path $PSScriptRoot 'Smoke-QuickSetup.ps1') -ShiftProcessId $process.Id -DataDirectory $data -DataOwner $owner -DiagnosticsDirectory $DiagnosticsDirectory
  if($LASTEXITCODE -ne 0){throw 'Russian Quick Setup acceptance failed.'}
  $null=Tool 'quick-check';$checks+='russian_quick_setup_order_save_cancel'
+ & powershell.exe -NoProfile -File (Join-Path $PSScriptRoot 'Smoke-StudioTransfer.ps1') -ShiftProcessId $process.Id -DataDirectory $data -DataOwner $owner -DiagnosticsDirectory $DiagnosticsDirectory
+ if($LASTEXITCODE -ne 0){throw 'Russian Studio profile transfer and notes acceptance failed.'}
+ $checks+='russian_profile_transfer_and_notes_export'
  Click 'Nav.Studio'
 
  # An explicitly disabled active profile must not reopen widgets on restart.

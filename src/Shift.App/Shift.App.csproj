@@ -18,7 +18,6 @@
     <ApplicationIcon>Assets/shift.ico</ApplicationIcon>
     <StartupObject>Shift.App.Program</StartupObject>
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
-    <Version>1.0.0-rc.3</Version>
     <AssemblyName>SHIFT</AssemblyName>
     <RootNamespace>Shift.App</RootNamespace>
     <PublishTrimmed>false</PublishTrimmed>

@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.0-rc.5 — 2026-10-29
+
+- Added strict portable Studio profile packs with private paths/runtime state excluded, preview, atomic import and explicit seed-text opt-in.
+- Added profile search and readable current/hidden Notes export with live snapshot, file save and explicit clipboard actions.
+- Replaced compact launcher decoration-only selection with native ListView selection, multi-term search, Review without launch and accessible actions.
+- Fixed note edits racing final profile hand-off, queued host operations surviving STA exit and timer-state conflict recovery; added widget keyboard commands.
+- Centralized application version metadata and expanded native sharing/keyboard/consent/legacy RC2 migration gates.
+- Existing SQLite schema2, workspaces, history and command consent remain compatible; physical Windows/accessibility validation remains separate.
+
 ## 1.0.0-rc.4 — 2026-10-27
 
 - Added explicit local shortcut workspace setup with search, selected order, preview reorder, Back preservation and safe cancellation.

@@ -27,6 +27,7 @@ New-Item -Path $DiagnosticsDirectory -ItemType Directory -Force | Out-Null
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
 Add-Type -AssemblyName System.Drawing
+Add-Type -AssemblyName System.Windows.Forms
 Add-Type -TypeDefinition @'
 using System;using System.Runtime.InteropServices;
 public static class StudioSharingProbe {
@@ -113,6 +114,37 @@ function Close-Export([string]$Id){
     Click '' 'Закрыть'
     $null=Wait-For {-not(Find $Id)} 'export dialog dismissed'
 }
+function Complete-FilePicker([string]$Path){
+    # A real system file dialog on this disposable runner. No global keystrokes,
+    # pre-existing filenames or arbitrary owner paths are used.
+    if(-not [IO.Path]::GetFullPath($Path).StartsWith($data+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)){throw 'File picker target must belong to the owned test data.'}
+    $picker=Wait-For {
+        foreach($window in [System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children,[System.Windows.Automation.Condition]::TrueCondition)){
+            if($window.Current.ClassName -ne '#32770'){continue}
+            $condition=New-Object System.Windows.Automation.AndCondition(
+                (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::AutomationIdProperty,'1001')),
+                (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::Edit)))
+            $filename=$window.FindFirst([System.Windows.Automation.TreeScope]::Descendants,$condition)
+            if($filename -and $filename.Current.IsEnabled){return @{window=$window;filename=$filename}}
+        }
+        return $null
+    } 'actual system file picker'
+    $picker.filename.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($Path)
+    $condition=New-Object System.Windows.Automation.AndCondition(
+        (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::AutomationIdProperty,'1')),
+        (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::Button)))
+    $accept=$picker.window.FindFirst([System.Windows.Automation.TreeScope]::Descendants,$condition)
+    if(-not $accept -or -not $accept.Current.IsEnabled){throw 'System picker confirm button is unavailable.'}
+    $accept.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+}
+function Save-Export([string]$Id,[string]$Path,[string]$Expected){
+    if(Test-Path -LiteralPath $Path){throw 'Refusing to overwrite existing file export fixture.'}
+    Click '' 'Сохранить файл';Complete-FilePicker $Path
+    $null=Wait-For {-not(Find $Id) -and (Test-Path -LiteralPath $Path -PathType Leaf)} 'application saved export file'
+    if([IO.File]::ReadAllText($Path) -cne $Expected){throw 'Saved export differs from the reviewed text.'}
+    $bytes=[IO.File]::ReadAllBytes($Path)
+    if($bytes.Length -ge 3 -and $bytes[0] -eq 239 -and $bytes[1] -eq 187 -and $bytes[2] -eq 191){throw 'Expected the application UTF-8 export without BOM.'}
+}
 function Open-Import {
     Click 'Studio.Profile.Import'
     $null=Wait-For {Visible 'Studio.Pack.Input'} 'Russian profile import dialog'
@@ -142,16 +174,19 @@ try {
     $choice=Wait-For {Find 'Studio.Pack.IncludeNotes'} 'initial notes opt-out'
     $choice.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Toggle()
     $null=Wait-For {(Read-Output 'Studio.Pack.Output') -ceq $defaultJson} 'privacy default restored'
-    [IO.File]::WriteAllText((Join-Path $data 'studio-sharing-export.json'),$defaultJson,(New-Object Text.UTF8Encoding($false)))
-    Capture 'ru-export';Close-Export 'Studio.Pack.Output';Assert-Environment
+    Capture 'ru-export';Click 'Studio.Pack.Copy'
+    $null=Wait-For {[System.Windows.Forms.Clipboard]::GetText() -ceq $defaultJson} 'explicit profile clipboard copy'
+    Save-Export 'Studio.Pack.Output' (Join-Path $data 'studio-sharing-export.json') $defaultJson;Assert-Environment
     $checks+='profile_export_default_privacy_and_explicit_initial_text'
 
     Click ('Studio.Profile.Notes.'+$sourceId)
     $notes=Read-Output 'Studio.Notes.Output'
     if(-not $notes.Contains('Native CI note — Unicode')){throw 'Native notes preview did not include the saved Unicode note.'}
-    [IO.File]::WriteAllText((Join-Path $data 'studio-sharing-notes.txt'),$notes,(New-Object Text.UTF8Encoding($false)))
-    Capture 'ru-notes';Close-Export 'Studio.Notes.Output';Assert-Environment
+    Capture 'ru-notes';Click 'Studio.Notes.Copy'
+    $null=Wait-For {[System.Windows.Forms.Clipboard]::GetText() -ceq $notes} 'explicit notes clipboard copy'
+    Save-Export 'Studio.Notes.Output' (Join-Path $data 'studio-sharing-notes.txt') $notes;Assert-Environment
     $checks+='saved_unicode_notes_export'
+    $checks+='real_file_picker_exports_and_clipboard'
     $null=Tool 'sharing-before'
 
     Open-Import;Set-Field 'Studio.Pack.Input' '{"Format":"unsupported"}';Click 'Studio.Pack.Review'
@@ -168,7 +203,9 @@ try {
     $null=Tool 'sharing-readonly';Assert-Environment
     $checks+='valid_import_preview_cancel_no_writes'
 
-    Open-Import;Review-Pack $defaultJson $expectedName
+    Open-Import;Click 'Studio.Pack.Choose';Complete-FilePicker (Join-Path $data 'studio-sharing-export.json')
+    $null=Wait-For {Visible 'Studio.Pack.Name'} 'file picker import reviewed'
+    Set-Field 'Studio.Pack.Name' $expectedName
     Click '' 'Сохранить'
     $null=Wait-For {-not(Find 'Studio.Pack.Name') -and (Find '' $expectedName)} 'native imported profile saved'
     $verified=(Tool 'sharing-check') | ConvertFrom-Json
@@ -179,7 +216,7 @@ try {
         profiles_added=$verified.profiles_added;definitions_added=$verified.definitions_added
         existing_data_unchanged=$verified.owner_data_unchanged;live_widget_hwnds_unchanged=$true
         runtime_state_excluded=$verified.runtime_state_excluded;unicode_notes_export_verified=$verified.unicode_notes_export_verified
-        file_picker_save='not_verified';clipboard='not_verified';manual_acceptance=$false;checks=$checks
+        file_picker_save='passed';file_picker_import='passed';clipboard='passed';manual_acceptance=$false;checks=$checks
     }
     $proof | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $proofPath -Encoding UTF8
     Copy-Item -LiteralPath $proofPath -Destination (Join-Path $DiagnosticsDirectory 'studio-sharing-smoke.json')

@@ -102,6 +102,9 @@ public static class StudioProfileTransfer
     public static StudioPresetDraft Import(ReadOnlySpan<byte> utf8)
     {
         Require(utf8.Length > 0 && utf8.Length <= MaxBytes, "Studio profile pack exceeds the supported size.");
+        // Accept ordinary UTF-8 files saved with a BOM by Windows editors. The total
+        // file bound still includes those bytes; no other encoding is inferred.
+        if (utf8.StartsWith(new byte[] { 0xEF, 0xBB, 0xBF })) utf8 = utf8[3..];
         try
         {
             var pack = JsonSerializer.Deserialize<Pack>(utf8, Json);
