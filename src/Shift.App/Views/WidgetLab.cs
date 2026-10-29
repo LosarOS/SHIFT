@@ -15,7 +15,21 @@ public sealed partial class MainWindow
         var kind = new ComboBox { ItemsSource = Enum.GetValues<WidgetKind>().Select(KindName).ToArray(), SelectedIndex = (int)draft.Kind, IsEnabled = existing is null || existing.Revision == 0 };
         var templateIds = StudioTemplates.All.Select(t => t.TemplateId).ToList();
         if (!templateIds.Contains(draft.Style.TemplateId, StringComparer.Ordinal)) templateIds.Add(draft.Style.TemplateId);
+        var appearancePresets = StudioTemplates.All.ToDictionary(style => style.TemplateId, StringComparer.Ordinal);
+        if (!appearancePresets.ContainsKey(draft.Style.TemplateId)) appearancePresets.Add(draft.Style.TemplateId, draft.Style);
         var template = new ComboBox { ItemsSource = templateIds.Select(s.TemplateName).ToArray(), SelectedIndex = templateIds.IndexOf(draft.Style.TemplateId) };
+        var appearanceSources = studioDefinitions.Where(widget => widget.Id != draft.Id)
+            .OrderBy(widget => widget.Title, StringComparer.CurrentCultureIgnoreCase).ToArray();
+        var appearanceSource = new ComboBox
+        {
+            ItemsSource = appearanceSources.Select(widget => widget.Title + " · " + KindName(widget.Kind)).ToArray(),
+            PlaceholderText = appearanceSources.Length == 0
+                ? T("Сначала добавьте другой виджет", "Add another widget first")
+                : T("Выберите виджет из библиотеки", "Choose a library widget"),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            IsEnabled = appearanceSources.Length > 0,
+            SelectedIndex = -1
+        };
         var surface = new ComboBox { ItemsSource = new[] { T("Сплошной", "Solid"), T("Полупрозрачный", "Translucent"), T("Acrylic · резервный фон", "Acrylic · fallback"), T("Mica · резервный фон", "Mica · fallback") }, SelectedIndex = (int)draft.Style.Surface };
         var background = new TextBox { Text = draft.Style.Background, MaxLength = 7 };
         var foreground = new TextBox { Text = draft.Style.Foreground, MaxLength = 7 };
@@ -35,6 +49,9 @@ public sealed partial class MainWindow
         }
         SelectMonitor("");
         var fontSize = Number(draft.Style.FontSize, 10, 96); var corners = Number(draft.Style.CornerRadius, 0, 64); var padding = Number(draft.Style.Padding, 0, 64);
+        var borderWidth = Number(draft.Style.BorderWidth, 0, 8);
+        var shadow = new CheckBox { Content = T("Тень окна · доступность зависит от Windows", "Window shadow · availability depends on Windows"), IsChecked = draft.Style.Shadow };
+        AutomationProperties.SetAutomationId(shadow, "Studio.Widget.Shadow");
         var fonts = StudioValidator.SafeFonts.ToArray();
         var font = new ComboBox { ItemsSource = fonts, SelectedIndex = Math.Max(0, Array.IndexOf(fonts, draft.Style.FontFamily)) };
         var alwaysOnTop = new CheckBox { Content = T("Поверх всех окон — выключено по умолчанию", "Always on top — off by default") };
@@ -57,6 +74,8 @@ public sealed partial class MainWindow
             SelectMonitor(retainedLayout.MonitorId);
         }
         if (retainedLayout is not null) profile.SelectedIndex = retainedProfileId is Guid retained ? Math.Max(0, studioProfiles.ToList().FindIndex(p => p.Id == retained) + 1) : 0;
+        var clockContent = Stack(12); var monitorContent = Stack(12); var timerContent = Stack(12); var notesContent = Stack(12);
+        var applyingAppearance = false;
         var fields = Stack(12); var preview = new Border { Height = 150, CornerRadius = new CornerRadius(16), Padding = new Thickness(16) };
         var previewText = new TextBlock { TextWrapping = TextWrapping.Wrap }; preview.Child = previewText;
         var error = new InfoBar { Severity = InfoBarSeverity.Error, IsClosable = false };
@@ -65,7 +84,7 @@ public sealed partial class MainWindow
         WidgetDefinition Candidate() => draft with { Title = title.Text.Trim(), Kind = (WidgetKind)Math.Max(0, kind.SelectedIndex),
             Style = draft.Style with { TemplateId = templateIds[Math.Max(0, template.SelectedIndex)], Surface = (WidgetSurface)Math.Max(0, surface.SelectedIndex),
                 Background = background.Text, Foreground = foreground.Text, Accent = accent.Text, Opacity = opacity.Value, FontFamily = fonts[Math.Max(0, font.SelectedIndex)],
-                FontSize = fontSize.Value, CornerRadius = corners.Value, Padding = padding.Value },
+                FontSize = fontSize.Value, CornerRadius = corners.Value, Padding = padding.Value, BorderWidth = borderWidth.Value, Shadow = shadow.IsChecked == true },
             Content = draft.Content with { Use24Hour = clock24.IsChecked == true, ShowSeconds = seconds.IsChecked == true, DateFormat = date.Text,
                 FocusMinutes = (int)focus.Value, UpdateIntervalSeconds = (int)interval.Value, InitialNotes = notes.Text } };
         WidgetLayout Layout() => new() { Width = width.Value, Height = height.Value, X = x.Value, Y = y.Value,
@@ -100,22 +119,68 @@ public sealed partial class MainWindow
             catch (OperationCanceledException) { }
             catch (Exception ex) { error.Title = T("Предпросмотр недоступен", "Preview unavailable"); error.Message = s.ErrorDetails(ex); error.IsOpen = true; DispatcherQueue.TryEnqueue(() => error.StartBringIntoView()); }
         }
-        void Changed() { UpdateMockup(); if (previewOpen) timer.Start(); }
+        void RefreshContent()
+        {
+            var selected = (WidgetKind)Math.Max(0, kind.SelectedIndex);
+            clockContent.Visibility = selected == WidgetKind.Clock ? Visibility.Visible : Visibility.Collapsed;
+            monitorContent.Visibility = selected == WidgetKind.SystemMonitor ? Visibility.Visible : Visibility.Collapsed;
+            timerContent.Visibility = selected == WidgetKind.FocusTimer ? Visibility.Visible : Visibility.Collapsed;
+            notesContent.Visibility = selected == WidgetKind.Notes ? Visibility.Visible : Visibility.Collapsed;
+        }
+        void Changed() { if (applyingAppearance) return; UpdateMockup(); if (previewOpen) timer.Start(); }
+        void ApplyAppearance(WidgetStyle style)
+        {
+            // Copy only a validated declarative style. Identity, content, layout and persistence remain untouched.
+            StudioValidator.Validate(new WidgetDefinition { Title = "Appearance", Style = style });
+            applyingAppearance = true;
+            try
+            {
+                if (!StudioTemplates.All.Any(builtIn => builtIn.TemplateId == style.TemplateId)) appearancePresets[style.TemplateId] = style;
+                if (!templateIds.Contains(style.TemplateId, StringComparer.Ordinal))
+                {
+                    templateIds.Add(style.TemplateId);
+                    template.ItemsSource = templateIds.Select(s.TemplateName).ToArray();
+                }
+                draft = draft with { Style = style };
+                template.SelectedIndex = templateIds.IndexOf(style.TemplateId);
+                background.Text = style.Background; foreground.Text = style.Foreground; accent.Text = style.Accent;
+                opacity.Value = style.Opacity; surface.SelectedIndex = (int)style.Surface;
+                font.SelectedIndex = Array.IndexOf(fonts, style.FontFamily); fontSize.Value = style.FontSize;
+                corners.Value = style.CornerRadius; padding.Value = style.Padding;
+                borderWidth.Value = style.BorderWidth; shadow.IsChecked = style.Shadow;
+            }
+            finally { applyingAppearance = false; }
+            Changed();
+        }
         timer.Tick += (_, _) => previewTask = UpdateDesktopPreviewAsync();
         foreach (var box in new[] { title, background, foreground, accent, date, notes }) box.TextChanged += (_, _) => Changed();
-        foreach (var box in new[] { width, height, x, y, fontSize, corners, padding, focus, interval }) box.ValueChanged += (_, _) => Changed();
-        foreach (var box in new[] { kind, surface, font, monitor }) box.SelectionChanged += (_, _) => Changed();
+        foreach (var box in new[] { width, height, x, y, fontSize, corners, padding, borderWidth, focus, interval }) box.ValueChanged += (_, _) => Changed();
+        foreach (var box in new[] { surface, font, monitor }) box.SelectionChanged += (_, _) => Changed();
+        kind.SelectionChanged += (_, _) => { RefreshContent(); Changed(); };
         opacity.ValueChanged += (_, _) => Changed();
-        foreach (var box in new[] { alwaysOnTop, seconds, clock24 }) { box.Checked += (_, _) => Changed(); box.Unchecked += (_, _) => Changed(); }
+        foreach (var box in new[] { alwaysOnTop, seconds, clock24, shadow }) { box.Checked += (_, _) => Changed(); box.Unchecked += (_, _) => Changed(); }
         template.SelectionChanged += (_, _) =>
         {
-            var style = StudioTemplates.All.FirstOrDefault(t => t.TemplateId == templateIds[Math.Max(0, template.SelectedIndex)]) ?? draft.Style;
-            background.Text = style.Background; foreground.Text = style.Foreground; accent.Text = style.Accent; opacity.Value = style.Opacity; surface.SelectedIndex = (int)style.Surface;
-            fontSize.Value = style.FontSize; corners.Value = style.CornerRadius; padding.Value = style.Padding; Changed();
+            if (applyingAppearance) return;
+            var selectedId = templateIds[Math.Max(0, template.SelectedIndex)];
+            ApplyAppearance(appearancePresets.GetValueOrDefault(selectedId) ?? draft.Style);
         };
+        var copyAppearance = Button(T("Скопировать оформление", "Copy appearance"), () =>
+        {
+            if (appearanceSource.SelectedIndex < 0 || appearanceSource.SelectedIndex >= appearanceSources.Length) return;
+            var source = appearanceSources[appearanceSource.SelectedIndex]; StudioValidator.Validate(source);
+            ApplyAppearance(source.Style);
+        }, false, "Studio.Widget.CopyAppearance");
+        copyAppearance.IsEnabled = false;
+        appearanceSource.SelectionChanged += (_, _) => copyAppearance.IsEnabled = appearanceSource.SelectedIndex >= 0;
         fields.Children.Add(Text(T("Черновик → предпросмотр → сохранить. Отмена закрывает пробное окно без записи конфигурации.", "Draft → preview → save. Cancel closes the preview without writing configuration."), 13, true));
         fields.Children.Add(StudioField(s["Name"], title, "Studio.Widget.Title")); fields.Children.Add(StudioField(T("Тип", "Type"), kind, "Studio.Widget.Kind"));
-        fields.Children.Add(StudioField(T("Шаблон", "Template"), template, "Studio.Widget.Template")); fields.Children.Add(preview);
+        fields.Children.Add(StudioField(T("Шаблон", "Template"), template, "Studio.Widget.Template"));
+        fields.Children.Add(StudioField(T("Взять оформление другого виджета", "Reuse another widget's appearance"), appearanceSource, "Studio.Widget.StyleSource"));
+        fields.Children.Add(copyAppearance);
+        fields.Children.Add(Text(T("Копируется только оформление. Текст, таймер и расположение не меняются; сохранение — отдельное действие.",
+            "Copies appearance only. Text, timer and placement stay unchanged; saving is a separate action."), 12, true));
+        fields.Children.Add(preview);
         fields.Children.Add(Text(T("Это макет внутри редактора. Настоящая прозрачность проверяется во внешнем окне. Acrylic/Mica пока используют резервный фон.", "This is an in-editor mockup. Real opacity is shown in the separate desktop window. Acrylic/Mica currently use a fallback."), 12, true));
         var desktopPreview = AsyncButton(T("Предпросмотр на рабочем столе", "Desktop preview"), async () =>
         {
@@ -127,15 +192,31 @@ public sealed partial class MainWindow
             ("Ширина", "Width", width, "Width"), ("Высота", "Height", height, "Height"), ("Позиция X · 0–1", "Position X · 0–1", x, "X"), ("Позиция Y · 0–1", "Position Y · 0–1", y, "Y"),
             ("Монитор", "Monitor", monitor, "Monitor"), ("Поверхность", "Surface", surface, "Surface"), ("Непрозрачность всего окна", "Whole-window opacity", opacity, "Opacity"),
             ("Фон #RRGGBB", "Background #RRGGBB", background, "Background"), ("Текст #RRGGBB", "Text #RRGGBB", foreground, "Foreground"), ("Акцент #RRGGBB", "Accent #RRGGBB", accent, "Accent"),
-            ("Шрифт", "Font", font, "Font"), ("Размер шрифта", "Font size", fontSize, "FontSize"), ("Скругление", "Corner radius", corners, "Corners"), ("Отступ", "Padding", padding, "Padding"),
-            ("Формат даты", "Date format", date, "Date"), ("Длительность · минуты", "Duration · minutes", focus, "Focus"), ("Интервал монитора · секунды", "Monitor interval · seconds", interval, "Interval"),
-            ("Начальный текст новой заметки", "Initial text for a new note", notes, "Notes"), ("Добавить в профиль", "Add to profile", profile, "Profile") })
+            ("Толщина рамки", "Border width", borderWidth, "BorderWidth"),
+            ("Шрифт", "Font", font, "Font"), ("Размер шрифта", "Font size", fontSize, "FontSize"), ("Скругление", "Corner radius", corners, "Corners"), ("Отступ", "Padding", padding, "Padding") })
         {
-            var section = id switch { "Width" => T("Размер и расположение", "Size and placement"), "Surface" => T("Оформление", "Appearance"), "Font" => T("Типографика", "Typography"), "Date" => T("Содержимое", "Content"), "Profile" => T("Размещение в профиле", "Profile placement"), _ => null };
+            var section = id switch { "Width" => T("Размер и расположение", "Size and placement"), "Surface" => T("Оформление", "Appearance"), "Font" => T("Типографика", "Typography"), _ => null };
             if (section is not null) fields.Children.Add(Text(section, 19, weight: Microsoft.UI.Text.FontWeights.SemiBold));
             fields.Children.Add(StudioField(T(ru, en), control, "Studio.Widget." + id));
+            if (id == "BorderWidth") fields.Children.Add(shadow);
         }
-        fields.Children.Add(alwaysOnTop); fields.Children.Add(clock24); fields.Children.Add(seconds); fields.Children.Add(error);
+        fields.Children.Add(alwaysOnTop);
+        fields.Children.Add(Text(T("Содержимое", "Content"), 19, weight: Microsoft.UI.Text.FontWeights.SemiBold));
+        // Hidden kind-specific controls retain their original values for imports and language changes.
+        // Switching a new widget's kind never destroys an unfinished note or coerces valid bounds.
+        clockContent.Children.Add(StudioField(T("Формат даты", "Date format"), date, "Studio.Widget.Date"));
+        AutomationProperties.SetAutomationId(clock24, "Studio.Widget.Clock24"); AutomationProperties.SetAutomationId(seconds, "Studio.Widget.Seconds");
+        clockContent.Children.Add(clock24); clockContent.Children.Add(seconds);
+        monitorContent.Children.Add(StudioField(T("Интервал монитора · секунды", "Monitor interval · seconds"), interval, "Studio.Widget.Interval"));
+        timerContent.Children.Add(StudioField(T("Длительность · минуты", "Duration · minutes"), focus, "Studio.Widget.Focus"));
+        notesContent.Children.Add(StudioField(T("Начальный текст новой заметки", "Initial text for a new note"), notes, "Studio.Widget.Notes"));
+        notesContent.Children.Add(Text(T("Этот текст используется для новых экземпляров. Текущую заметку редактируйте в окне виджета.",
+            "This text is used for new instances. Edit a current note in its widget window."), 12, true));
+        fields.Children.Add(clockContent); fields.Children.Add(monitorContent); fields.Children.Add(timerContent); fields.Children.Add(notesContent);
+        fields.Children.Add(Text(T("Размещение в профиле", "Profile placement"), 19, weight: Microsoft.UI.Text.FontWeights.SemiBold));
+        fields.Children.Add(StudioField(T("Добавить в профиль", "Add to profile"), profile, "Studio.Widget.Profile"));
+        fields.Children.Add(error);
+        RefreshContent();
         UIElement editorContent = new ScrollViewer { Content = fields, MaxHeight = 510 };
         if (root.ActualWidth >= 1120)
         {
@@ -159,9 +240,9 @@ public sealed partial class MainWindow
         dialog.SecondaryButtonText = T("Сбросить оформление", "Reset appearance");
         dialog.SecondaryButtonClick += (_, args) =>
         {
-            args.Cancel = true; var style = StudioTemplates.All.FirstOrDefault(t => t.TemplateId == templateIds[Math.Max(0, template.SelectedIndex)]) ?? draft.Style;
-            background.Text = style.Background; foreground.Text = style.Foreground; accent.Text = style.Accent; opacity.Value = style.Opacity;
-            surface.SelectedIndex = (int)style.Surface; fontSize.Value = style.FontSize; corners.Value = style.CornerRadius; padding.Value = style.Padding; Changed();
+            args.Cancel = true;
+            var selectedId = templateIds[Math.Max(0, template.SelectedIndex)];
+            ApplyAppearance(appearancePresets.GetValueOrDefault(selectedId) ?? draft.Style);
         };
         var saving = false; dialog.Closing += (_, args) => { if (saving) args.Cancel = true; };
         dialog.PrimaryButtonClick += async (_, args) =>
