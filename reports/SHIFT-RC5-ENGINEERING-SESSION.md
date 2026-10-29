@@ -75,3 +75,10 @@
 - `ContextMenuStrip.Closed` синхронно вызывал `Dispose`, пока WinForms ещё выполнял `ProcessDialogKey/SetVisibleCore` после Escape. Получен `ObjectDisposedException`; Studio безопасно отключился, основная оболочка осталась доступна. Более ранняя гипотеза о чистой readiness-гонке была неполной.
 - Меню теперь принадлежит окну виджета и переиспользуется; items освобождаются перед следующим открытием, само меню — при dispose владельца. Темизация и font lifetime обновляются вместе с окном. Синхронного dispose внутри Closed больше нет.
 - Regression открывает/закрывает меню с клавиатуры дважды, возвращает фокус, сохраняет восстановленный текст и продолжает остальные native gates. Проверки не исключены; требуется новый полный Windows прогон.
+
+## Контрольная точка 8 — меню исправлено, Save As действительно открыт
+
+- CI https://github.com/LosarOS/SHIFT/actions/runs/40960534386, head `dc99a8f`: core **375/375**, native copy/cancel/save, повторные Shift+F10/Escape, возврат фокуса и Ctrl+S прошли; Studio продолжил сценарии до sharing. Продуктовый menu crash устранён в этом прогоне.
+- На настоящем screenshot `studio-sharing-failure.png` виден системный **Save As** с фильтром JSON. Исправление filter подтверждено; текущий timeout относится к probe: owned modal HWND вложен в UIA tree владельца, а поиск смотрел только desktop children. Поиск теперь ограничен Window/#32770 среди descendants; added bounded diagnostic metadata при отказе.
+- `Clipboard.Flush()` делает явное копирование независимым от времени жизни SHIFT. Добавлен обязательный native gate: скопировать заметки без промежуточного clipboard consumer, завершить процесс, сравнить текст после выхода.
+- До успешных real save/open/installer gates RC5 остаётся неопубликованным. Старая версия RC4 и её assets сохранены.

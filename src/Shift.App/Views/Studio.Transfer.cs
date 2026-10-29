@@ -175,7 +175,7 @@ public sealed partial class MainWindow
 
     private static void CopyStudioText(string text)
     {
-        var package = new DataPackage(); package.SetText(text); Clipboard.SetContent(package);
+        var package = new DataPackage(); package.SetText(text); Clipboard.SetContent(package); Clipboard.Flush();
     }
 
     private async Task ShowStudioTextExportAsync(string title, StackPanel body, Func<string> content, string suggestedName, string extension)

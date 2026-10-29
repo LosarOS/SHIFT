@@ -314,9 +314,17 @@ try {
   $condition=New-Object System.Windows.Automation.AndCondition((New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty,$process.Id)),(New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty,'SHIFT')))
   [System.Windows.Automation.AutomationElement]::RootElement.FindFirst([System.Windows.Automation.TreeScope]::Children,$condition)
  } 'restarted main window'
+ # Explicit copy must remain available after SHIFT exits, without relying on a
+ # clipboard consumer rendering the DataPackage while the process is still alive.
+ Click 'Nav.Studio';Click 'Studio.Tab.Profiles';Click 'Studio.Profile.Notes.00000000-0000-4000-8000-000000000104'
+ $clipboardPreview=Wait-For {Find 'Studio.Notes.Output'} 'final clipboard note preview'
+ $expectedClipboard=$clipboardPreview.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value
+ Click 'Studio.Notes.Copy';Click '' 'Закрыть';$null=Wait-For {-not(Find 'Studio.Notes.Output')} 'final clipboard export closed'
  [void][StudioProbe]::PostMessage([intptr]$main.Current.NativeWindowHandle,0x0010,[intptr]::Zero,[intptr]::Zero)
  if(-not $process.WaitForExit(15000)){throw 'Restarted SHIFT did not exit cleanly.'}
  if($process.ExitCode -ne 0){throw "Restarted SHIFT exited with $($process.ExitCode)."}
+ if([System.Windows.Forms.Clipboard]::GetText() -cne $expectedClipboard){throw 'Explicit note copy was lost after process exit.'}
+ $checks+='notes_clipboard_survives_process_exit'
  $errors=Get-ChildItem (Join-Path $data 'logs') -Filter '*.log' | Select-String -Pattern '\sERROR\s'
  if($errors){throw 'Unexpected application ERROR during native Studio acceptance.'}
  Copy-Item (Join-Path $data 'logs') (Join-Path $DiagnosticsDirectory 'studio-app-logs') -Recurse -Force

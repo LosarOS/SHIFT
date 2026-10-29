@@ -119,8 +119,12 @@ function Complete-FilePicker([string]$Path){
     # pre-existing filenames or arbitrary owner paths are used.
     if(-not [IO.Path]::GetFullPath($Path).StartsWith($data+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)){throw 'File picker target must belong to the owned test data.'}
     $picker=Wait-For {
-        foreach($window in [System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children,[System.Windows.Automation.Condition]::TrueCondition)){
-            if($window.Current.ClassName -ne '#32770'){continue}
+        $dialogs=New-Object System.Windows.Automation.AndCondition(
+            (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ClassNameProperty,'#32770')),
+            (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::Window)))
+        # UIA nests an owned modal HWND under its owner. It is not necessarily a
+        # direct child of the desktop, even though EnumWindows sees a top-level HWND.
+        foreach($window in [System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Descendants,$dialogs)){
             $condition=New-Object System.Windows.Automation.AndCondition(
                 (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::AutomationIdProperty,'1001')),
                 (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::Edit)))
@@ -227,6 +231,15 @@ try {
         $names=@($window.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition) |
             ForEach-Object {$_.Current.Name} | Where-Object {$_} | Select-Object -First 150)
         $names | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $DiagnosticsDirectory 'studio-sharing-ui-failure.json') -Encoding UTF8
+    }catch{}
+    try{
+        $condition=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::Window)
+        $windows=@([System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Descendants,$condition) | Select-Object -First 40 | ForEach-Object {
+            $window=$_
+            $editCondition=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::Edit)
+            @{name=$window.Current.Name;class=$window.Current.ClassName;id=$window.Current.AutomationId;process=$window.Current.ProcessId;edits=@($window.FindAll([System.Windows.Automation.TreeScope]::Descendants,$editCondition) | Select-Object -First 15 | ForEach-Object {@{name=$_.Current.Name;id=$_.Current.AutomationId;enabled=$_.Current.IsEnabled}})}
+        })
+        $windows | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $DiagnosticsDirectory 'studio-file-picker-failure.json') -Encoding UTF8
     }catch{}
     throw
 } finally {
