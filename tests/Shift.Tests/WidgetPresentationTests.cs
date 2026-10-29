@@ -81,4 +81,39 @@ public class WidgetPresentationTests
         Assert.False(merged.Widgets[1].Visible); Assert.All(merged.Widgets, w => Assert.Equal(WidgetInteraction.Desktop, w.Interaction));
         Assert.NotEqual(live, latest.Widgets[0].Layout); // Never mutates the caller's record.
     }
+    [Fact] public async Task HostExitRejectsQueuedWorkInsteadOfWaitingForever()
+    {
+        var work = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var exit = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var waiting = WidgetPresentation.AwaitHostOperationAsync(work.Task, exit.Task);
+        Assert.False(waiting.IsCompleted);
+        exit.SetResult();
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => waiting.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.Contains("before the operation completed", error.Message);
+        Assert.False(work.Task.IsCompleted); // No fake completion or hidden retry.
+    }
+    [Fact] public async Task SuccessfulHostWorkDoesNotRequireTheHostToExit()
+    {
+        var work = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var exit = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var waiting = WidgetPresentation.AwaitHostOperationAsync(work.Task, exit.Task);
+        work.SetResult();
+        await waiting.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.False(exit.Task.IsCompleted);
+    }
+    [Fact] public async Task ShutdownAcknowledgementWinsWhenBothSignalsHaveAlreadyCompleted()
+        => await WidgetPresentation.AwaitHostOperationAsync(Task.CompletedTask, Task.CompletedTask);
+    [Fact] public async Task HostWorkFailureKeepsItsOriginalErrorEvenWhenTheHostHasExited()
+    {
+        var expected = new IOException("The local note could not be saved.");
+        var actual = await Assert.ThrowsAsync<IOException>(() => WidgetPresentation.AwaitHostOperationAsync(Task.FromException(expected), Task.CompletedTask));
+        Assert.Same(expected, actual);
+    }
+    [Fact] public async Task HostWorkCancellationIsNotReplacedWithAFalseSuccess()
+    {
+        using var cancellation = new CancellationTokenSource(); cancellation.Cancel();
+        var error = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => WidgetPresentation.AwaitHostOperationAsync(Task.FromCanceled(cancellation.Token), Task.CompletedTask));
+        Assert.Equal(cancellation.Token, error.CancellationToken);
+    }
+
 }

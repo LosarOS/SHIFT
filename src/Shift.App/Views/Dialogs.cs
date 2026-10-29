@@ -59,7 +59,7 @@ public sealed partial class MainWindow
     {
         var source = workspace ?? new Workspace { Name = s["Untitled"] };
         var name = new TextBox { Text = source.Name, MaxLength = 100 };
-        var description = new TextBox { Text = source.Description, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 72, MaxLength = 2000 };
+        var description = new TextBox { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 72, MaxLength = 2000, Text = source.Description };
         var tags = new TextBox { Text = string.Join(", ", source.Tags), MaxLength = 820 };
         var colors = new[] { "#BCADFF", "#98BEFF", "#A9D4A5", "#E5BA8C", source.Color }.Distinct().ToArray();
         var accents = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -107,7 +107,7 @@ public sealed partial class MainWindow
                 await vm.SaveAsync(candidate);
                 saved = candidate;
             }
-            catch (Exception ex) { args.Cancel = true; errors.Title = s["ValidationHint"]; errors.Message = s.ErrorDetails(ex); errors.IsOpen = true; log.Error("Workspace save failed", ex); }
+            catch (Exception ex) { args.Cancel = true; errors.Title = s["ValidationHint"]; errors.Message = s.ErrorDetails(ex); errors.IsOpen = true; errors.StartBringIntoView(); log.Error("Workspace save failed", ex); }
             finally { saving = false; dialog.IsPrimaryButtonEnabled = true; deferral.Complete(); }
         };
         if (await ShowDialogAsync(dialog) == ContentDialogResult.Primary && saved is not null)
@@ -119,12 +119,12 @@ public sealed partial class MainWindow
         var name = new TextBox { Text = source.Name, MaxLength = 100 };
         var kinds = Enum.GetValues<ItemKind>();
         var type = new ComboBox { ItemsSource = kinds.Select(k => s[k.ToString()]).ToArray(), SelectedIndex = (int)source.Kind, HorizontalAlignment = HorizontalAlignment.Stretch };
-        var target = new TextBox { Text = source.Target, MaxLength = 8192, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 70 };
+        var target = new TextBox { MaxLength = 8192, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 70, Text = source.Target };
         var arguments = new TextBox { Text = source.Arguments, MaxLength = 8192 };
         var directory = new TextBox { Text = source.WorkingDirectory };
         var shellChoice = new ComboBox { ItemsSource = new[] { "PowerShell (Windows)", "cmd.exe" }, SelectedIndex = (int)source.Shell, HorizontalAlignment = HorizontalAlignment.Stretch };
         var delay = new NumberBox { Value = source.DelayMs, Minimum = 0, Maximum = 300000, SmallChange = 100, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact };
-        var note = new TextBox { Text = source.Note, MaxLength = 2000, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap };
+        var note = new TextBox { MaxLength = 2000, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Text = source.Note };
         var enabled = new CheckBox { Content = s["Enabled"], IsChecked = source.Enabled };
         var fields = Stack(14);
         fields.MinWidth = 460;
@@ -202,7 +202,7 @@ public sealed partial class MainWindow
                 };
                 await vm.SaveAsync(updated);
             }
-            catch (Exception ex) { args.Cancel = true; errors.Title = s["ValidationHint"]; errors.Message = s.ErrorDetails(ex); errors.IsOpen = true; log.Error("Item save failed", ex); }
+            catch (Exception ex) { args.Cancel = true; errors.Title = s["ValidationHint"]; errors.Message = s.ErrorDetails(ex); errors.IsOpen = true; errors.StartBringIntoView(); log.Error("Item save failed", ex); }
             finally { saving = false; dialog.IsPrimaryButtonEnabled = true; deferral.Complete(); }
         };
         if (await ShowDialogAsync(dialog) == ContentDialogResult.Primary)

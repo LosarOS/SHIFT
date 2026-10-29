@@ -32,3 +32,13 @@ On disposable Windows only: four widget HWNDs, live clock and CPU/RAM, actual wi
 Widget titles and accessible labels follow RU/EN live without recreating windows or editing user titles. Clock and metrics formatting uses the selected language even when Windows uses another culture. CPU/RAM becomes ЦП/ОЗУ in Russian; memory units are explicitly GiB/ГиБ. Used and free memory have separate lines, with ellipsis/tooltips for small surfaces. The native timer uses three equal columns, switches to accessible compact symbols at narrow widths, and can explicitly restart a completed session. Controls and context menus follow the widget palette with a high-contrast system fallback.
 
 Layout acknowledgments compare the geometry/mode actually written to SQLite with the current native window. Dragging just before a mode switch or during an awaited storage write leaves unsaved changes dirty instead of clearing them. The merge keeps concurrent profile metadata and unrelated layouts. Five pure helper regressions cover culture-independent readings, unavailable versus measured-zero values, latest-profile merging and stale acknowledgments. Native visual/DPI validation of these RC4 changes still belongs to the Windows acceptance workflow.
+
+## RC5 reliability and keyboard changes
+
+Profile replacement, hiding and shutdown suspend window input with nested leases until their final flush/read/close hand-off finishes. A user cannot edit a note in the asynchronous gap after it was flushed but before its old HWND closes. Failure restores input; an overlapping conflict decision cannot prematurely re-enable a window still being closed.
+
+Host shutdown acknowledges its final operation before posting message-pump exit. Every marshalled operation races its completion against host exit, so a callback abandoned by an unexpected STA exit fails explicitly instead of leaving the main UI awaiting indefinitely.
+
+Notes and timer recovery conflicts both offer explicit local-versus-database state decisions. Discard drains and invalidates delayed drafts before deletion; the recovered timer controller is reconstructed from the chosen deadline. Neither decision runs automatically. `CaptureLiveStatesAsync(profileId)` is a read-only host snapshot for explicit note export; it does not infer that a successful close flush means the database was updated, and it does not resolve a conflict.
+
+Keyboard access on focused widget windows: Ctrl+S saves now, Ctrl+Shift+S exports a note copy, Shift+F10 or the Context Menu key opens widget actions even in Desktop mode. These additions require native Windows validation; core tests only prove the host-operation completion policy.

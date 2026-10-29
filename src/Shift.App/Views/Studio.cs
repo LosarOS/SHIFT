@@ -18,6 +18,7 @@ public sealed partial class MainWindow
     private IReadOnlyList<MonitorIdentity> studioMonitors = [];
     private string studioPage = "Overview";
     private string studioProblem = "";
+    private string studioProfileSearch = "";
     private bool studioReady;
     private string T(string ru, string en) => s.Language == "ru" ? ru : en;
     private StackPanel StudioField(string label, FrameworkElement input, string id)
@@ -145,10 +146,23 @@ public sealed partial class MainWindow
     }
     private void RenderStudioProfiles()
     {
-        screen.Children.Add(AsyncButton("+ " + T("Создать профиль", "Create profile"), () => EditStudioProfileAsync(null), true, "Studio.Profile.New"));
+        var toolbar = new FlowPanel();
+        toolbar.Children.Add(AsyncButton("+ " + T("Создать профиль", "Create profile"), () => EditStudioProfileAsync(null), true, "Studio.Profile.New"));
+        toolbar.Children.Add(AsyncButton(T("Импорт профиля", "Import profile"), ImportStudioProfileAsync, false, "Studio.Profile.Import"));
+        screen.Children.Add(toolbar);
         if (studioProfiles.Count == 0) screen.Children.Add(Text(T("Создайте первый профиль. Сохранение не изменяет Windows.", "Create your first profile. Saving does not change Windows."), 17, true));
+        var search = new TextBox { Text = studioProfileSearch, PlaceholderText = T("Найти профиль или пространство", "Find a profile or workspace"), MaxLength = 200 };
+        AutomationProperties.SetAutomationId(search, "Studio.Profile.Search"); AutomationProperties.SetName(search, search.PlaceholderText);
+        screen.Children.Add(search);
+        var results = new ContentControl { HorizontalContentAlignment = HorizontalAlignment.Stretch }; screen.Children.Add(results);
+        void RefreshProfiles()
+        {
         var cards = new List<FrameworkElement>();
-        foreach (var profile in studioProfiles.OrderByDescending(p => p.Id == studioSettings.ActiveProfileId))
+        var terms = search.Text.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        foreach (var profile in studioProfiles.Where(p => terms.All(term => p.Name.Contains(term, StringComparison.CurrentCultureIgnoreCase)
+            || p.Description.Contains(term, StringComparison.CurrentCultureIgnoreCase)
+            || (vm.Workspaces.FirstOrDefault(w => w.Id == p.WorkspaceId)?.Name.Contains(term, StringComparison.CurrentCultureIgnoreCase) ?? false)))
+            .OrderByDescending(p => p.Id == studioSettings.ActiveProfileId))
         {
             var body = Stack(12); body.Children.Add(Text(profile.Name, 22));
             body.Children.Add(Text(profile.Description, 13, true));
@@ -161,6 +175,12 @@ public sealed partial class MainWindow
             actions.Children.Add(AsyncButton(T("Применить профиль", "Apply profile"), () => ApplyStudioProfileAsync(profile), true, "Studio.Profile.Apply." + profile.Id));
             actions.Children.Add(AsyncButton(s["Edit"], () => EditStudioProfileAsync(profile), false, "Studio.Profile.Edit." + profile.Id));
             actions.Children.Add(AsyncButton(s["Studio.Arrange"], () => ArrangeStudioProfileAsync(profile), false, "Studio.Profile.Arrange." + profile.Id));
+            var export = AsyncButton(s["Export"], () => ExportStudioProfileAsync(profile), false, "Studio.Profile.Export." + profile.Id);
+            export.IsEnabled = profile.Widgets.Count > 0;
+            ToolTipService.SetToolTip(export, T("Перенести оформление и виджеты без текущих заметок и обоев", "Transfer appearance and widgets without current notes or wallpaper"));
+            actions.Children.Add(export);
+            if (profile.Widgets.Any(w => studioDefinitions.Any(d => d.Id == w.DefinitionId && d.Kind == WidgetKind.Notes)))
+                actions.Children.Add(AsyncButton(T("Сохранить заметки", "Export notes"), () => ExportStudioNotesAsync(profile), false, "Studio.Profile.Notes." + profile.Id));
             actions.Children.Add(AsyncButton(s["Duplicate"], async () => { await StudioData.SaveProfileAsync(profile.Duplicate(profile.Name[..Math.Min(profile.Name.Length, 85)] + T(" — копия", " — copy"))); await RefreshStudioAsync(); RenderScreen(); }));
             actions.Children.Add(AsyncButton(s["Delete"], async () =>
             {
@@ -174,7 +194,9 @@ public sealed partial class MainWindow
             }));
             body.Children.Add(actions); cards.Add(Card(body));
         }
-        screen.Children.Add(StudioCards(cards));
+        results.Content = cards.Count == 0 && studioProfiles.Count > 0 ? Empty(s["NoResults"], s["NoResultsNote"]) : StudioCards(cards);
+        }
+        search.TextChanged += (_, _) => { studioProfileSearch = search.Text; RefreshProfiles(); }; RefreshProfiles();
     }
     private async Task EditStudioProfileAsync(DesktopProfile? existing)
     {
@@ -183,7 +205,7 @@ public sealed partial class MainWindow
         if (existing is not null) existing = studioProfiles.FirstOrDefault(p => p.Id == existing.Id) ?? throw new InvalidOperationException("Desktop profile was not found.");
         var source = existing ?? new DesktopProfile { Name = T("Новое окружение", "New environment") };
         var name = new TextBox { Text = source.Name, MaxLength = 100 };
-        var description = new TextBox { Text = source.Description, MaxLength = 2000, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap };
+        var description = new TextBox { MaxLength = 2000, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Text = source.Description };
         var workspace = new ComboBox { ItemsSource = new[] { T("Не привязан", "Not linked") }.Concat(vm.Workspaces.Select(w => w.Name)).ToArray(), SelectedIndex = source.WorkspaceId is Guid id ? Math.Max(0, vm.Workspaces.ToList().FindIndex(w => w.Id == id) + 1) : 0 };
         var automatic = new CheckBox { Content = T("Автоприменение при запуске (профили без обоев)", "Apply on dispatch (profiles without wallpaper)"), IsChecked = source.ApplyOnWorkspaceLaunch };
         var enabled = new CheckBox { Content = T("Профиль включён", "Profile enabled"), IsChecked = source.Enabled };

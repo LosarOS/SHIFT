@@ -78,12 +78,12 @@ public sealed partial class SqliteStore
         Require(d is not null && d.Id != Guid.Empty && d.SchemaVersion == 1 && Enum.IsDefined(d.Kind) && d.Revision >= 0, "Widget definition is invalid.");
         TextLimit(d.Title, 100, true);
         Require(d.Style is not null && d.Content is not null, "Widget style/content is missing.");
-        TextLimit(d.Style.TemplateId, 64, true); TextLimit(d.Style.Background, 9, true); TextLimit(d.Style.Foreground, 9, true); TextLimit(d.Style.Accent, 9, true);
+        TextLimit(d.Style.TemplateId, 100, true); TextLimit(d.Style.Background, 9, true); TextLimit(d.Style.Foreground, 9, true); TextLimit(d.Style.Accent, 9, true);
         Require(Enum.IsDefined(d.Style.Surface) && double.IsFinite(d.Style.Opacity) && d.Style.Opacity is >= .1 and <= 1
             && double.IsFinite(d.Style.FontSize) && d.Style.FontSize is >= 8 and <= 120 && double.IsFinite(d.Style.Padding) && d.Style.Padding is >= 0 and <= 100
             && double.IsFinite(d.Style.CornerRadius) && d.Style.CornerRadius is >= 0 and <= 100 && double.IsFinite(d.Style.BorderWidth) && d.Style.BorderWidth is >= 0 and <= 20,
             "Widget appearance is invalid.");
-        Require(new[] { "Segoe UI", "Segoe UI Variable", "Arial", "Calibri", "Consolas", "Cascadia Code" }.Contains(d.Style.FontFamily), "Unsupported widget font.");
+        Require(StudioValidator.SafeFonts.Contains(d.Style.FontFamily, StringComparer.Ordinal), "Unsupported widget font.");
         Require(new[] { d.Style.Background, d.Style.Foreground, d.Style.Accent }.All(c => System.Text.RegularExpressions.Regex.IsMatch(c, "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$")), "Widget color is invalid.");
         TextLimit(d.Content.InitialNotes, 100000); TextLimit(d.Content.DateFormat, 100, true);
         Require(d.Content.FocusMinutes is >= 1 and <= 1440 && d.Content.UpdateIntervalSeconds is >= 1 and <= 3600, "Widget timing is invalid.");

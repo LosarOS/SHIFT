@@ -1,32 +1,38 @@
-# SHIFT 1.0.0-rc.4 — ваш рабочий контекст, по-русски
+# SHIFT 1.0.0-rc.5 — ваше окружение, с собой
 
-Экспериментальный Windows x64 prerelease. Windows 10 build19041+ / Windows11. Studio по умолчанию выключен; без регистрации, телеметрии и платных API.
+Нативный Windows x64 prerelease. **Studio включается только по выбору пользователя.** Без регистрации, облака, телеметрии и платных API.
 
-## Новое
+## Что нового
 
-- **Создать из приложений**: поиск локальных ярлыков, ручной выбор, предпросмотр и изменение порядка, возврат без потери черновика, сохранение пространства. Никакого чтения браузерной истории или скрытого запуска.
-- **Готовые окружения Studio**: «Разработка», «Стриминг», «Фокус». Три виджета и согласованная палитра в одном безопасном шаге. Создание не меняет обои и не включает Studio автоматически.
-- **Новая галерея**: поиск, фильтр по типу, предпросмотр оформления, быстрые действия и адаптивные карточки.
-- **Мастерская виджетов**: разделы свойств и двухпанельный режим на широком окне; атомарное сохранение определения и размещения.
-- **Сетка и режимы**: раскладка видимых виджетов на своих экранах, сохранение скрытых расположений, закрепление/редактирование из главного окна.
-- **Русский интерфейс**: названия шаблонов, диагностика восстановления, даты, единицы ЦП/ОЗУ, доступные подписи и живое переключение виджетов RU/EN.
+- **Перенос профилей Studio.** Экспорт набора виджетов, оформления и относительных позиций в версионированный JSON. Импорт с проверкой, предпросмотром, возвратом и отменой создаёт отдельный профиль одной транзакцией. Существующее окружение не включается и не меняется.
+- **Сохранение заметок.** Отдельный читаемый UTF-8 файл для всего профиля: фактический текст открытых окон и сохранённые скрытые заметки. Копирование — только явной кнопкой. Перед удалением профиля можно сохранить нужный текст.
+- **Повторное использование оформления.** Скопируйте полный стиль другого виджета в черновик мастерской: палитру, шрифт, прозрачность, рамку и тень. Отмена ничего не сохраняет. Содержимое показывается по типу виджета; скрытые значения сохраняются.
+- **Поиск профилей.** Название, описание и связанное рабочее пространство.
+- **Доступный компактный лаунчер.** Настоящий выбор списка, поиск по словам/описанию/тегам, стрелки и Enter, понятное пустое состояние и просмотр пространства без запуска.
+- **Клавиатура виджетов.** Ctrl+S — сохранение, Ctrl+Shift+S — копия отдельной заметки, Shift+F10 / клавиша меню — действия в закреплённом режиме.
 
 ## Исправления
 
-Исправлены потеря расположения при смене режима или ожидании SQLite, запуск завершённого таймера, частичное сохранение Widget Lab при конфликте, уменьшение допустимых импортированных значений, потеря недоступного монитора/пользовательского оформления, потеря выбора «Только библиотека» при смене языка и автоматическое восстановление отключённых профилей. Существующие пространства, история, command consent и schema2 сохранены.
+Защищён финальный hand-off заметок при смене профиля и закрытии. Ожидающие вызовы завершаются при выходе STA; Stop подтверждается до остановки message pump. Конфликты состояния разрешаются и для Focus Timer. Версия приложения теперь берётся из общего источника. Сохранены schema2, пространства, история и подтверждение команд.
 
 ## Установка и данные
 
-Скачайте setup.exe либо распакуйте весь portable.zip из этого выпуска. Проверьте SHA256SUMS.txt. Полностью выйдите из SHIFT перед обновлением и скопируйте всю папку данных, включая Studio/Images и Studio/RecoveryNotes. SQLite-only backup содержит ссылки на изображения, а не сами изображения. Исходники и бинарники RC3 остаются доступны.
+Windows10 build19041+ / Windows11, x64. Скачайте **setup.exe** либо распакуйте **весь portable.zip**. Сверьте SHA256SUMS.txt. Бинарники **неподписанные**, возможны предупреждения SmartScreen.
+
+Перед обновлением полностью выйдите из SHIFT и скопируйте всю папку данных: `%LOCALAPPDATA%\SHIFT` для установленной версии либо `data\` для portable. Сохраните также Studio/Images и Studio/RecoveryNotes. Удаление программы не означает разрешение удалять пользовательские данные.
+
+Пакет профиля — **конфигурация, не backup**: без обоев и их путей, monitor IDs, workspace binding, автоприменения и текущих notes/timer state. Начальный текст шаблонов включается только отдельно. Лимит JSON — 2МиБ /64виджета; новые ID, Edit Mode, обычный z-order. Экспорт заметок и clipboard не зашифрованы; неоткрытые recovery drafts исключены.
 
 ## Проверки и ограничения
 
-Фактические результаты — WINDOWS-VALIDATION.json, Native Smoke Evidence и reports/SHIFT-RC4-ENGINEERING-SESSION.md. Наличие release notes не означает, что незавершённая проверка прошла. Публикация разрешена workflow только после обязательных native gates и проверки скачанных с GitHub байтов.
+Публикация workflow разрешена только после locked restore, полного core suite, Windows publish, запуска извлечённого ZIP, реальных native UIA/Studio/file-picker/clipboard/compact checks, installer preservation и проверки скачанных GitHub-байтов. Точные результаты — приложенные WINDOWS-VALIDATION.json, Native Smoke Evidence и engineering report.
 
-Windows Server UI Automation не заменяет ручную приёмку физических Windows10/11, mixedDPI, нескольких мониторов, Narrator/highcontrast, sleep/RDP/fullscreen. Полная отдельная installed Studio матрица ещё нужна. Только статичные локальные обои с текущим подтверждением; Spotlight/slideshow не поддерживаются. Автоприменение пространства пока для профилей без обоев. Mica/Acrylic — явно обозначенный fallback. Виджеты являются обычными управляемыми окнами; Explorer не изменяется. Бинарники неподписанные; возможен SmartScreen.
+Windows Server UIA не заменяет физическую приёмку Windows10/11. Mixed DPI, multi-monitor/hotplug, Narrator/highcontrast, sleep/RDP/fullscreen и полная отдельная installed Studio матрица остаются непроверенными. Только подтверждённые статичные локальные обои; Spotlight/slideshow не поддерживаются. Mica/Acrylic используют явно обозначенный fallback. Виджеты — собственные окна, без внедрения в Explorer. Stable1.0 не присваивается.
+
+[Руководство по переносу и заметкам](https://github.com/LosarOS/SHIFT/blob/main/docs/STUDIO-SHARING-RU.md) · [Инженерный журнал](https://github.com/LosarOS/SHIFT/blob/main/reports/SHIFT-RC5-ENGINEERING-SESSION.md)
 
 ## English
 
-RC4 adds explicit local-shortcut workspace setup, safe Development/Streaming/Focus presets, searchable widget gallery, responsive profile cards, grouped/wide Widget Lab, per-display grid arrangement, live RU/EN widget formatting and atomic editor saves. It fixes lost layout edits, completed-timer restart, disabled-profile recovery and silent editor coercion of valid/custom/disconnected values.
+RC5 adds strict privacy-first Studio profile packs, atomic reviewed import, current/hidden Notes text export, searchable profiles and an accessible compact launcher with multi-term search and Review without dispatch. Native widgets gain keyboard actions, safe final input hand-off and bounded host shutdown; timer-state conflicts can be resolved explicitly.
 
-Existing schema2/workspaces/history and command consent remain compatible. Studio defaults off; presets never launch apps or change wallpaper on save. Back up the whole data folder before upgrading. Only confirmed static wallpaper is supported; Spotlight/slideshow and arbitrary JS are excluded. Native alpha is distinct from Mica/Acrylic fallback. Artifacts are unsigned. See attached validation for exact executed Windows gates and outstanding physical/accessibility acceptance.
+Profile packs transfer configuration, never wallpaper/files/workspace links/current state or automatic consent. Initial note templates are opt-in. Existing schema2 data and command confirmation stay compatible. Back up the whole data directory before updating. Unsigned Windows x64 prerelease; physical Windows/DPI/accessibility acceptance remains separate from disposable Server UIA. See attached validation and known limitations.
