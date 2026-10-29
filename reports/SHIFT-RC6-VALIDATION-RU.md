@@ -91,6 +91,8 @@ SQLite backup не включает Studio/Images и Studio/RecoveryNotes. По�
 | 5 | 304.7 | 186.3 | 0.00% | 2000 |
 | 10 | 311.1 | 191.5 | 0.00% | 2001 |
 
+0.00% означает нулевую измеренную дельту счётчика в этом коротком окне, а не отсутствие работы приложения.
+
 [Сырые значения](evidence/rc6/studio-performance-raw.json) · [Окружение](evidence/rc6/studio-native-environment.json).
 
 **NOT MEASURED:** длительный idle, потребление батареи, Lab-open/profile-switch latency и физический sleep/resume. Значения не заменяются нулями.
@@ -101,7 +103,7 @@ SQLite backup не включает Studio/Images и Studio/RecoveryNotes. По�
 
 Финальные [PR CI](https://github.com/LosarOS/SHIFT/actions/runs/40970021017), [main CI](https://github.com/LosarOS/SHIFT/actions/runs/40970866586) и [tag build](https://github.com/LosarOS/SHIFT/actions/runs/40970869902) связываются с конкретным source. Полный suite, locked restore, publish и обязательные gates записи validation прошли для тега; [WINDOWS-VALIDATION](evidence/rc6/WINDOWS-VALIDATION.json).
 
-Дополнительно выполнены локальная Windows-reference compilation0warnings/errors (только compile), PowerShell parser, source hygiene и NuGet advisory audit шести проектов/transitive packages без reported vulnerabilities на дату проверки. Это не абсолютная гарантия отсутствия уязвимостей.
+Для RC6 выполнены PowerShell parser и source hygiene. Дополнительные локальная Windows-reference compilation (0warnings/errors, только compile) и NuGet advisory audit шести проектов/transitive packages проводились на RC5; зависимости RC6 не менялись. Доказательство настоящей Windows-компиляции и запуска RC6 — его tagged workflow. Audit не сообщил известных уязвимостей на дату проверки и не является абсолютной гарантией их отсутствия.
 
 Неудачные прогоны сохранены в журнале: pool cleanup, native picker extension/probe, общий font contract, преждевременное Dispose меню и многострочные TextBox. Assertions не отключались ради зелёного CI.
 
