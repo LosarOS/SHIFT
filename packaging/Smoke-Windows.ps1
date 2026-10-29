@@ -14,6 +14,7 @@ Set-StrictMode -Version Latest
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
 Add-Type -AssemblyName System.Drawing
+Add-Type -AssemblyName System.Windows.Forms
 Add-Type -TypeDefinition @'
 using System;
 using System.Runtime.InteropServices;
@@ -22,6 +23,8 @@ public static class ShiftWindowProbe {
   [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h,out Rect r);
   [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
   [DllImport("dwmapi.dll")] public static extern int DwmFlush();
+  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hwnd);
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
 }
 '@
 $app = (Resolve-Path $AppDirectory).Path
@@ -83,6 +86,37 @@ function Set-Field([string]$Id,[string]$Value) {
     $control = Wait-For { Find-Control '' ([System.Windows.Automation.ControlType]::Edit) $Id } "field $Id"
     $control.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($Value)
 }
+function Quick-Selection {
+    $list = Find-Control '' ([System.Windows.Automation.ControlType]::List) 'Quick.Results'
+    if ($null -eq $list) { return $null }
+    $pattern = $list.GetCurrentPattern([System.Windows.Automation.SelectionPattern]::Pattern)
+    if ($pattern.Current.CanSelectMultiple) { throw 'Compact launcher incorrectly allows multiple selected workspaces.' }
+    $selected = @($pattern.Current.GetSelection())
+    if ($selected.Count -eq 1) { return $selected[0] }
+    return $null
+}
+function History-Count {
+    $scope = [System.Windows.Automation.AutomationElement]::FromHandle($process.MainWindowHandle)
+    $condition = New-Object System.Windows.Automation.PropertyCondition -ArgumentList @([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::Text)
+    $values = $scope.FindAll([System.Windows.Automation.TreeScope]::Descendants,$condition)
+    foreach ($value in $values) {
+        if ($value.Current.Name -cmatch '^Device local time  ·  ([0-9]+) runs in history$') { return [int]$Matches[1] }
+    }
+    return $null
+}
+function Quick-Key([string]$Keys) {
+    # Never inject into another program or an unverified modal dialog. Each key is sent once;
+    # retries only reacquire the intended foreground window/focus, never repeat dispatch.
+    $field = Wait-For { Find-Control '' ([System.Windows.Automation.ControlType]::Edit) 'Quick.Search' } 'compact keyboard target'
+    [void][ShiftWindowProbe]::SetForegroundWindow($process.MainWindowHandle)
+    $field.SetFocus()
+    $null = Wait-For {
+        $focused = [System.Windows.Automation.AutomationElement]::FocusedElement
+        if ([ShiftWindowProbe]::GetForegroundWindow() -eq $process.MainWindowHandle -and $focused -and
+            $focused.Current.ProcessId -eq $process.Id -and $focused.Current.AutomationId -ceq 'Quick.Search') { $true }
+    } 'owned compact launcher keyboard focus'
+    [System.Windows.Forms.SendKeys]::SendWait($Keys)
+}
 function Select-Choice([string]$Id,[string]$Value) {
     Write-Host "Select $Id = $Value"
     # WinUI can replace automation peers while laying out a just-opened dialog.
@@ -136,8 +170,17 @@ try {
     $process = Start-Process $exe -WorkingDirectory $app -PassThru
     if (-not $ResumeOwnedData) {
         Click 'Начать с чистого листа'
+        # Two explicit owned fixtures are needed to prove selection actually changes with arrows.
+        # The keyboard-only target has no items and is never dispatched.
+        Click '' 'Workspace.New'
+        Set-Field 'Field.Name' 'SHIFT smoke keyboard target'
+        Set-Field 'Field.Description' 'Keyboard navigation fixture'
+        Click 'Сохранить'
+        $null = Wait-For { Find-Control 'SHIFT smoke keyboard target' ([System.Windows.Automation.ControlType]::Text) } 'saved keyboard fixture'
+        Click '' 'Nav.Workspaces'
         Click '' 'Workspace.New'
         Set-Field 'Field.Name' 'SHIFT smoke workspace'
+        Set-Field 'Field.Description' 'Disposable launcher diagnostic context'
         Click 'Сохранить'
         $null = Wait-For { Find-Control 'SHIFT smoke workspace' ([System.Windows.Automation.ControlType]::Text) } 'saved workspace'
         Click '' 'Item.New'
@@ -180,11 +223,58 @@ try {
         Select-Choice 'Field.Language' 'English'
         Click 'Сохранить'
         $null = Wait-For { Find-Control 'Overview' ([System.Windows.Automation.ControlType]::Button) } 'localized settings rebuild'
+        Click '' 'Nav.History'
+        $historyBeforeReview = Wait-For { History-Count } 'history count before compact review'
+        $markerBeforeReview = Get-FileHash -LiteralPath $marker -Algorithm SHA256
+        $markerWriteBeforeReview = (Get-Item -LiteralPath $marker).LastWriteTimeUtc
         Click '' 'Quick.Open'
         Set-Field 'Quick.Search' 'SHIFT smoke'
         $null = Wait-For { Find-Control '↗  SHIFT smoke workspace' ([System.Windows.Automation.ControlType]::Text) } 'quick launcher search'
+        $firstSelection = Wait-For { Quick-Selection } 'single accessible compact selection'
+        if ($firstSelection.Current.Name -cnotlike 'SHIFT smoke workspace.*') { throw 'Recently dispatched workspace was not initially selected.' }
+        $firstSelectionId = $firstSelection.Current.AutomationId
+        if ($firstSelectionId -cnotmatch '^Quick\.Workspace\.[0-9a-f]{32}$') { throw 'Selected compact workspace lacks a stable automation identity.' }
+        $null = Wait-For { Find-Control 'Matching workspaces: 2' ([System.Windows.Automation.ControlType]::Text) 'Quick.ResultCount' } 'two compact fixture results'
         Capture 'quick-launcher'
-        Click '' 'Quick.Close'
+        Quick-Key '{DOWN}'
+        $null = Wait-For { $choice = Quick-Selection; if ($choice -and $choice.Current.Name -clike 'SHIFT smoke keyboard target.*') { $choice } } 'keyboard Down changes selected workspace'
+        Quick-Key '{UP}'
+        $null = Wait-For { $choice = Quick-Selection; if ($choice -and $choice.Current.AutomationId -ceq $firstSelectionId) { $choice } } 'keyboard Up restores selected workspace'
+        Set-Field 'Quick.Search' '   '
+        $null = Wait-For { Find-Control 'Matching workspaces: 2' ([System.Windows.Automation.ControlType]::Text) 'Quick.ResultCount' } 'whitespace preserves all workspaces'
+        Set-Field 'Quick.Search' '  context   SHIFT  '
+        $null = Wait-For { Find-Control 'Matching workspaces: 1' ([System.Windows.Automation.ControlType]::Text) 'Quick.ResultCount' } 'independent description and name search terms'
+        $null = Wait-For { $choice = Quick-Selection; if ($choice -and $choice.Current.AutomationId -ceq $firstSelectionId) { $choice } } 'cross-field search retains the correct result'
+        Set-Field 'Quick.Search' 'SHIFT-no-owned-workspace-matches-this-8d7f'
+        $null = Wait-For { Find-Control 'Matching workspaces: 0' ([System.Windows.Automation.ControlType]::Text) 'Quick.ResultCount' } 'empty compact search count'
+        foreach ($actionId in @('Quick.Launch','Quick.Review')) {
+            $null = Wait-For { $button = Find-Control '' ([System.Windows.Automation.ControlType]::Button) $actionId; if ($button -and -not $button.Current.IsEnabled) { $button } } "disabled empty compact action $actionId"
+        }
+        if ($null -ne (Quick-Selection)) { throw 'Empty compact search retained a selectable workspace.' }
+        Capture 'quick-launcher-empty'
+        Set-Field 'Quick.Search' 'context SHIFT'
+        $null = Wait-For { Quick-Selection } 'compact review selection'
+        Click '' 'Quick.Review'
+        $null = Wait-For { (Find-Control '' ([System.Windows.Automation.ControlType]::Button) 'Workspace.Launch') -and
+            (Find-Control 'Disposable launcher diagnostic context' ([System.Windows.Automation.ControlType]::Text)) } 'compact Review opens saved workspace detail'
+        if ($null -ne (Find-Control 'Allow and launch' ([System.Windows.Automation.ControlType]::Button))) { throw 'Compact Review unexpectedly requested command consent.' }
+        Click '' 'Nav.History'
+        $historyAfterReview = Wait-For { History-Count } 'history count after compact review'
+        if ($historyAfterReview -ne $historyBeforeReview -or
+            (Get-FileHash -LiteralPath $marker -Algorithm SHA256).Hash -cne $markerBeforeReview.Hash -or
+            (Get-Item -LiteralPath $marker).LastWriteTimeUtc -ne $markerWriteBeforeReview) { throw 'Compact Review changed dispatch history or command proof.' }
+        # Enter uses the existing consent flow. Explicit refusal must not rerun the already-approved command.
+        Click '' 'Quick.Open'
+        Set-Field 'Quick.Search' 'context SHIFT'
+        $null = Wait-For { Quick-Selection } 'compact Enter selection'
+        Quick-Key '{ENTER}'
+        $null = Wait-For { Find-Control 'Allow and launch' ([System.Windows.Automation.ControlType]::Button) } 'compact Enter requests command consent'
+        Click 'Cancel'
+        $null = Wait-For { Find-Control 'Commands declined' ([System.Windows.Automation.ControlType]::Text) } 'compact keyboard command refusal'
+        Click '' 'Nav.History'
+        $null = Wait-For { $count = History-Count; if ($null -ne $count -and $count -eq ($historyBeforeReview + 1)) { $true } } 'one explicitly declined keyboard run recorded'
+        if ((Get-FileHash -LiteralPath $marker -Algorithm SHA256).Hash -cne $markerBeforeReview.Hash -or
+            (Get-Item -LiteralPath $marker).LastWriteTimeUtc -ne $markerWriteBeforeReview) { throw 'Keyboard Enter bypassed command consent.' }
         Click '' 'Nav.Workspaces'
         $null=Wait-For { Find-Control 'SHIFT  /  WORKSPACES' ([System.Windows.Automation.ControlType]::Text) } 'workspaces heading'
         Capture 'workspaces'
@@ -254,7 +344,7 @@ try {
     $errors=Get-ChildItem (Join-Path $data 'logs') -Filter '*.log' -ErrorAction SilentlyContinue | Select-String -Pattern '\sERROR\s'
     if($errors){throw 'Application logged an unexpected error during UI smoke.'}
     $checks=@('workspace_persistence','english_persistence','midnight_theme_persistence','command_proof_persistence','graceful_exit')
-    if(-not $ResumeOwnedData){$checks+=@('workspace_create','item_create','doctor_read_only','doctor_repeat','command_refusal','command_approval','real_dispatch','compact_search','tray','second_instance_activation','restart')}
+    if(-not $ResumeOwnedData){$checks+=@('workspace_create','item_create','doctor_read_only','doctor_repeat','command_refusal','command_approval','real_dispatch','compact_search','compact_selection_pattern','compact_keyboard_navigation','compact_cross_field_search','compact_empty_actions','compact_review_without_dispatch','compact_keyboard_command_refusal','tray','second_instance_activation','restart')}
     if($DiagnosticsDirectory){
         @{schema_version=1;status='passed';environment='disposable-windows-ui-automation';mode=$label;resumed=[bool]$ResumeOwnedData;portable_smoke_archive=[bool]$ExtractedArchive;checks=$checks;manual_acceptance=$false;timestamp_utc=[DateTime]::UtcNow.ToString('o')} |
             ConvertTo-Json -Depth 4 | Set-Content (Join-Path $DiagnosticsDirectory "$label-smoke.json")
