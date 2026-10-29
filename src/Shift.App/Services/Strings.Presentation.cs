@@ -68,6 +68,8 @@ public sealed partial class Strings
         ("A widget definition required by this profile is missing.", "Не найдено определение виджета, необходимое этому профилю."),
         ("Studio note export exceeds the supported size.", "Экспорт заметок превышает лимит 8 МиБ."),
         ("Widget host has stopped.", "Фоновый поток виджетов завершился. Отключите и снова включите Studio."),
+        ("Widget host stopped before the operation completed.", "Поток виджетов завершился до окончания действия. Проверьте сохранённые данные; затем отключите и снова включите Studio."),
+        ("Unsupported widget font.", "Выберите поддерживаемый шрифт из списка."),
         ("A workspace launch is already in progress.", "Пространство уже запускается. Дождитесь завершения очереди."),
         ("Command execution was declined.", "Выполнение команд отклонено пользователем."),
         ("Launch cancelled before dispatch.", "Запуск отменён до отправки запроса Windows."),

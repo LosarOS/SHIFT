@@ -32,7 +32,7 @@ public static class StudioValidator
         Require(content.FocusMinutes is >= 1 and <= 1440 && content.UpdateIntervalSeconds is >= 1 and <= 3600, "Interval", "Invalid timer duration or update interval.");
         Require(Name(content.DateFormat, 80), "DateFormat", "Invalid date format.");
         try { _ = DateTimeOffset.UtcNow.ToString(content.DateFormat, CultureInfo.InvariantCulture); }
-        catch (FormatException) { throw new ValidationException(["Invalid date format."]); }
+        catch (FormatException) { throw new ValidationException(new[] { new ValidationIssue("Studio.DateFormat", "Invalid date format.") }); }
     }
     public static void Validate(DesktopProfile profile)
     {

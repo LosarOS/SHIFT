@@ -53,3 +53,12 @@
 - Widget Lab: копирование полного оформления библиотечного виджета в draft, рамка/тень и полный reset; содержание по типам с сохранением скрытых значений. Нет новой схемы, самостоятельной базы или автоматического применения.
 - Добавлены native-проверки copy/cancel/save (включая custom font/border/shadow), Ctrl+S и Shift+F10. Новая декларация теста создаётся явно; фиксированные ожидаемые counts тестового набора обновлены на неё, проверки отмены не ослаблены.
 - Локальные сборки acceptance tool и Windows-reference App: 0 errors/0 warnings, PowerShell parser и source hygiene прошли.
+
+## Контрольная точка 5 — проверка общего style contract
+
+- CI https://github.com/LosarOS/SHIFT/actions/runs/40957432770, head `07f8cc7`: оба core jobs и реальный portable compact/consent UIA прошли. Studio seed остановился до новых GUI-проверок: `Unsupported widget font`.
+- Подтверждён продуктовый дефект: Domain/редактор разрешают `Cascadia Mono`, а отдельный persistence allowlist отклонял его. Также Domain допускает TemplateId до100символов, persistence ограничивал64. Persistence теперь использует `StudioValidator.SafeFonts` и согласованную границу100; SQL schema не меняется.
+- Семь новых persistence/transfer регрессий проверили все предлагаемые шрифты и пользовательские имена65/100символов. Full Linux suite: **374/374**, без пропусков.
+- Некорректный формат даты теперь имеет код Studio.DateFormat и русскую подсказку, а не непереведённую General-ошибку. Добавлена отдельная регрессия. Ошибочное содержимое нового виджета остаётся доступным при смене типа, а проверка во время ввода не прокручивает редактор от пользователя.
+- Подготовлен ADR `docs/studio/PROFILE-TRANSFER.md` с границами доверия, atomic import и различием между конфигурацией, live snapshot и backup.
+- Предыдущий SaveFilePicker blocker ещё не объявлен исправленным: последний прогон не дошёл до него. Публикации нет.

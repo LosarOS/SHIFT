@@ -6,6 +6,13 @@ using Xunit;
 namespace Shift.Tests;
 public sealed class LocalizationTests
 {
+    [Fact] public void InvalidStudioDateFormatReportsLocalizedActionableError()
+    {
+        var error = Assert.Throws<ValidationException>(() => StudioValidator.Validate(new WidgetDefinition { Content = new() { DateFormat = "%" } }));
+        Assert.Equal("Studio.DateFormat", Assert.Single(error.Issues).Code);
+        Assert.Equal("Некорректный формат даты.", new Strings { Language = "ru" }.ErrorDetails(error));
+        Assert.Equal("Invalid date format.", new Strings { Language = "en" }.ErrorDetails(error));
+    }
     [Fact] public void EveryResourceHasBothLanguagesAndMatchingFormatArguments()
     {
         var ru = new Strings { Language = "ru" }; var en = new Strings { Language = "en" };

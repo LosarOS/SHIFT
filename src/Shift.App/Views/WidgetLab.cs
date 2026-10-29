@@ -89,14 +89,26 @@ public sealed partial class MainWindow
                 FocusMinutes = (int)focus.Value, UpdateIntervalSeconds = (int)interval.Value, InitialNotes = notes.Text } };
         WidgetLayout Layout() => new() { Width = width.Value, Height = height.Value, X = x.Value, Y = y.Value,
             MonitorId = monitorIds[Math.Max(0, monitor.SelectedIndex)], AlwaysOnTop = alwaysOnTop.IsChecked == true };
+        void RevealContentErrors(Exception exception)
+        {
+            // A new widget can switch kinds with unfinished values. Keep any invalid
+            // content reachable for repair instead of trapping it in a hidden panel.
+            if (exception is not ValidationException validation) return;
+            foreach (var issue in validation.Issues)
+            {
+                if (issue.Code == "Studio.DateFormat") clockContent.Visibility = Visibility.Visible;
+                if (issue.Code == "Studio.Interval") { monitorContent.Visibility = Visibility.Visible; timerContent.Visibility = Visibility.Visible; }
+                if (issue.Code == "Studio.Notes") notesContent.Visibility = Visibility.Visible;
+            }
+        }
         void UpdateMockup()
         {
             try
             {
                 var candidate = Candidate(); StudioValidator.Validate(candidate); StudioValidator.Validate(Layout());
-                preview.Background = Brush(candidate.Style.Background); preview.BorderBrush = Brush(candidate.Style.Accent); preview.BorderThickness = new Thickness(candidate.Style.BorderWidth);
+                preview.Background = Brush(accessibility.HighContrast ? palette.Surface : candidate.Style.Background); preview.BorderBrush = Brush(accessibility.HighContrast ? palette.Border : candidate.Style.Accent); preview.BorderThickness = new Thickness(candidate.Style.BorderWidth);
                 preview.CornerRadius = new CornerRadius(candidate.Style.CornerRadius); preview.Padding = new Thickness(candidate.Style.Padding);
-                previewText.Foreground = Brush(candidate.Style.Foreground); previewText.FontSize = Math.Min(40, candidate.Style.FontSize); previewText.FontFamily = new FontFamily(candidate.Style.FontFamily);
+                previewText.Foreground = Brush(accessibility.HighContrast ? palette.Text : candidate.Style.Foreground); previewText.FontSize = Math.Min(40, candidate.Style.FontSize); previewText.FontFamily = new FontFamily(candidate.Style.FontFamily);
                 previewText.Text = candidate.Kind switch
                 {
                     WidgetKind.Clock => DateTime.Now.ToString(candidate.Content.Use24Hour ? (candidate.Content.ShowSeconds ? "HH:mm:ss" : "HH:mm") : (candidate.Content.ShowSeconds ? "hh:mm:ss tt" : "hh:mm tt")) + "\n" + DateTime.Now.ToString(candidate.Content.DateFormat, s.Culture),
@@ -106,7 +118,7 @@ public sealed partial class MainWindow
                 };
                 error.IsOpen = false;
             }
-            catch (Exception ex) { error.Title = T("Проверьте свойства", "Check properties"); error.Message = s.ErrorDetails(ex); error.IsOpen = true; DispatcherQueue.TryEnqueue(() => error.StartBringIntoView()); }
+            catch (Exception ex) { RevealContentErrors(ex); error.Title = T("Проверьте свойства", "Check properties"); error.Message = s.ErrorDetails(ex); error.IsOpen = true; }
         }
         async Task UpdateDesktopPreviewAsync()
         {
