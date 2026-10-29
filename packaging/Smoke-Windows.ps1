@@ -293,8 +293,12 @@ try {
             Set-Field 'Quick.Search' 'context SHIFT'
             $null = Wait-For { Quick-Selection } 'compact review selection'
             Click '' 'Quick.Review'
-            $null = Wait-For { (Find-Control '' ([System.Windows.Automation.ControlType]::Button) 'Workspace.Launch') -and
-                (Find-Control 'Disposable launcher diagnostic context' ([System.Windows.Automation.ControlType]::Text)) } 'compact Review opens saved workspace detail'
+            $null = Wait-For {
+                if(-not(Find-Control '' ([System.Windows.Automation.ControlType]::Button) 'Workspace.Launch')){return $null}
+                $scope=[System.Windows.Automation.AutomationElement]::FromHandle($process.MainWindowHandle)
+                $texts=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::Text)
+                $scope.FindAll([System.Windows.Automation.TreeScope]::Descendants,$texts) | Where-Object {$_.Current.Name.Replace("`r`n","`n").Replace("`r","`n") -ceq $expectedDescription.Replace("`r`n","`n")} | Select-Object -First 1
+            } 'compact Review opens saved workspace detail'
             if ($null -ne (Find-Control 'Allow and launch' ([System.Windows.Automation.ControlType]::Button))) { throw 'Compact Review unexpectedly requested command consent.' }
             Click '' 'Nav.History'
             $historyAfterReview = Wait-For { History-Count } 'history count after compact review'
