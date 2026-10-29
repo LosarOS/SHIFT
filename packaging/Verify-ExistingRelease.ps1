@@ -72,7 +72,7 @@ try {
         original_binary_sha256 = $observed
         environment = 'GitHub Actions disposable Windows x64 runner'
         workflow_run = "https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
-        diagnosis = 'The old Studio probe expanded the locale dropdown once and retained a peer while WinUI could replace/collapse it during layout. The corrected probe reacquires the control, verifies actual selection and re-expands idempotently. Original published binaries passed two complete Studio/Russian feature passes without rebuilding.'
+        diagnosis = 'Original published binaries were downloaded and verified against their checksums and source. Two complete Studio passes and the listed portable/installed preservation checks ran with the recorded verification-script commit, without rebuilding or replacing application assets.'
         checks = $evidence; studio_repeated_checks = $studioChecks; original_core_tests = $original.core_tests; manual_acceptance = $false
     }
     $proof = Join-Path $out "WINDOWS-REVALIDATION-$env:GITHUB_RUN_ID.json"

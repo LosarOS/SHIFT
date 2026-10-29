@@ -1,40 +1,35 @@
-# SHIFT 1.0.0-rc.5 — ваше окружение, с собой
+# SHIFT 1.0.0-rc.6 — заметки, строка за строкой
 
-Нативный Windows x64 prerelease. **Studio включается только по выбору пользователя.** Без регистрации, облака, телеметрии и платных API.
+Неподписанный Windows x64 prerelease. Обновление исправляет подтверждённый после выпуска RC5 дефект на границе WinUI и native Notes. Публичные файлы предыдущих релизов не заменены.
 
-## Что нового
+## Исправление
 
-- **Перенос профилей Studio.** Экспорт набора виджетов, оформления и относительных позиций в версионированный JSON. Импорт с проверкой, предпросмотром, возвратом и отменой создаёт отдельный профиль одной транзакцией. Существующее окружение не включается и не меняется.
-- **Сохранение заметок.** Отдельный читаемый UTF-8 файл для всего профиля: фактический текст открытых окон и сохранённые скрытые заметки. Копирование — только явной кнопкой. Перед удалением профиля можно сохранить нужный текст.
-- **Повторное использование оформления.** Скопируйте полный стиль другого виджета в черновик мастерской: палитру, шрифт, прозрачность, рамку и тень. Отмена ничего не сохраняет. Содержимое показывается по типу виджета; скрытые значения сохраняются.
-- **Поиск профилей.** Название, описание и связанное рабочее пространство.
-- **Доступный компактный лаунчер.** Настоящий выбор списка, поиск по словам/описанию/тегам, стрелки и Enter, понятное пустое состояние и просмотр пространства без запуска.
-- **Клавиатура виджетов.** Ctrl+S — сохранение, Ctrl+Shift+S — копия отдельной заметки, Shift+F10 / клавиша меню — действия в закреплённом режиме.
+Редактор WinUI может возвращать перенос строки как CR, а импортированный текст — как LF. Native Windows edit-контрол ожидает CRLF: на неизменённом RC5 вторая строка шаблона оказалась на native line0 вместо1. Теперь отображение получает CRLF, а runtime-снимки сохраняют LF. Повторный запуск не наращивает переносы; Unicode, пробелы и пустые строки сохраняются. Предел данных20тыс.символов остаётся прежним даже при расширении CRLF в окне.
 
-## Исправления
+Нормализация применяется при начальном открытии Notes, восстановлении recovery draft и выборе состояния базы. Для других Unicode-разделителей и пробельных символов подмен нет. Старые CR/LF/CRLF данные читаются без миграции и массовой перезаписи.
 
-Исправлено аварийное отключение Studio после закрытия меню виджета клавишей Escape. Многострочные описания, команды, заметки и шаблоны больше не теряют строки при открытии редактора; экспорт заметок сохраняет полный исходный текст. Скопированный текст остаётся в буфере после выхода из SHIFT. Согласована проверка шрифтов/пользовательских стилей и переведена подсказка неправильного формата даты.
+## Возможности RC5 включены
 
-Защищён финальный hand-off заметок при смене профиля и закрытии. Ожидающие вызовы завершаются при выходе STA; Stop подтверждается до остановки message pump. Конфликты состояния разрешаются и для Focus Timer. Версия приложения теперь берётся из общего источника. Сохранены schema2, пространства, история и подтверждение команд.
+- Перенос профилей Studio: приватный JSON, preview/back/cancel и атомарный импорт без применения.
+- Читаемый экспорт Notes в UTF-8/clipboard, включая live snapshot и скрытые заметки.
+- Повторное использование оформления в мастерской, рамка/тень и draft/cancel.
+- Поиск профилей и доступный Compact Launcher с клавиатурой и просмотром без запуска.
+- Исправления меню после Escape, многострочных редакторов, lifecycle и style validation; RU/EN.
 
-## Установка и данные
+## Проверки
 
-Windows10 build19041+ / Windows11, x64. Скачайте **setup.exe** либо распакуйте **весь portable.zip**. Сверьте SHA256SUMS.txt. Бинарники **неподписанные**, возможны предупреждения SmartScreen.
+384 уникальных core tests (375 RC5 +9 новых). Каноническая публикация разрешена только после locked restore, полного Windows suite, publish, запуска извлечённого ZIP,20Studio gates, реального EM_LINEFROMCHAR=1, файловых диалогов/clipboard, installed smoke, repair/uninstall/reinstall/SQLite preservation и скачивания GitHub-байтов. Фактические результаты — приложенные WINDOWS-VALIDATION.json и native evidence.
 
-Перед обновлением полностью выйдите из SHIFT и скопируйте всю папку данных: `%LOCALAPPDATA%\SHIFT` для установленной версии либо `data\` для portable. Сохраните также Studio/Images и Studio/RecoveryNotes. Удаление программы не означает разрешение удалять пользовательские данные.
+[Исходное воспроизведение на RC5](https://github.com/LosarOS/SHIFT/actions/runs/40969409884) · [Журнал RC6](https://github.com/LosarOS/SHIFT/blob/main/reports/SHIFT-RC6-ENGINEERING-SESSION.md) · [Русский быстрый старт](https://github.com/LosarOS/SHIFT/blob/main/docs/QUICKSTART-RU.md).
 
-Пакет профиля — **конфигурация, не backup**: без обоев и их путей, monitor IDs, workspace binding, автоприменения и текущих notes/timer state. Начальный текст шаблонов включается только отдельно. Лимит JSON — 2МиБ /64виджета; новые ID, Edit Mode, обычный z-order. Экспорт заметок и clipboard не зашифрованы; неоткрытые recovery drafts исключены.
+## Установка и ограничения
 
-## Проверки и ограничения
+Windows10 build19041+ / Windows11, x64. Установщик — для текущего пользователя. Portable распаковать полностью, portable.flag оставить рядом с SHIFT.exe. Проверить SHA256SUMS.txt. Перед обновлением Quit и копия **всего** каталога данных: `%LOCALAPPDATA%\SHIFT` либо `data` у portable, включая Studio/Images и Studio/RecoveryNotes. Schema2 и command consent сохранены.
 
-Публикация workflow разрешена только после locked restore, полного core suite, Windows publish, запуска извлечённого ZIP, реальных native UIA/Studio/file-picker/clipboard/compact checks, installer preservation и проверки скачанных GitHub-байтов. Точные результаты — приложенные WINDOWS-VALIDATION.json, Native Smoke Evidence и engineering report.
-
-Windows Server UIA не заменяет физическую приёмку Windows10/11. Mixed DPI, multi-monitor/hotplug, Narrator/highcontrast, sleep/RDP/fullscreen и полная отдельная installed Studio матрица остаются непроверенными. Только подтверждённые статичные локальные обои; Spotlight/slideshow не поддерживаются. Mica/Acrylic используют явно обозначенный fallback. Виджеты — собственные окна, без внедрения в Explorer. Stable1.0 не присваивается.
-
-[Руководство по переносу и заметкам](https://github.com/LosarOS/SHIFT/blob/main/docs/STUDIO-SHARING-RU.md) · [Инженерный журнал](https://github.com/LosarOS/SHIFT/blob/main/reports/SHIFT-RC5-ENGINEERING-SESSION.md)
+Бинарники unsigned; SmartScreen может предупреждать. Native CI — disposable Windows Server2025, один виртуальный монитор. Физическая Windows10/11, mixed DPI/multi-monitor, Narrator/highcontrast, sleep/RDP/fullscreen и полная отдельная installed Studio матрица не подтверждены. Только явные статичные обои; Spotlight/slideshow не поддерживаются. Mica/Acrylic имеют обозначенный fallback. Stable1.0 не объявлен.
 
 ## English
 
-RC5 adds strict privacy-first Studio profile packs, atomic reviewed import, current/hidden Notes text export, searchable profiles and an accessible compact launcher with multi-term search and Review without dispatch. Multiline editors retain their complete text; note exports retain their authoritative snapshot and clipboard content survives exit. Repeated widget menu Escape no longer disables Studio. Persisted fonts and custom style limits match the editor. Native widgets gain keyboard actions, safe final input hand-off and bounded host shutdown; timer-state conflicts can be resolved explicitly.
+RC6 fixes a reproduced WinUI/native Notes interoperability defect. CR-only and LF text is converted to CRLF only for the native edit control; persisted snapshots use LF, retaining the20,000-character model bound. Initial load, recovery draft and database-conflict reload share the boundary. Unicode whitespace and trailing blank lines survive; repeated restore does not grow newlines. Existing schema2 and command consent are unchanged.
 
-Profile packs transfer configuration, never wallpaper/files/workspace links/current state or automatic consent. Initial note templates are opt-in. Existing schema2 data and command confirmation stay compatible. Back up the whole data directory before updating. Unsigned Windows x64 prerelease; physical Windows/DPI/accessibility acceptance remains separate from disposable Server UIA. See attached validation and known limitations.
+Includes RC5 Studio packs, readable Notes export, reusable styles and accessible launcher improvements.384 unique tests, plus actual native line-rendering and the existing Windows release gates. Unsigned prerelease; disposable Server UIA is separate from physical Windows/DPI/accessibility acceptance. Back up the complete data directory before updating.

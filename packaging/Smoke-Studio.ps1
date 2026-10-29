@@ -25,6 +25,7 @@ public static class StudioProbe {
 [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h,out Rect r);
 [DllImport("user32.dll")] public static extern bool GetLayeredWindowAttributes(IntPtr h,out uint c,out byte a,out uint f);
 [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr h,IntPtr after,int x,int y,int w,int height,uint flags);
+[DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr h,uint msg,IntPtr w,IntPtr l);
 [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h,uint msg,IntPtr w,IntPtr l);
 [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h,int cmd);
 [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
@@ -191,6 +192,14 @@ try {
  Apply 4
  $notes=Wait-For {@(Widgets | Where-Object {$_.Current.Name -like '*Notes'}) | Select-Object -First 1} 'Notes window'
  $editor=Wait-For {Find '' 'Note text, autosave' $notes} 'real Notes editor'
+ $initial=$editor.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value
+ $second=$initial.IndexOf('Second line — local only',[StringComparison]::Ordinal)
+ if($editor.Current.NativeWindowHandle -eq 0 -or $editor.Current.ProcessId -ne $process.Id){throw 'Expected the owned native Notes editor HWND.'}
+ $nativeLine=if($second -ge 0){[StudioProbe]::SendMessage([intptr]$editor.Current.NativeWindowHandle,0x00C9,[intptr]$second,[intptr]::Zero).ToInt64()}else{-1}
+ @{source_commit=$env:GITHUB_SHA;native_line=$nativeLine;initial_text=$initial;expected_second_line='Second line — local only'} | ConvertTo-Json | Set-Content (Join-Path $DiagnosticsDirectory 'native-notes-newline-proof.json') -Encoding UTF8
+ if($initial.Replace("`r`n","`n").Replace("`r","`n") -cne "Initial CI note`nSecond line — local only" -or $nativeLine -ne 1){throw 'Native Notes did not render the multiline template as two actual edit-control lines.'}
+ $checks+='native_notes_multiline_initial_text'
+ Capture 'desktop-multiline-notes'
  $editor.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue('Native CI note — Unicode')
  $focus=Wait-For {@(Widgets | Where-Object {$_.Current.Name -like '*FocusTimer'}) | Select-Object -First 1} 'Focus timer'
  Click '' 'Start' $focus

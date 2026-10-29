@@ -72,7 +72,7 @@ dotnet test tests/Shift.Tests -c Release
 Windows-дистрибутив собирается штатным сценарием:
 
 ```powershell
-pwsh ./packaging/Build-Release.ps1 -Version 1.0.0-rc.5
+pwsh ./packaging/Build-Release.ps1 -Version 1.0.0-rc.6
 ```
 
 Сценарий проверяет locked restore, тесты ядра, self-contained publish, ресурсы WinUI и извлечённый portable. Windows pipeline дополнительно проверяет native UI, установку, повторную установку, удаление и сохранность данных. Результаты каждого выпуска отражаются в его evidence и validation report. Публикация требует прохождения соответствующих gates и сверки скачанных бинарников; одного успешного compile недостаточно.
