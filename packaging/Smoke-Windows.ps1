@@ -144,7 +144,7 @@ function Select-Choice([string]$Id,[string]$Value) {
         $control=Find-Control '' ([System.Windows.Automation.ControlType]::ComboBox) $Id
         if(-not $control -or -not $control.Current.IsEnabled){return $null}
         $selection=$control.GetCurrentPattern([System.Windows.Automation.SelectionPattern]::Pattern)
-        $selected=@($selection.GetCurrentSelection())
+        $selected=@($selection.Current.GetSelection())
         if($selected.Count -eq 1 -and $selected[0].Current.Name -ceq $Value){return $true}
         $expand=$control.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern)
         if($expand.Current.ExpandCollapseState -ne [System.Windows.Automation.ExpandCollapseState]::Expanded){$expand.Expand()}
