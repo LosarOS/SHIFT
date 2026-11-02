@@ -1,0 +1,6 @@
+﻿{
+    "native_line":  1,
+    "source_commit":  "7bb1760b7095bcc254b25807b9eb2934cd807919",
+    "expected_second_line":  "Second line — local only",
+    "initial_text":  "Initial CI note\r\nSecond line — local only"
+}
