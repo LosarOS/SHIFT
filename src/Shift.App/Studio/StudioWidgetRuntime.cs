@@ -340,7 +340,10 @@ internal sealed class WidgetHost
             {
                 window.SetInteraction(interaction, persisted: true);
                 var saved = profile.Widgets.FirstOrDefault(w => w.Id == window.Instance.Id);
-                if (saved is null || saved.DefinitionId != window.Instance.DefinitionId || !saved.Visible)
+                // Persisting a mode does not apply editor geometry to the live window.
+                // Never silently rebase a clean old window onto that unseen placement.
+                if (saved is null || !layoutBaselines.TryGetValue(window.Instance.Id, out var acknowledged)
+                    || !WidgetPresentation.CanAcknowledgeModeChange(acknowledged, saved))
                     MarkLayoutConflict(window.Instance.Id);
                 else if (!layoutConflicts.Contains(saved.Id)) layoutBaselines[saved.Id] = saved;
             }
@@ -351,23 +354,30 @@ internal sealed class WidgetHost
     {
         if (topologySnapshot.Count == 0) throw new InvalidOperationException("No display is available.");
         if (profile is null) return;
-        var latest = (await store.ListProfilesAsync()).FirstOrDefault(p => p.Id == profile.Id)
-            ?? throw new InvalidOperationException("The active profile was deleted.");
-        monitors = topologySnapshot;
-        var primary = monitors.FirstOrDefault(m => m.Primary) ?? monitors[0];
-        var index = 0;
-        foreach (var window in windows.Values)
+        // InvokeAsync already owns hostGate. Only input is leased here; re-acquiring
+        // the non-reentrant gate would deadlock.
+        var input = windows.Values.Select(w => w.SuspendInput()).ToArray();
+        try
         {
-            // Gather is an explicit new placement intent. Rebase surviving matching
-            // instances, but never resurrect a deletion or move a replacement definition.
-            var saved = latest.Widgets.FirstOrDefault(w => w.Id == window.Instance.Id);
-            if (saved is null || saved.DefinitionId != window.Instance.DefinitionId || !saved.Visible)
-            { MarkLayoutConflict(window.Instance.Id); continue; }
-            layoutBaselines[saved.Id] = saved; layoutConflicts.Remove(saved.Id); window.SetLayoutConflict(false);
-            var layout = window.Instance.Layout with { MonitorId = primary.DeviceId, X = .04 + (index % 4) * .05, Y = .04 + (index % 4) * .05 };
-            window.Reposition(layout, monitors, persist: true); index++;
+            var latest = (await store.ListProfilesAsync()).FirstOrDefault(p => p.Id == profile.Id)
+                ?? throw new InvalidOperationException("The active profile was deleted.");
+            monitors = topologySnapshot;
+            var primary = monitors.FirstOrDefault(m => m.Primary) ?? monitors[0];
+            var index = 0;
+            foreach (var window in windows.Values)
+            {
+                // Gather is an explicit new placement intent. Rebase surviving matching
+                // instances, but never resurrect a deletion or move a replacement definition.
+                var saved = latest.Widgets.FirstOrDefault(w => w.Id == window.Instance.Id);
+                if (saved is null || saved.DefinitionId != window.Instance.DefinitionId || !saved.Visible)
+                { MarkLayoutConflict(window.Instance.Id); continue; }
+                layoutBaselines[saved.Id] = saved; layoutConflicts.Remove(saved.Id); window.SetLayoutConflict(false);
+                var layout = window.Instance.Layout with { MonitorId = primary.DeviceId, X = .04 + (index % 4) * .05, Y = .04 + (index % 4) * .05 };
+                window.Reposition(layout, monitors, persist: true); index++;
+            }
+            await SaveLayoutsAsync();
         }
-        await SaveLayoutsAsync();
+        finally { foreach (var lease in input) lease.Dispose(); }
     }
     private async void Tick(object? sender, EventArgs args)
     {
