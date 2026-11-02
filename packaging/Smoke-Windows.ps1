@@ -53,6 +53,7 @@ if ($DiagnosticsDirectory) { New-Item $DiagnosticsDirectory -ItemType Directory 
 $process = $null
 $monitor = $null
 $dumpDirectory = $null
+$productivityChecks=@()
 $startedAt = Get-Date
 $label = if ($Installed) { 'installed' } else { 'portable' }
 function Wait-For([scriptblock]$Probe,[string]$Description) {
@@ -270,7 +271,7 @@ try {
             Capture 'workspace-composer-ru'
             Click '' 'Dialog.Close'
             if(Test-Path -LiteralPath $marker){throw 'Productivity preview dispatched a command.'}
-            $checks+='workspace_productivity_russian_preview'
+            $productivityChecks+='workspace_productivity_russian_preview'
         }
         Click '' 'Workspace.Launch'
         $null = Wait-For { Find-Control 'Разрешить и запустить' ([System.Windows.Automation.ControlType]::Button) } 'command consent'
@@ -368,7 +369,7 @@ try {
             } 'explicit command shell in launch plan'
             Capture 'launch-plan'
             Click '' 'Dialog.Close'
-            $checks+='workspace_launch_plan_read_only'
+            $productivityChecks+='workspace_launch_plan_read_only'
             Click '' 'Workspace.Compose'
             Set-Field 'Compose.Input' "https://shift.example.test/one`r`nhttps://SHIFT.example.test/one`r`njavascript:alert(1)`r`nhttps://shift.example.test/two"
             Click '' 'Dialog.Primary'
@@ -394,7 +395,7 @@ try {
             Click '' 'Nav.History'
             $historyAfterCompose=Wait-For {History-Count} 'history after productivity'
             if($historyAfterCompose -ne $historyBeforeCompose -or (Get-FileHash -LiteralPath $marker -Algorithm SHA256).Hash -cne $markerHashBeforeCompose -or (Get-Item -LiteralPath $marker).LastWriteTimeUtc -ne $markerTimeBeforeCompose){throw 'Productivity preview/save changed dispatch history or command proof.'}
-            $checks+='workspace_composer_review_save_disabled_cleanup_no_dispatch'
+            $productivityChecks+='workspace_composer_review_save_disabled_cleanup_no_dispatch'
         }
         Click '' 'Nav.Workspaces'
         $null=Wait-For { Find-Control 'SHIFT  /  WORKSPACES' ([System.Windows.Automation.ControlType]::Text) } 'workspaces heading'
@@ -469,6 +470,7 @@ try {
         $checks+=@('workspace_create','item_create','doctor_read_only','doctor_repeat','command_refusal','command_approval','real_dispatch','compact_search','tray','second_instance_activation','restart')
         if(-not $LegacyCompactLauncher){$checks+=@('compact_selection_pattern','compact_keyboard_navigation','compact_cross_field_search','compact_empty_actions','compact_review_without_dispatch','compact_keyboard_command_refusal','multiline_workspace_and_item_editing')}
     }
+    $checks+=$productivityChecks
     if($DiagnosticsDirectory){
         @{schema_version=1;status='passed';environment='disposable-windows-ui-automation';mode=$label;resumed=[bool]$ResumeOwnedData;legacy_compact_launcher=[bool]$LegacyCompactLauncher;portable_smoke_archive=[bool]$ExtractedArchive;checks=$checks;manual_acceptance=$false;timestamp_utc=[DateTime]::UtcNow.ToString('o')} |
             ConvertTo-Json -Depth 4 | Set-Content (Join-Path $DiagnosticsDirectory "$label-smoke.json")
