@@ -1,0 +1,38 @@
+name: RC7 baseline diagnostics
+on:
+  push:
+    branches: ['feature/shift-studio-rc7-productivity']
+    paths: ['.github/workflows/rc7-baseline.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inspect retained disposable RC6 failure logs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: LosarOS/SHIFT
+        shell: bash
+        run: |
+          audit_dir="$(mktemp -d "$RUNNER_TEMP/shift-rc7-audit.XXXXXXXX")"
+          gh run download 40972038240 --name SHIFT-Windows-candidate --dir "$audit_dir"
+          python - "$audit_dir" <<'PY'
+          import sys
+          from pathlib import Path
+          root = Path(sys.argv[1])
+          count = 0
+          for p in sorted(root.rglob('*')):
+              if p.is_file() and p.suffix.lower() in {'.log', '.txt'} and p.stat().st_size <= 2_000_000:
+                  text = p.read_text(encoding='utf-8-sig', errors='replace')
+                  lines = text.splitlines()
+                  for i, line in enumerate(lines):
+                      if 'ERROR' in line:
+                          print('OWNED CI LOG:', p.relative_to(root))
+                          print('\n'.join(lines[max(0,i-1):min(len(lines),i+18)]))
+                          count += 1
+          print('ERROR records:', count)
+          if count == 0:
+              raise SystemExit('Retained application error evidence was not found.')
+          PY
