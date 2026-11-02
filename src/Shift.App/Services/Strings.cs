@@ -28,6 +28,7 @@ public sealed partial class Strings
         ["Validation.Compose.Duplicate"] = ("Такая цель уже есть в пространстве или выше в списке.", "This target already exists in the workspace or earlier in the list."),
         ["Validation.Compose.Selection"] = ("Выберите разные корректные строки, не превышая 100 элементов в пространстве.", "Select distinct valid rows, within the 100-item workspace limit."),
         ["Validation.Compose.Stale"] = ("Пространство изменилось. Закройте диалог и откройте список заново.", "The workspace changed. Close and reopen composition."),
+        ["Plan.Close"] = ("К пространству", "Back to workspace"),
         ["Plan.Action"] = ("План запуска", "Launch plan"),
         ["Plan.Title"] = ("Предпросмотр запуска", "Launch preview"),
         ["Plan.Scope"] = ("Это снимок порядка и настроенных задержек, без запуска и записи истории. Время работы команд, готовность приложений, проверки файлов и ожидание согласия сюда не входят. Повторы — подсказка, а не запрет.", "This is a snapshot of order and configured delays, without launch or history writes. Command duration, application readiness, file checks and consent time are excluded. Repeated targets are advisory."),

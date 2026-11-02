@@ -38,7 +38,7 @@ public sealed partial class MainWindow
         var errors = new InfoBar { Severity = InfoBarSeverity.Error, IsClosable = false };
         var body = Stack(14);
         body.Children.Add(inputPanel); body.Children.Add(review); body.Children.Add(errors);
-        var scroll = new ScrollViewer { Content = body, MaxHeight = 500, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+        var scroll = new ScrollViewer { Content = body, MaxHeight = 440, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
         var dialog = Dialog(s["Compose.Title"], scroll, s["Compose.Check"], s["Cancel"]);
         void UpdateSelection()
         {
@@ -144,7 +144,7 @@ public sealed partial class MainWindow
             body.Children.Add(card);
         }
         if (plan.Steps.Count == 0) body.Children.Add(Text(s["NoItemsNote"], 14, true));
-        var dialog = Dialog(s["Plan.Title"], new ScrollViewer { Content = body, MaxHeight = 500, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled }, s["Plan.CheckTargets"], s["Close"]);
+        var dialog = Dialog(s["Plan.Title"], new ScrollViewer { Content = body, MaxHeight = 440, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled }, s["Plan.CheckTargets"], s["Plan.Close"]);
         if (await ShowDialogAsync(dialog) == ContentDialogResult.Primary && !quitRequested)
             await OpenDoctorAsync(vm.Workspaces.FirstOrDefault(w => w.Id == workspace.Id) ?? workspace);
     }

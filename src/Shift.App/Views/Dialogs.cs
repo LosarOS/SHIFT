@@ -7,6 +7,15 @@ public sealed partial class MainWindow
     private ContentDialog Dialog(string title, UIElement content, string primary, string close)
     {
         var dialog = new ContentDialog { Title = title, Content = content, PrimaryButtonText = primary, CloseButtonText = close, DefaultButton = ContentDialogButton.Close, XamlRoot = root.XamlRoot, RequestedTheme = root.RequestedTheme };
+        Style Role(string id)
+        {
+            var style = new Style(typeof(Button));
+            style.Setters.Add(new Setter(Microsoft.UI.Xaml.Automation.AutomationProperties.AutomationIdProperty, id));
+            return style;
+        }
+        dialog.PrimaryButtonStyle = Role("Dialog.Primary");
+        dialog.SecondaryButtonStyle = Role("Dialog.Secondary");
+        dialog.CloseButtonStyle = Role("Dialog.Close");
         dialog.Resources["ContentDialogMaxWidth"] = 720d;
         return dialog;
     }

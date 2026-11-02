@@ -237,6 +237,20 @@ try {
         } 'repeated workspace diagnosis'
         if (Test-Path $marker) { throw 'Doctor executed the command on repeat.' }
         Click 'Закрыть'
+        if (-not $LegacyCompactLauncher) {
+            Click '' 'Workspace.Plan'
+            $null=Wait-For {$p=Find-Control '' ([System.Windows.Automation.ControlType]::Text) 'Plan.Summary';if($p -and $p.Current.Name.Contains('Команд: 1')){$p}} 'Russian read-only launch plan'
+            Capture 'launch-plan-ru'
+            Click '' 'Dialog.Close'
+            Click '' 'Workspace.Compose'
+            Set-Field 'Compose.Input' "https://shift.example.test/one`r`nhttps://SHIFT.example.test/one`r`njavascript:alert(1)`r`nhttps://shift.example.test/two"
+            Click '' 'Dialog.Primary'
+            $null=Wait-For {$c=Find-Control '' ([System.Windows.Automation.ControlType]::Text) 'Compose.Summary';if($c -and $c.Current.Name.Contains('Готово: 2') -and $c.Current.Name.Contains('Повторы: 1') -and $c.Current.Name.Contains('Ошибки: 1')){$c}} 'Russian reviewed batch'
+            Capture 'workspace-composer-ru'
+            Click '' 'Dialog.Close'
+            if(Test-Path -LiteralPath $marker){throw 'Productivity preview dispatched a command.'}
+            $checks+='workspace_productivity_russian_preview'
+        }
         Click '' 'Workspace.Launch'
         $null = Wait-For { Find-Control 'Разрешить и запустить' ([System.Windows.Automation.ControlType]::Button) } 'command consent'
         Capture 'command-consent'
@@ -317,6 +331,44 @@ try {
             $null = Wait-For { $count = History-Count; if ($null -ne $count -and $count -eq ($historyBeforeReview + 1)) { $true } } 'one explicitly declined keyboard run recorded'
             if ((Get-FileHash -LiteralPath $marker -Algorithm SHA256).Hash -cne $markerBeforeReview.Hash -or
                 (Get-Item -LiteralPath $marker).LastWriteTimeUtc -ne $markerWriteBeforeReview) { throw 'Keyboard Enter bypassed command consent.' }
+            # New productivity actions use only this owned synthetic workspace.
+            $historyBeforeCompose=Wait-For {History-Count} 'history before productivity'
+            $markerHashBeforeCompose=(Get-FileHash -LiteralPath $marker -Algorithm SHA256).Hash
+            $markerTimeBeforeCompose=(Get-Item -LiteralPath $marker).LastWriteTimeUtc
+            Click '' 'Quick.Open';Set-Field 'Quick.Search' 'context SHIFT'
+            $null=Wait-For {Quick-Selection} 'productivity workspace selection'
+            Click '' 'Quick.Review'
+            Click '' 'Workspace.Plan'
+            $null=Wait-For {$p=Find-Control '' ([System.Windows.Automation.ControlType]::Text) 'Plan.Summary';if($p -and $p.Current.Name.Contains('Enabled: 1') -and $p.Current.Name.Contains('Commands: 1')){$p}} 'read-only launch plan'
+            Capture 'launch-plan'
+            Click '' 'Dialog.Close'
+            $checks+='workspace_launch_plan_read_only'
+            Click '' 'Workspace.Compose'
+            Set-Field 'Compose.Input' "https://shift.example.test/one`r`nhttps://SHIFT.example.test/one`r`njavascript:alert(1)`r`nhttps://shift.example.test/two"
+            Click '' 'Dialog.Primary'
+            $null=Wait-For {$c=Find-Control '' ([System.Windows.Automation.ControlType]::Text) 'Compose.Summary';if($c -and $c.Current.Name.Contains('Selected: 2') -and $c.Current.Name.Contains('Ready: 2') -and $c.Current.Name.Contains('Duplicates: 1') -and $c.Current.Name.Contains('Invalid: 1')){$c}} 'English reviewed batch'
+            $flag=Find-Control '' ([System.Windows.Automation.ControlType]::CheckBox) 'Compose.Enabled'
+            if($flag.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Current.ToggleState -ne [System.Windows.Automation.ToggleState]::Off){throw 'Bulk additions enabled by default.'}
+            Capture 'workspace-composer'
+            Click '' 'Dialog.Primary'
+            $null=Wait-For {Find-Control 'https://shift.example.test/two' ([System.Windows.Automation.ControlType]::Text)} 'saved reviewed targets'
+            Click '' 'Workspace.Plan'
+            $null=Wait-For {$p=Find-Control '' ([System.Windows.Automation.ControlType]::Text) 'Plan.Summary';if($p -and $p.Current.Name.Contains('Enabled: 1') -and $p.Current.Name.Contains('Skipped: 2')){$p}} 'new targets remain disabled'
+            Click '' 'Dialog.Close'
+            $scope=[System.Windows.Automation.AutomationElement]::FromHandle($process.MainWindowHandle)
+            $buttonCondition=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::Button)
+            $deletes=@($scope.FindAll([System.Windows.Automation.TreeScope]::Descendants,$buttonCondition)|Where-Object {$_.Current.AutomationId.StartsWith('Item.Delete.')}|ForEach-Object {$_.Current.AutomationId})
+            if($deletes.Count -ne 3){throw 'Expected exactly original command and two unique reviewed URL additions.'}
+            foreach($id in @($deletes|Select-Object -Skip 1)){
+                Click '' $id
+                Click '' 'Dialog.Primary'
+                $null=Wait-For {-not(Find-Control '' ([System.Windows.Automation.ControlType]::Button) $id)} 'owned test addition removed'
+            }
+            $null=Wait-For {Find-Control '' ([System.Windows.Automation.ControlType]::Button) $deletes[0]} 'original command preserved'
+            Click '' 'Nav.History'
+            $historyAfterCompose=Wait-For {History-Count} 'history after productivity'
+            if($historyAfterCompose -ne $historyBeforeCompose -or (Get-FileHash -LiteralPath $marker -Algorithm SHA256).Hash -cne $markerHashBeforeCompose -or (Get-Item -LiteralPath $marker).LastWriteTimeUtc -ne $markerTimeBeforeCompose){throw 'Productivity preview/save changed dispatch history or command proof.'}
+            $checks+='workspace_composer_review_save_disabled_cleanup_no_dispatch'
         }
         Click '' 'Nav.Workspaces'
         $null=Wait-For { Find-Control 'SHIFT  /  WORKSPACES' ([System.Windows.Automation.ControlType]::Text) } 'workspaces heading'

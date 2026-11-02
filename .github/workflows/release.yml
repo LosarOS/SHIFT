@@ -7,7 +7,7 @@ on:
       version:
         description: 'Release candidate version; manual dispatch builds artifacts without publishing'
         required: true
-        default: '1.0.0-rc.6'
+        default: '1.0.0-rc.7'
       verify_existing:
         description: 'Revalidate unchanged existing release bytes using corrected smoke; does not publish'
         type: boolean
@@ -62,6 +62,12 @@ jobs:
           }
           $portableEvidence = Get-Content $nativeChecks[0] -Raw | ConvertFrom-Json
           if ($portableEvidence.portable_smoke_archive -ne $true) { throw 'Portable smoke did not use the extracted distribution ZIP.' }
+          $installedEvidence = Get-Content $nativeChecks[1] -Raw | ConvertFrom-Json
+          foreach ($gate in @('workspace_productivity_russian_preview','workspace_launch_plan_read_only','workspace_composer_review_save_disabled_cleanup_no_dispatch')) {
+            foreach ($proof in @($portableEvidence, $installedEvidence)) {
+              if ($gate -notin $proof.checks) { throw "Missing productivity UI gate: $gate" }
+            }
+          }
           $studio = Get-Content artifacts/diagnostics/studio/studio-smoke.json -Raw | ConvertFrom-Json
           $studioEnvironment = Get-Content artifacts/diagnostics/studio/studio-native-environment.json -Raw | ConvertFrom-Json
           if ($studio.status -ne 'passed' -or $studio.source_commit -ne $env:GITHUB_SHA -or $studio.manual_acceptance -ne $false -or $studio.wallpaper_verified -ne $true) { throw 'Studio native widget/wallpaper recovery gates are not verified.' }
@@ -83,6 +89,7 @@ jobs:
             environment = 'GitHub Actions disposable Windows x64 runner'; signature = 'unsigned'
             core_tests = @{ total = [int]$counts.total; passed = [int]$counts.passed; failed = [int]$counts.failed; skipped = [int]$counts.notExecuted }
             locked_restore = 'passed'; windows_self_contained_publish = 'passed'
+            workspace_composer = 'passed'; launch_plan_preview = 'passed'; productivity_no_dispatch = 'passed'
             russian_localization = 'passed'; quick_workspace_setup = 'passed'; studio_starter_presets = 'passed'
             widget_lab_reuse_appearance = 'passed'; widget_desktop_keyboard = 'passed'; studio_profile_transfer = 'passed'; studio_notes_export = 'passed'; real_file_pickers_and_clipboard = 'passed'; compact_launcher_selection_and_keyboard = 'passed'
             native_notes_multiline_initial_text = 'passed'; studio_widgets = 'passed'; studio_wallpaper_recovery = 'passed'; actual_rc2_migration = 'passed'
