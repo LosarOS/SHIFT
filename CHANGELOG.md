@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.0-rc.7 — 2026-11-02
+
+- Added bounded, reviewed workspace batch composition with selection, per-batch delay, disabled defaults, duplicate/invalid rows and stale-preview protection.
+- Added read-only launch plans with dispatch ordering, enabled-only delay budget, command consent visibility and advisory repeated targets.
+- Fixed Studio layout/metadata CAS races using atomic per-instance compare/write and monotonic informational LastApplied without configuration revision churn.
+- Protected unseen editor geometry during mode/gather and retained preferred size across native clamp/rounding.
+- Added deterministic concurrency and composition/planning regressions; new native RU/EN portable/installed UI gates.
+- Preserved schema2, command consent, existing workspaces/history and opt-in Studio. Physical Windows/DPI/accessibility acceptance remains separate.
+
 ## 1.0.0-rc.6 — 2026-10-29
 
 - Fixed WinUI CR-only / imported LF Notes rendering in native multiline edit controls; CRLF is used only for display, LF for persisted snapshots.

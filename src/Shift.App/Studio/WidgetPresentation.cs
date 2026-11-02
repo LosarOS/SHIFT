@@ -44,6 +44,20 @@ internal static class WidgetPresentation
             (en ? "Free " : "Свободно ") + (free / gib).ToString("F1", culture) + unit);
     }
 
+    // A mode-only write may acknowledge the new mode, but not a placement/identity
+    // edited elsewhere: those values have never reached this live window.
+    public static bool CanAcknowledgeModeChange(WidgetInstance acknowledged, WidgetInstance saved)
+        => acknowledged.Id == saved.Id && acknowledged.DefinitionId == saved.DefinitionId
+            && acknowledged.Visible == saved.Visible && acknowledged.Layout == saved.Layout;
+
+    public static WidgetInstance GatherPlacement(WidgetInstance saved, string monitorId, int index)
+        => saved with { Layout = saved.Layout with { MonitorId = monitorId,
+            X = .04 + (index % 4) * .05, Y = .04 + (index % 4) * .05 } };
+
+    public static bool CanAcknowledgeAppliedLayout(WidgetInstance saved, WidgetLayout current,
+        WidgetInteraction interaction, WidgetLayout presented)
+        => current == presented && interaction == saved.Interaction;
+
     public static bool LayoutWasSaved(WidgetInstance saved, WidgetLayout current, WidgetInteraction interaction)
         => saved.Layout == current && saved.Interaction == interaction;
 

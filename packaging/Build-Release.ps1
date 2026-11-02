@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidatePattern('^\d+\.\d+\.\d+(?:-rc\.\d+)?$')][string]$Version = '1.0.0-rc.6',
+    [ValidatePattern('^\d+\.\d+\.\d+(?:-rc\.\d+)?$')][string]$Version = '1.0.0-rc.7',
     [string]$IsccPath = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
 )
 $ErrorActionPreference = 'Stop'

@@ -6,7 +6,7 @@ public sealed partial class MainWindow
 {
     private ContentDialog Dialog(string title, UIElement content, string primary, string close)
     {
-        var dialog = new ContentDialog { Title = title, Content = content, PrimaryButtonText = primary, CloseButtonText = close, DefaultButton = ContentDialogButton.Close, XamlRoot = root.XamlRoot, RequestedTheme = root.RequestedTheme };
+        var dialog = new ShiftDialog { Title = title, Content = content, PrimaryButtonText = primary, CloseButtonText = close, DefaultButton = ContentDialogButton.Close, XamlRoot = root.XamlRoot, RequestedTheme = root.RequestedTheme };
         dialog.Resources["ContentDialogMaxWidth"] = 720d;
         return dialog;
     }

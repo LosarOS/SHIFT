@@ -12,8 +12,41 @@ public class StudioApplicationTests
         public Dictionary<Guid, StudioRecoveryJournal> Journals = [];
         public StudioSettings Settings = new() { Enabled = true };
         public int JournalWrites; public int FailJournalWrite;
+        public int ProfileWrites;
         public Task<IReadOnlyList<DesktopProfile>> ListProfilesAsync(CancellationToken token = default) => Task.FromResult<IReadOnlyList<DesktopProfile>>(Profiles.ToArray());
-        public Task<DesktopProfile> SaveProfileAsync(DesktopProfile profile, CancellationToken token = default) { Profiles.RemoveAll(p => p.Id == profile.Id); Profiles.Add(profile with { Revision = profile.Revision + 1 }); return Task.FromResult(Profiles[^1]); }
+        public Task<DesktopProfile> SaveProfileAsync(DesktopProfile profile, CancellationToken token = default) { ProfileWrites++; Profiles.RemoveAll(p => p.Id == profile.Id); Profiles.Add(profile with { Revision = profile.Revision + 1 }); return Task.FromResult(Profiles[^1]); }
+        public Task<bool> RecordProfileAppliedAsync(Guid id, DateTimeOffset appliedAt, CancellationToken token = default)
+        {
+            token.ThrowIfCancellationRequested();
+            var index = Profiles.FindIndex(p => p.Id == id);
+            if (index < 0) return Task.FromResult(false);
+            var current = Profiles[index];
+            if (current.LastAppliedAt is null || appliedAt > current.LastAppliedAt.Value)
+                Profiles[index] = current with { LastAppliedAt = appliedAt.ToUniversalTime() };
+            return Task.FromResult(true);
+        }
+        public Task<StudioLayoutWriteResult> SaveLayoutEditsAsync(Guid id, IReadOnlyList<StudioLayoutEdit> edits, CancellationToken token = default)
+        {
+            token.ThrowIfCancellationRequested();
+            var index = Profiles.FindIndex(p => p.Id == id);
+            if (index < 0) return Task.FromResult(new StudioLayoutWriteResult([], edits.Select(e => e.Expected.Id).ToArray()));
+            var current = Profiles[index]; var widgets = current.Widgets.ToArray();
+            var saved = new List<WidgetInstance>(); var conflicts = new List<Guid>(); var changed = false;
+            foreach (var edit in edits)
+            {
+                var at = Array.FindIndex(widgets, w => w.Id == edit.Expected.Id);
+                if (at < 0 || widgets[at].DefinitionId != edit.Expected.DefinitionId || widgets[at].Visible != edit.Expected.Visible)
+                { conflicts.Add(edit.Expected.Id); continue; }
+                var value = widgets[at];
+                if ((value.Layout != edit.Layout || value.Interaction != edit.Interaction)
+                    && (value.Layout != edit.Expected.Layout || value.Interaction != edit.Expected.Interaction))
+                { conflicts.Add(value.Id); continue; }
+                var next = value with { Layout = edit.Layout, Interaction = edit.Interaction };
+                changed |= next != value; widgets[at] = next; saved.Add(next);
+            }
+            if (changed) Profiles[index] = current with { Widgets = widgets, Revision = current.Revision + 1 };
+            return Task.FromResult(new StudioLayoutWriteResult(saved, conflicts));
+        }
         public Task DeleteProfileAsync(Guid id, CancellationToken token = default) { Profiles.RemoveAll(p => p.Id == id); return Task.CompletedTask; }
         public Task<IReadOnlyList<WidgetDefinition>> ListDefinitionsAsync(CancellationToken token = default) => Task.FromResult<IReadOnlyList<WidgetDefinition>>(Definitions.ToArray());
         public Task<WidgetDefinition> SaveDefinitionAsync(WidgetDefinition definition, CancellationToken token = default) { Definitions.Add(definition); return Task.FromResult(definition); }
@@ -78,6 +111,15 @@ public class StudioApplicationTests
         Assert.Equal(WallpaperPlacement.Fit, f.Wallpaper.Position); // No implicit position change.
         Assert.Equal(f.Profile.Id, f.Store.Settings.ActiveProfileId); Assert.True(f.Store.Settings.WallpaperConsentGranted);
         Assert.Equal(["A"], f.Store.Journals[result.JournalId].AppliedMonitorIds);
+    }
+    [Fact] public async Task SuccessfulApplyRecordsTimeWithoutWholeProfileConfigurationWrite()
+    {
+        var f = new Fixture(); var revision = f.Profile.Revision;
+        var result = await f.Service.ApplyAsync(f.Profile.Id, true);
+        Assert.Equal(StudioApplyStatus.Applied, result.Status);
+        var profile = Assert.Single(f.Store.Profiles);
+        Assert.NotNull(profile.LastAppliedAt); Assert.Equal(revision, profile.Revision);
+        Assert.Equal(0, f.Store.ProfileWrites);
     }
     [Fact] public async Task ConsentAndDisabledStudioCannotMutateWindows()
     {

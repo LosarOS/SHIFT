@@ -120,8 +120,9 @@ public sealed class DesktopProfileService(IStudioStore store, IWallpaperService 
             catch (Exception ex) { errors.Add(Error(ex)); log.Error("Studio widget apply failed", ex); }
             if (errors.Count == 0)
             {
-                var current = (await store.ListProfilesAsync(CancellationToken.None)).FirstOrDefault(p => p.Id == profile.Id);
-                if (current is not null) await store.SaveProfileAsync(current with { LastAppliedAt = DateTimeOffset.UtcNow }, CancellationToken.None);
+                // Recording usage must not invalidate the scheduler's configuration snapshot.
+                // A concurrently deleted profile is never recreated by this informational write.
+                await store.RecordProfileAppliedAsync(profile.Id, DateTimeOffset.UtcNow, CancellationToken.None);
             }
             var status = errors.Count == 0 ? StudioApplyStatus.Applied : successes > 0 ? StudioApplyStatus.PartiallyApplied : StudioApplyStatus.Failed;
             await store.SaveRecoveryJournalAsync(journal with { Status = status, Errors = errors.ToArray() }, CancellationToken.None);

@@ -53,6 +53,7 @@ if ($DiagnosticsDirectory) { New-Item $DiagnosticsDirectory -ItemType Directory 
 $process = $null
 $monitor = $null
 $dumpDirectory = $null
+$productivityChecks=@()
 $startedAt = Get-Date
 $label = if ($Installed) { 'installed' } else { 'portable' }
 function Wait-For([scriptblock]$Probe,[string]$Description) {
@@ -76,12 +77,28 @@ function Find-Control([string]$Name,[System.Windows.Automation.ControlType]$Type
     $a = New-Object System.Windows.Automation.PropertyCondition -ArgumentList @($identity,$value)
     $b = New-Object System.Windows.Automation.PropertyCondition -ArgumentList @([System.Windows.Automation.AutomationElement]::ControlTypeProperty,$Type)
     $condition = New-Object System.Windows.Automation.AndCondition -ArgumentList @($a,$b)
+    if($Desktop){
+        $owner=New-Object System.Windows.Automation.PropertyCondition -ArgumentList @([System.Windows.Automation.AutomationElement]::ProcessIdProperty,$process.Id)
+        $condition=New-Object System.Windows.Automation.AndCondition -ArgumentList @($condition,$owner)
+    }
     return $scope.FindFirst([System.Windows.Automation.TreeScope]::Descendants,$condition)
 }
 function Click([string]$Name,[string]$Id='') {
+    # Invoke can bypass an in-XAML modal focus trap. Wait for real keyboard
+    # focus to settle before invoking once; do not click behind a closing dialog.
+    $focusState=@{id='';samples=0}
     $control = Wait-For {
         $candidate=Find-Control $Name ([System.Windows.Automation.ControlType]::Button) $Id
-        if($null -ne $candidate -and $candidate.Current.IsEnabled){$candidate}
+        if($null -eq $candidate -or -not $candidate.Current.IsEnabled){return $null}
+        [void][ShiftWindowProbe]::SetForegroundWindow($process.MainWindowHandle)
+        try{$candidate.SetFocus()}catch{return $null}
+        $focused=[System.Windows.Automation.AutomationElement]::FocusedElement
+        $identity=$candidate.GetRuntimeId() -join ':'
+        if($focused -and $focused.Current.ProcessId -eq $process.Id -and ($focused.GetRuntimeId() -join ':') -ceq $identity){
+            if($focusState.id -ceq $identity){$focusState.samples++}else{$focusState.id=$identity;$focusState.samples=1}
+            if($focusState.samples -ge 3){return $candidate}
+        }else{$focusState.samples=0}
+        return $null
     } "button $Name $Id"
     $control.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
 }
@@ -122,29 +139,29 @@ function Quick-Key([string]$Keys) {
 }
 function Select-Choice([string]$Id,[string]$Value) {
     Write-Host "Select $Id = $Value"
-    # WinUI can replace automation peers while laying out a just-opened dialog.
-    # Expansion/selection are idempotent; reacquire stale peers inside the bounded wait.
-    $null = Wait-For {
+    # Peers/popups can be rebuilt during Fluent layout. Read the actual selected
+    # value and re-expand idempotently; never repeat a dispatch/action.
+    $null=Wait-For {
         $control=Find-Control '' ([System.Windows.Automation.ControlType]::ComboBox) $Id
-        if($control -and $control.Current.IsEnabled){
-            $pattern=$control.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern)
-            if($pattern.Current.ExpandCollapseState -ne [System.Windows.Automation.ExpandCollapseState]::Expanded){$pattern.Expand()}
-            $true
-        }
-    } "expanded choice $Id"
-    $null = Wait-For {
+        if(-not $control -or -not $control.Current.IsEnabled){return $null}
+        $selection=$control.GetCurrentPattern([System.Windows.Automation.SelectionPattern]::Pattern)
+        $selected=@($selection.Current.GetSelection())
+        if($selected.Count -eq 1 -and $selected[0].Current.Name -ceq $Value){return $true}
+        $expand=$control.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern)
+        if($expand.Current.ExpandCollapseState -ne [System.Windows.Automation.ExpandCollapseState]::Expanded){$expand.Expand()}
         $choice=Find-Control $Value ([System.Windows.Automation.ControlType]::ListItem) '' -Desktop
-        if($choice -and $choice.Current.IsEnabled){$choice.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select();$true}
-    } "selected option $Id = $Value"
-    $null = Wait-For {
+        if($choice -and $choice.Current.IsEnabled){$choice.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()}
+        return $null
+    } "actual selection $Id = $Value"
+    $null=Wait-For {
         $control=Find-Control '' ([System.Windows.Automation.ControlType]::ComboBox) $Id
-        if($control){
-            $pattern=$control.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern)
-            if($pattern.Current.ExpandCollapseState -ne [System.Windows.Automation.ExpandCollapseState]::Collapsed){$pattern.Collapse()}
-            $true
-        }
+        if(-not $control){return $null}
+        $expand=$control.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern)
+        if($expand.Current.ExpandCollapseState -ne [System.Windows.Automation.ExpandCollapseState]::Collapsed){$expand.Collapse()}
+        return $true
     } "collapsed choice $Id"
 }
+
 function Capture([string]$Name) {
     if (-not $DiagnosticsDirectory -or $null -eq $process) { return }
     # UI Automation observes logical state before WinUI/DWM presents the frame.
@@ -237,6 +254,25 @@ try {
         } 'repeated workspace diagnosis'
         if (Test-Path $marker) { throw 'Doctor executed the command on repeat.' }
         Click 'Закрыть'
+        if (-not $LegacyCompactLauncher) {
+            Click '' 'Workspace.Plan'
+            $null=Wait-For {$p=Find-Control '' ([System.Windows.Automation.ControlType]::Text) 'Plan.Summary';if($p -and $p.Current.Name.Contains('Команд: 1')){$p}} 'Russian read-only launch plan'
+            $null=Wait-For {
+                $scope=[System.Windows.Automation.AutomationElement]::FromHandle($process.MainWindowHandle)
+                $condition=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::Text)
+                $scope.FindAll([System.Windows.Automation.TreeScope]::Descendants,$condition)|Where-Object {$_.Current.AutomationId.StartsWith('Plan.Shell.') -and $_.Current.Name.EndsWith('PowerShell (Windows)')}|Select-Object -First 1
+            } 'explicit command shell in launch plan'
+            Capture 'launch-plan-ru'
+            Click '' 'Dialog.Close'
+            Click '' 'Workspace.Compose'
+            Set-Field 'Compose.Input' "https://shift.example.test/one`r`nhttps://SHIFT.example.test/one`r`njavascript:alert(1)`r`nhttps://shift.example.test/two"
+            Click '' 'Dialog.Primary'
+            $null=Wait-For {$c=Find-Control '' ([System.Windows.Automation.ControlType]::Text) 'Compose.Summary';if($c -and $c.Current.Name.Contains('Готово: 2') -and $c.Current.Name.Contains('Повторы: 1') -and $c.Current.Name.Contains('Ошибки: 1')){$c}} 'Russian reviewed batch'
+            Capture 'workspace-composer-ru'
+            Click '' 'Dialog.Close'
+            if(Test-Path -LiteralPath $marker){throw 'Productivity preview dispatched a command.'}
+            $productivityChecks+='workspace_productivity_russian_preview'
+        }
         Click '' 'Workspace.Launch'
         $null = Wait-For { Find-Control 'Разрешить и запустить' ([System.Windows.Automation.ControlType]::Button) } 'command consent'
         Capture 'command-consent'
@@ -317,6 +353,49 @@ try {
             $null = Wait-For { $count = History-Count; if ($null -ne $count -and $count -eq ($historyBeforeReview + 1)) { $true } } 'one explicitly declined keyboard run recorded'
             if ((Get-FileHash -LiteralPath $marker -Algorithm SHA256).Hash -cne $markerBeforeReview.Hash -or
                 (Get-Item -LiteralPath $marker).LastWriteTimeUtc -ne $markerWriteBeforeReview) { throw 'Keyboard Enter bypassed command consent.' }
+            # New productivity actions use only this owned synthetic workspace.
+            $historyBeforeCompose=Wait-For {History-Count} 'history before productivity'
+            $markerHashBeforeCompose=(Get-FileHash -LiteralPath $marker -Algorithm SHA256).Hash
+            $markerTimeBeforeCompose=(Get-Item -LiteralPath $marker).LastWriteTimeUtc
+            Click '' 'Quick.Open';Set-Field 'Quick.Search' 'context SHIFT'
+            $null=Wait-For {Quick-Selection} 'productivity workspace selection'
+            Click '' 'Quick.Review'
+            Click '' 'Workspace.Plan'
+            $null=Wait-For {$p=Find-Control '' ([System.Windows.Automation.ControlType]::Text) 'Plan.Summary';if($p -and $p.Current.Name.Contains('Enabled: 1') -and $p.Current.Name.Contains('Commands: 1')){$p}} 'read-only launch plan'
+            $null=Wait-For {
+                $scope=[System.Windows.Automation.AutomationElement]::FromHandle($process.MainWindowHandle)
+                $condition=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::Text)
+                $scope.FindAll([System.Windows.Automation.TreeScope]::Descendants,$condition)|Where-Object {$_.Current.AutomationId.StartsWith('Plan.Shell.') -and $_.Current.Name.EndsWith('PowerShell (Windows)')}|Select-Object -First 1
+            } 'explicit command shell in launch plan'
+            Capture 'launch-plan'
+            Click '' 'Dialog.Close'
+            $productivityChecks+='workspace_launch_plan_read_only'
+            Click '' 'Workspace.Compose'
+            Set-Field 'Compose.Input' "https://shift.example.test/one`r`nhttps://SHIFT.example.test/one`r`njavascript:alert(1)`r`nhttps://shift.example.test/two"
+            Click '' 'Dialog.Primary'
+            $null=Wait-For {$c=Find-Control '' ([System.Windows.Automation.ControlType]::Text) 'Compose.Summary';if($c -and $c.Current.Name.Contains('Selected: 2') -and $c.Current.Name.Contains('Ready: 2') -and $c.Current.Name.Contains('Duplicates: 1') -and $c.Current.Name.Contains('Invalid: 1')){$c}} 'English reviewed batch'
+            $flag=Find-Control '' ([System.Windows.Automation.ControlType]::CheckBox) 'Compose.Enabled'
+            if($flag.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Current.ToggleState -ne [System.Windows.Automation.ToggleState]::Off){throw 'Bulk additions enabled by default.'}
+            Capture 'workspace-composer'
+            Click '' 'Dialog.Primary'
+            $null=Wait-For {Find-Control 'https://shift.example.test/two' ([System.Windows.Automation.ControlType]::Text)} 'saved reviewed targets'
+            Click '' 'Workspace.Plan'
+            $null=Wait-For {$p=Find-Control '' ([System.Windows.Automation.ControlType]::Text) 'Plan.Summary';if($p -and $p.Current.Name.Contains('Enabled: 1') -and $p.Current.Name.Contains('Skipped: 2')){$p}} 'new targets remain disabled'
+            Click '' 'Dialog.Close'
+            $scope=[System.Windows.Automation.AutomationElement]::FromHandle($process.MainWindowHandle)
+            $buttonCondition=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::Button)
+            $deletes=@($scope.FindAll([System.Windows.Automation.TreeScope]::Descendants,$buttonCondition)|Where-Object {$_.Current.AutomationId.StartsWith('Item.Delete.')}|ForEach-Object {$_.Current.AutomationId})
+            if($deletes.Count -ne 3){throw 'Expected exactly original command and two unique reviewed URL additions.'}
+            foreach($id in @($deletes|Select-Object -Skip 1)){
+                Click '' $id
+                Click '' 'Dialog.Primary'
+                $null=Wait-For {-not(Find-Control '' ([System.Windows.Automation.ControlType]::Button) $id)} 'owned test addition removed'
+            }
+            $null=Wait-For {Find-Control '' ([System.Windows.Automation.ControlType]::Button) $deletes[0]} 'original command preserved'
+            Click '' 'Nav.History'
+            $historyAfterCompose=Wait-For {History-Count} 'history after productivity'
+            if($historyAfterCompose -ne $historyBeforeCompose -or (Get-FileHash -LiteralPath $marker -Algorithm SHA256).Hash -cne $markerHashBeforeCompose -or (Get-Item -LiteralPath $marker).LastWriteTimeUtc -ne $markerTimeBeforeCompose){throw 'Productivity preview/save changed dispatch history or command proof.'}
+            $productivityChecks+='workspace_composer_review_save_disabled_cleanup_no_dispatch'
         }
         Click '' 'Nav.Workspaces'
         $null=Wait-For { Find-Control 'SHIFT  /  WORKSPACES' ([System.Windows.Automation.ControlType]::Text) } 'workspaces heading'
@@ -391,6 +470,7 @@ try {
         $checks+=@('workspace_create','item_create','doctor_read_only','doctor_repeat','command_refusal','command_approval','real_dispatch','compact_search','tray','second_instance_activation','restart')
         if(-not $LegacyCompactLauncher){$checks+=@('compact_selection_pattern','compact_keyboard_navigation','compact_cross_field_search','compact_empty_actions','compact_review_without_dispatch','compact_keyboard_command_refusal','multiline_workspace_and_item_editing')}
     }
+    $checks+=$productivityChecks
     if($DiagnosticsDirectory){
         @{schema_version=1;status='passed';environment='disposable-windows-ui-automation';mode=$label;resumed=[bool]$ResumeOwnedData;legacy_compact_launcher=[bool]$LegacyCompactLauncher;portable_smoke_archive=[bool]$ExtractedArchive;checks=$checks;manual_acceptance=$false;timestamp_utc=[DateTime]::UtcNow.ToString('o')} |
             ConvertTo-Json -Depth 4 | Set-Content (Join-Path $DiagnosticsDirectory "$label-smoke.json")
