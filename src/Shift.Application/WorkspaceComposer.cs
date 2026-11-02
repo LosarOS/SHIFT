@@ -88,6 +88,7 @@ public static class WorkspaceComposer
     {
         if (kind == ItemKind.Url && Uri.TryCreate(target, UriKind.Absolute, out var uri))
             return "url:" + uri.GetComponents(UriComponents.SchemeAndServer, UriFormat.UriEscaped).ToUpperInvariant()
+                + "|" + uri.GetComponents(UriComponents.UserInfo, UriFormat.UriEscaped)
                 + "|" + uri.GetComponents(UriComponents.PathAndQuery | UriComponents.Fragment, UriFormat.UriEscaped);
         return "local:" + Environment.ExpandEnvironmentVariables(target).Replace('/', '\\').TrimEnd('\\').ToUpperInvariant();
     }

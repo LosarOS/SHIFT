@@ -96,4 +96,17 @@ public class WorkspaceLaunchPlannerTests
         Assert.DoesNotContain("{0}", string.Format(s.Culture, s["Plan.Summary"], 1, 2, 3, 4));
         Assert.DoesNotContain("{4}", string.Format(s.Culture, s["Compose.Summary"], 1, 2, 3, 4, 5));
     }
+
+    [Fact] public void UrlCredentialIdentityIsCaseSensitiveAndNotMergedWithPublicRequests()
+    {
+        var first = new WorkspaceItem { Name = "First", Kind = ItemKind.Url, Target = "https://user:one@example.org/a" };
+        var second = first with { Id = Guid.NewGuid(), Order = 1, Target = "https://user:One@example.org/a" };
+        var third = first with { Id = Guid.NewGuid(), Order = 2, Target = "https://USER:one@example.org/a" };
+        var publicRequest = first with { Id = Guid.NewGuid(), Order = 3, Target = "https://example.org/a" };
+        var same = first with { Id = Guid.NewGuid(), Order = 4, Target = "https://user:one@EXAMPLE.org/a" };
+        var plan = WorkspaceLaunchPlanner.Create(new Workspace { Name = "Auth", Items = [first, second, third, publicRequest, same] });
+        Assert.Equal(1, plan.RepeatedTargets);
+        Assert.Equal(first.Id, plan.Steps[4].RepeatsItemId);
+        Assert.All(plan.Steps.Take(4), step => Assert.Null(step.RepeatsItemId));
+    }
 }

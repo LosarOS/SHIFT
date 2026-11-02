@@ -181,4 +181,12 @@ public class WorkspaceComposerTests
         var p = WorkspaceComposer.Preview(Space(), @"Z:\never-probed\document.txt", ItemKind.File);
         Assert.Equal(1, p.Ready);
     }
+
+    [Fact] public void ExistingAuthenticatedUrlDoesNotBlockANewPublicTarget()
+    {
+        var source = Space(Link("https://User:Secret@example.org/A"));
+        var preview = WorkspaceComposer.Preview(source, "https://example.org/A", ItemKind.Url);
+        Assert.Equal(1, preview.Ready); Assert.Equal(0, preview.Duplicates);
+        Assert.Equal(2, WorkspaceComposer.Apply(source, preview, [1]).Items.Count);
+    }
 }
