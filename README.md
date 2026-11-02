@@ -1,7 +1,7 @@
 <div align="center">
 
-> **SHIFT RC6:** [Windows prerelease](https://github.com/LosarOS/SHIFT/releases/tag/v1.0.0-rc.6) · [Русский быстрый старт](docs/QUICKSTART-RU.md) · [Validation report](reports/SHIFT-RC6-VALIDATION-RU.md). Portable Studio profiles, readable Notes export, reusable widget styles and a keyboard-friendly launcher. Studio remains opt-in.
-[Installer](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.6/SHIFT-1.0.0-rc.6-win-x64-setup.exe) · [Portable](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.6/SHIFT-1.0.0-rc.6-win-x64-portable.zip) · [SHA256](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.6/SHA256SUMS.txt) · [Русский](README.ru.md)
+> **SHIFT RC7:** [Windows prerelease](https://github.com/LosarOS/SHIFT/releases/tag/v1.0.0-rc.7) · [Русский быстрый старт](docs/QUICKSTART-RU.md) · [Validation report](reports/SHIFT-RC7-VALIDATION-RU.md). Reviewed multi-item composition, read-only launch plans and safer Studio layout saves. Studio remains opt-in.
+[Installer](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.7/SHIFT-1.0.0-rc.7-win-x64-setup.exe) · [Portable](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.7/SHIFT-1.0.0-rc.7-win-x64-portable.zip) · [SHA256](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.7/SHA256SUMS.txt) · [Русский](README.ru.md)
 
 ![SHIFT — Your work. One SHIFT away.](docs/assets/shift-cover.svg)
 
@@ -13,15 +13,19 @@
 
 Bring your apps, folders, documents, projects and links into a workspace. Open your context in one action, see what happened, and move on with your day.
 
-**1.0.0-rc.6 is available as an unsigned Windows prerelease.** [Windows downloads and checksums](https://github.com/LosarOS/SHIFT/releases). Native build, portable/installed UI Automation and installer preservation have passed; publication additionally verifies the extracted distribution and GitHub-downloaded bytes. Manual Windows 10/11, accessibility and DPI acceptance remain required before stable1.0. The exact verified state is recorded in [VALIDATION](docs/VALIDATION.md). A version number is not a substitute for testing.
+**1.0.0-rc.7 is available as an unsigned Windows prerelease.** [Windows downloads and checksums](https://github.com/LosarOS/SHIFT/releases). Native build, portable/installed UI Automation and installer preservation have passed; publication additionally verifies the extracted distribution and GitHub-downloaded bytes. Manual Windows 10/11, accessibility and DPI acceptance remain required before stable1.0. The exact verified state is recorded in [VALIDATION](docs/VALIDATION.md). A version number is not a substitute for testing.
 
-![SHIFT Studio — actual Windows CI capture](docs/screenshots/rc6/studio-overview.png)
+![SHIFT Studio — actual Windows CI capture](docs/screenshots/rc7/studio-overview.png)
 
-Actual Windows runner capture with synthetic acceptance data. [Native RC6 views and exact limits](docs/screenshots/rc6/README.md).
+Actual Windows runner capture with synthetic acceptance data. [Native RC7 views and exact limits](docs/screenshots/rc7/README.md).
 
-## RC6 reliability update
+## RC7: review your workspace before dispatch
 
-Native Notes now renders CR/LF/CRLF text from WinUI and imported templates correctly. The defect was reproduced against unchanged RC5 downloads; a real Windows edit-control line check verifies the fix. Existing data needs no migration.
+Add a list of paths or URLs, review duplicates and invalid rows, and append only selected entries. New items are disabled by default. The launch plan shows actual ordering, enabled/skipped steps, command shells and configured delay totals without starting anything. [Workspace guide in Russian](docs/WORKSPACE-PRODUCTIVITY-RU.md).
+
+Studio saves layout changes per instance against acknowledged state. Newer editor geometry, hidden/replaced widgets and notes are protected; LastApplied metadata no longer causes configuration revision conflicts. **461 unique core tests** plus actual portable/installed RU/EN UI scenarios passed. [Evidence and remaining acceptance gates](reports/SHIFT-RC7-VALIDATION-RU.md).
+
+![Reviewed workspace composition — actual Windows capture](docs/screenshots/rc7/workspace-composer-en.png)
 
 ## Designed for your working day
 
@@ -63,7 +67,7 @@ dotnet test tests/Shift.Tests -c Release
 Create the Windows distribution with PowerShell 7 and Inno Setup 6:
 
 ```powershell
-pwsh ./packaging/Build-Release.ps1 -Version 1.0.0-rc.6
+pwsh ./packaging/Build-Release.ps1 -Version 1.0.0-rc.7
 ```
 
 The script runs locked restore, core tests, self-contained publish and UI Automation smoke, then creates a portable ZIP, per-user installer and SHA-256 checksums in `artifacts/`. Windows CI additionally tests the installed app and uninstall. The UI smoke includes an explicitly approved harmless command that writes a marker into its disposable test profile; it also verifies refusal does not execute it. Diagnostics and real-window screenshots are saved by CI; screenshots are genuine disposable Windows runner captures.

@@ -1,0 +1,18 @@
+﻿{
+    "schema_version":  1,
+    "status":  "passed",
+    "source_commit":  "7bb1760b7095bcc254b25807b9eb2934cd807919",
+    "expectedName":  "RC4 Быстрое пространство",
+    "cancelledName":  "RC4 Отменено de2d25b526",
+    "targetPaths":  [
+                        "C:\\Users\\runneradmin\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\SHIFT RC4 Quick Setup de2d25b5266c499e84e6098ea08f889a\\SHIFT RC4 de2d25b526 A — Блокнот.lnk",
+                        "C:\\Users\\runneradmin\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\SHIFT RC4 Quick Setup de2d25b5266c499e84e6098ea08f889a\\SHIFT RC4 de2d25b526 B — Блокнот.lnk"
+                    ],
+    "expectedItemCount":  2,
+    "checks":  [
+                   "search_select_preview_reorder_back_save_ru",
+                   "nonempty_draft_cancel_ru"
+               ],
+    "shortcuts_executed":  false,
+    "manual_acceptance":  false
+}
