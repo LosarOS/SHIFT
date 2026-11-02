@@ -363,19 +363,28 @@ internal sealed class WidgetHost
                 ?? throw new InvalidOperationException("The active profile was deleted.");
             monitors = topologySnapshot;
             var primary = monitors.FirstOrDefault(m => m.Primary) ?? monitors[0];
+            var edits = new List<StudioLayoutEdit>();
+            var presented = new Dictionary<Guid, WidgetLayout>();
             var index = 0;
             foreach (var window in windows.Values)
             {
-                // Gather is an explicit new placement intent. Rebase surviving matching
-                // instances, but never resurrect a deletion or move a replacement definition.
+                // Gather changes position/monitor only. Take dimensions, topmost and
+                // mode from the current stored instance, never the stale live window.
                 var saved = latest.Widgets.FirstOrDefault(w => w.Id == window.Instance.Id);
                 if (saved is null || saved.DefinitionId != window.Instance.DefinitionId || !saved.Visible)
                 { MarkLayoutConflict(window.Instance.Id); continue; }
+                var target = WidgetPresentation.GatherPlacement(saved, primary.DeviceId, index++);
                 layoutBaselines[saved.Id] = saved; layoutConflicts.Remove(saved.Id); window.SetLayoutConflict(false);
-                var layout = window.Instance.Layout with { MonitorId = primary.DeviceId, X = .04 + (index % 4) * .05, Y = .04 + (index % 4) * .05 };
-                window.Reposition(layout, monitors, persist: true); index++;
+                window.SetInteraction(target.Interaction, persisted: true);
+                window.Reposition(target.Layout, monitors, persist: true);
+                presented[saved.Id] = window.CaptureLayout();
+                edits.Add(new(saved, target.Layout, target.Interaction));
             }
-            await SaveLayoutsAsync();
+            if (edits.Count > 0)
+            {
+                var result = await store.SaveLayoutEditsAsync(profile.Id, edits);
+                AcknowledgeLayouts(result, presented);
+            }
         }
         finally { foreach (var lease in input) lease.Dispose(); }
     }
@@ -425,11 +434,17 @@ internal sealed class WidgetHost
         // Atomic per-instance compare/write handles unrelated profile metadata/editor
         // changes without a stale whole-profile save or a blind retry.
         var result = await store.SaveLayoutEditsAsync(profile.Id, edits);
+        AcknowledgeLayouts(result);
+    }
+    private void AcknowledgeLayouts(StudioLayoutWriteResult result, IReadOnlyDictionary<Guid, WidgetLayout>? presented = null)
+    {
         foreach (var saved in result.Saved)
             if (windows.TryGetValue(saved.Id, out var window))
             {
                 layoutBaselines[saved.Id] = saved;
-                window.LayoutSaved(saved);
+                if (presented is not null && presented.TryGetValue(saved.Id, out var display))
+                    window.LayoutSaved(saved, display);
+                else window.LayoutSaved(saved);
                 window.SetLayoutConflict(false);
             }
         foreach (var id in result.Conflicts) MarkLayoutConflict(id);

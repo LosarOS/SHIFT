@@ -272,10 +272,17 @@ internal sealed class WidgetWindow : Forms.Form
         var captured = WidgetLayoutService.Capture(new WidgetBounds(Left, Top, Width, Height, monitor?.DeviceId ?? Instance.Layout.MonitorId), monitors);
         return captured with { AlwaysOnTop = Instance.Layout.AlwaysOnTop };
     }
-    public void LayoutSaved(WidgetInstance saved)
+    public void LayoutSaved(WidgetInstance saved, WidgetLayout? expectedPresentation = null)
     {
         if (!LayoutDirty) return; // A fallback display is not a user edit.
         var current = CaptureLayout();
+        if (expectedPresentation is not null
+            && WidgetPresentation.CanAcknowledgeAppliedLayout(saved, current, Instance.Interaction, expectedPresentation))
+        {
+            // Gather deliberately applied this logical layout. A temporary native
+            // clamp/rounding is not a new user edit and must not replace saved size.
+            LayoutDirty = false; Instance = Instance with { Layout = saved.Layout }; return;
+        }
         // Native move/resize events can arrive while the database save is awaiting IO.
         // Acknowledge only the exact geometry/mode that actually reached storage.
         LayoutDirty = !WidgetPresentation.LayoutWasSaved(saved, current, Instance.Interaction);
