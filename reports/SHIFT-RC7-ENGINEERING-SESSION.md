@@ -21,3 +21,7 @@ Isolated agent branch fix/rc7-layout-concurrency, final f74788bb3033e574b99a7feb
 ## Evidence checkpoint
 
 First feature commit504997350e97fe9fd01ccba25c37f774af8b91ee: CI41513026662 all four jobs SUCCESS.433unique tests passed Windows/Linux (384baseline +49composition/planning/localization/persistence). Existing native suite and installer passed, but new Composer/Plan UI cases were not yet part of that revision. They are added next and require a new full Windows pass. No RC7 release is claimed until final source gates pass.
+
+## Integrated core and native readiness
+
+Commit36f6d9:459unique core cases passed on Windows/Linux (384baseline +49Composer/Plan +26layout/metadata). Native portable probe failed before new scenarios: UIA Invoke reached Item.New while the previous edit dialog was still closing; application correctly rejected a second dialog. Previous intermediate af1e153 passed portable/Studio but installed combo selection timed out after popup peer replacement. Probe now waits for stable owned keyboard focus before a single Invoke, scopes desktop choice peers to the app PID and verifies actual ComboBox selection with idempotent re-expansion. No dispatch retries or checks removed. Requires fresh complete Windows run.

@@ -76,12 +76,28 @@ function Find-Control([string]$Name,[System.Windows.Automation.ControlType]$Type
     $a = New-Object System.Windows.Automation.PropertyCondition -ArgumentList @($identity,$value)
     $b = New-Object System.Windows.Automation.PropertyCondition -ArgumentList @([System.Windows.Automation.AutomationElement]::ControlTypeProperty,$Type)
     $condition = New-Object System.Windows.Automation.AndCondition -ArgumentList @($a,$b)
+    if($Desktop){
+        $owner=New-Object System.Windows.Automation.PropertyCondition -ArgumentList @([System.Windows.Automation.AutomationElement]::ProcessIdProperty,$process.Id)
+        $condition=New-Object System.Windows.Automation.AndCondition -ArgumentList @($condition,$owner)
+    }
     return $scope.FindFirst([System.Windows.Automation.TreeScope]::Descendants,$condition)
 }
 function Click([string]$Name,[string]$Id='') {
+    # Invoke can bypass an in-XAML modal focus trap. Wait for real keyboard
+    # focus to settle before invoking once; do not click behind a closing dialog.
+    $focusState=@{id='';samples=0}
     $control = Wait-For {
         $candidate=Find-Control $Name ([System.Windows.Automation.ControlType]::Button) $Id
-        if($null -ne $candidate -and $candidate.Current.IsEnabled){$candidate}
+        if($null -eq $candidate -or -not $candidate.Current.IsEnabled){return $null}
+        [void][ShiftWindowProbe]::SetForegroundWindow($process.MainWindowHandle)
+        try{$candidate.SetFocus()}catch{return $null}
+        $focused=[System.Windows.Automation.AutomationElement]::FocusedElement
+        $identity=$candidate.GetRuntimeId() -join ':'
+        if($focused -and $focused.Current.ProcessId -eq $process.Id -and ($focused.GetRuntimeId() -join ':') -ceq $identity){
+            if($focusState.id -ceq $identity){$focusState.samples++}else{$focusState.id=$identity;$focusState.samples=1}
+            if($focusState.samples -ge 3){return $candidate}
+        }else{$focusState.samples=0}
+        return $null
     } "button $Name $Id"
     $control.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
 }
@@ -122,29 +138,29 @@ function Quick-Key([string]$Keys) {
 }
 function Select-Choice([string]$Id,[string]$Value) {
     Write-Host "Select $Id = $Value"
-    # WinUI can replace automation peers while laying out a just-opened dialog.
-    # Expansion/selection are idempotent; reacquire stale peers inside the bounded wait.
-    $null = Wait-For {
+    # Peers/popups can be rebuilt during Fluent layout. Read the actual selected
+    # value and re-expand idempotently; never repeat a dispatch/action.
+    $null=Wait-For {
         $control=Find-Control '' ([System.Windows.Automation.ControlType]::ComboBox) $Id
-        if($control -and $control.Current.IsEnabled){
-            $pattern=$control.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern)
-            if($pattern.Current.ExpandCollapseState -ne [System.Windows.Automation.ExpandCollapseState]::Expanded){$pattern.Expand()}
-            $true
-        }
-    } "expanded choice $Id"
-    $null = Wait-For {
+        if(-not $control -or -not $control.Current.IsEnabled){return $null}
+        $selection=$control.GetCurrentPattern([System.Windows.Automation.SelectionPattern]::Pattern)
+        $selected=@($selection.GetCurrentSelection())
+        if($selected.Count -eq 1 -and $selected[0].Current.Name -ceq $Value){return $true}
+        $expand=$control.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern)
+        if($expand.Current.ExpandCollapseState -ne [System.Windows.Automation.ExpandCollapseState]::Expanded){$expand.Expand()}
         $choice=Find-Control $Value ([System.Windows.Automation.ControlType]::ListItem) '' -Desktop
-        if($choice -and $choice.Current.IsEnabled){$choice.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select();$true}
-    } "selected option $Id = $Value"
-    $null = Wait-For {
+        if($choice -and $choice.Current.IsEnabled){$choice.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()}
+        return $null
+    } "actual selection $Id = $Value"
+    $null=Wait-For {
         $control=Find-Control '' ([System.Windows.Automation.ControlType]::ComboBox) $Id
-        if($control){
-            $pattern=$control.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern)
-            if($pattern.Current.ExpandCollapseState -ne [System.Windows.Automation.ExpandCollapseState]::Collapsed){$pattern.Collapse()}
-            $true
-        }
+        if(-not $control){return $null}
+        $expand=$control.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern)
+        if($expand.Current.ExpandCollapseState -ne [System.Windows.Automation.ExpandCollapseState]::Collapsed){$expand.Collapse()}
+        return $true
     } "collapsed choice $Id"
 }
+
 function Capture([string]$Name) {
     if (-not $DiagnosticsDirectory -or $null -eq $process) { return }
     # UI Automation observes logical state before WinUI/DWM presents the frame.
