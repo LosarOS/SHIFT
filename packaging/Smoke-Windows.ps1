@@ -256,6 +256,11 @@ try {
         if (-not $LegacyCompactLauncher) {
             Click '' 'Workspace.Plan'
             $null=Wait-For {$p=Find-Control '' ([System.Windows.Automation.ControlType]::Text) 'Plan.Summary';if($p -and $p.Current.Name.Contains('Команд: 1')){$p}} 'Russian read-only launch plan'
+            $null=Wait-For {
+                $scope=[System.Windows.Automation.AutomationElement]::FromHandle($process.MainWindowHandle)
+                $condition=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::Text)
+                $scope.FindAll([System.Windows.Automation.TreeScope]::Descendants,$condition)|Where-Object {$_.Current.AutomationId.StartsWith('Plan.Shell.') -and $_.Current.Name.EndsWith('PowerShell (Windows)')}|Select-Object -First 1
+            } 'explicit command shell in launch plan'
             Capture 'launch-plan-ru'
             Click '' 'Dialog.Close'
             Click '' 'Workspace.Compose'
@@ -356,6 +361,11 @@ try {
             Click '' 'Quick.Review'
             Click '' 'Workspace.Plan'
             $null=Wait-For {$p=Find-Control '' ([System.Windows.Automation.ControlType]::Text) 'Plan.Summary';if($p -and $p.Current.Name.Contains('Enabled: 1') -and $p.Current.Name.Contains('Commands: 1')){$p}} 'read-only launch plan'
+            $null=Wait-For {
+                $scope=[System.Windows.Automation.AutomationElement]::FromHandle($process.MainWindowHandle)
+                $condition=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::Text)
+                $scope.FindAll([System.Windows.Automation.TreeScope]::Descendants,$condition)|Where-Object {$_.Current.AutomationId.StartsWith('Plan.Shell.') -and $_.Current.Name.EndsWith('PowerShell (Windows)')}|Select-Object -First 1
+            } 'explicit command shell in launch plan'
             Capture 'launch-plan'
             Click '' 'Dialog.Close'
             $checks+='workspace_launch_plan_read_only'

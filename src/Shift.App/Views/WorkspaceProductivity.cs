@@ -136,6 +136,12 @@ public sealed partial class MainWindow
             row.Children.Add(Text(s[step.Item.Kind.ToString()] + " · " + s[step.Item.Enabled ? "Enabled" : "Disabled"], 12, true));
             row.Children.Add(Text(step.DelayBudgetMs is long budget ? s["Plan.NotBefore"] + " " + TimeSpan.FromMilliseconds(budget).ToString(@"hh\:mm\:ss\.fff") : s["Plan.Skipped"], 12, true));
             var target = Text(step.Item.Target, 13); target.IsTextSelectionEnabled = true; row.Children.Add(target);
+            if (step.Item.Kind == ItemKind.Command)
+            {
+                var shell = Text(s["Shell"] + ": " + (step.Item.Shell == CommandShell.PowerShell ? "PowerShell (Windows)" : "cmd.exe"), 12, true);
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(shell, "Plan.Shell." + step.Item.Id.ToString("N"));
+                row.Children.Add(shell);
+            }
             if (step.Item.Arguments.Length > 0) row.Children.Add(Text(s["Arguments"] + ": " + step.Item.Arguments, 12, true));
             if (step.Item.WorkingDirectory.Length > 0) row.Children.Add(Text(s["WorkingDirectory"] + ": " + step.Item.WorkingDirectory, 12, true));
             if (step.RepeatsItemId is not null) row.Children.Add(Text(s["Plan.Repeated"], 12, color: palette.Accent));
