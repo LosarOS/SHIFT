@@ -1,3 +1,13 @@
+# Validation — SHIFT RC7
+
+**VERIFIED PRERELEASE WITH DISCLOSED LIMITATIONS.** [Russian report, downloads, hashes and raw evidence](../reports/SHIFT-RC7-VALIDATION-RU.md). Source/tag `7bb1760b7095bcc254b25807b9eb2934cd807919` / `v1.0.0-rc.7`. **461 unique core tests passed, 0 failed, 0 skipped**, Windows and Linux. [Canonical tagged Windows workflow](https://github.com/LosarOS/SHIFT/actions/runs/41522532771) passed native portable/installed Composer/Plan RU/EN, existing Studio20 gates, actual RC2 migration, wallpaper restore and installer repair/uninstall/reinstall/data preservation.
+
+[Independent public-byte verification](https://github.com/LosarOS/SHIFT/actions/runs/41522718987) downloaded all6assets; sizes, API SHA256 digests, binary SHA256SUMS, source/tag, ZIP contents and native evidence matched. [Machine-readable proof](../reports/evidence/rc7/independent-public-verification.json).
+
+RC7 adds reviewed batch composition and read-only launch plans. Studio layout compare/write and LastApplied metadata races have26new deterministic regressions; complete forced live conflict/hardware acceptance is **NOT VERIFIED**. No schema/dependency change. Binaries remain unsigned; physical Win10/11, mixed DPI/multi-monitor, accessibility, sleep/RDP/fullscreen and long soak remain outstanding. [Real screenshots](screenshots/rc7/README.md) · [Manual protocol](studio/RC7-MANUAL-ACCEPTANCE-RU.md).
+
+## Historical RC6 validation
+
 # Validation — SHIFT RC6
 
 **VERIFIED PRERELEASE WITH DISCLOSED LIMITATIONS.** [Final Russian report, hashes, raw evidence and downloads](../reports/SHIFT-RC6-VALIDATION-RU.md). Tagged binary source `de8e744d6993b3293b55ed56675cb6472ef68fab`. **384 unique tests passed,0failed,0skipped**. [Tagged Windows workflow](https://github.com/LosarOS/SHIFT/actions/runs/40970869902) passed20Studio gates including actual native Notes line1, portable/installed/installer preservation. All6public assets were independently downloaded and matched their API digests/checksum list. Physical Windows10/11/DPI/accessibility acceptance remains outstanding; binaries are unsigned.
