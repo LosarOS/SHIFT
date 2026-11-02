@@ -216,6 +216,7 @@ public sealed partial class MainWindow
         launch.IsEnabled = !vm.IsLaunching;
         actions.Children.Add(launch);
         actions.Children.Add(AsyncButton(s["Edit"], () => EditWorkspaceAsync(workspace), false, "Workspace.Edit"));
+        actions.Children.Add(AsyncButton(s["Plan.Action"], () => OpenLaunchPlanAsync(workspace), false, "Workspace.Plan"));
         actions.Children.Add(AsyncButton(s["Doctor.Check"], () => OpenDoctorAsync(workspace), false, "Workspace.Doctor"));
         var more = new DropDownButton { Content = "···", Padding = new Thickness(15, 9, 15, 9) };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(more, T("Действия с пространством", "Workspace actions"));
@@ -248,8 +249,11 @@ public sealed partial class MainWindow
         });
         itemsHeading.Children.Add(Text($"{s["ItemsLabel"]}: {workspace.Items.Count}", 19, weight: Microsoft.UI.Text.FontWeights.SemiBold));
         var add = AsyncButton("+  " + s["AddItem"], () => EditItemAsync(workspace, null), false, "Item.New");
-        Grid.SetColumn(add, 1);
-        itemsHeading.Children.Add(add);
+        var addActions = new FlowPanel();
+        addActions.Children.Add(AsyncButton(s["Compose.Action"], () => OpenComposerAsync(workspace), false, "Workspace.Compose"));
+        addActions.Children.Add(add);
+        Grid.SetColumn(addActions, 1);
+        itemsHeading.Children.Add(addActions);
         screen.Children.Add(itemsHeading);
         if (workspace.Items.Count == 0)
             screen.Children.Add(Empty(s["NoItems"], s["NoItemsNote"]));
@@ -304,7 +308,7 @@ public sealed partial class MainWindow
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(down, s["MoveDown"]);
             controls.Children.Add(down);
             controls.Children.Add(AsyncButton(s[item.Enabled ? "DisableAction" : "EnableAction"], async () => { await vm.SaveAsync(workspace with { Items = workspace.Items.Select(i => i.Id == item.Id ? i with { Enabled = !i.Enabled } : i).ToArray() }); RenderScreen(); }));
-            controls.Children.Add(AsyncButton(s["Delete"], async () => { if (await ConfirmAsync(s["DeleteItem"], item.Name, s["Delete"])) { await vm.SaveAsync(workspace with { Items = workspace.Items.Where(i => i.Id != item.Id).ToArray() }); RenderScreen(); } }));
+            controls.Children.Add(AsyncButton(s["Delete"], async () => { if (await ConfirmAsync(s["DeleteItem"], item.Name, s["Delete"])) { await vm.SaveAsync(workspace with { Items = workspace.Items.Where(i => i.Id != item.Id).ToArray() }); RenderScreen(); } }, false, "Item.Delete." + item.Id.ToString("N")));
             content.Children.Add(controls);
             var card = Card(content, 18);
             if (!item.Enabled)
