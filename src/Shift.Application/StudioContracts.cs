@@ -6,6 +6,9 @@ public interface IStudioStore
     Task<IReadOnlyList<DesktopProfile>> ListProfilesAsync(CancellationToken token = default);
     Task<DesktopProfile> SaveProfileAsync(DesktopProfile profile, CancellationToken token = default);
     Task DeleteProfileAsync(Guid id, CancellationToken token = default);
+    // Informational time is independent of configuration CAS revisions.
+    Task<bool> RecordProfileAppliedAsync(Guid id, DateTimeOffset appliedAt, CancellationToken token = default);
+    Task<StudioLayoutWriteResult> SaveLayoutEditsAsync(Guid profileId, IReadOnlyList<StudioLayoutEdit> edits, CancellationToken token = default);
     Task<IReadOnlyList<WidgetDefinition>> ListDefinitionsAsync(CancellationToken token = default);
     Task<WidgetDefinition> SaveDefinitionAsync(WidgetDefinition definition, CancellationToken token = default);
     Task DeleteDefinitionAsync(Guid id, CancellationToken token = default);

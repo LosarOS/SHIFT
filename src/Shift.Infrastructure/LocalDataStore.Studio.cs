@@ -6,6 +6,8 @@ public sealed partial class LocalDataStore
     public Task<IReadOnlyList<DesktopProfile>> ListProfilesAsync(CancellationToken token=default)=>ExecuteAsync(()=>inner.ListProfilesAsync(token),token);
     public Task<DesktopProfile> SaveProfileAsync(DesktopProfile profile,CancellationToken token=default)=>ExecuteAsync(()=>inner.SaveProfileAsync(profile,token),token);
     public Task DeleteProfileAsync(Guid id,CancellationToken token=default)=>ExecuteAsync(()=>inner.DeleteProfileAsync(id,token),token);
+    public Task<bool> RecordProfileAppliedAsync(Guid id,DateTimeOffset appliedAt,CancellationToken token=default)=>ExecuteAsync(()=>inner.RecordProfileAppliedAsync(id,appliedAt,token),token);
+    public Task<Shift.Application.StudioLayoutWriteResult> SaveLayoutEditsAsync(Guid id,IReadOnlyList<Shift.Application.StudioLayoutEdit> edits,CancellationToken token=default)=>ExecuteAsync(()=>inner.SaveLayoutEditsAsync(id,edits,token),token);
     public Task<IReadOnlyList<WidgetDefinition>> ListDefinitionsAsync(CancellationToken token=default)=>ExecuteAsync(()=>inner.ListDefinitionsAsync(token),token);
     public Task<WidgetDefinition> SaveDefinitionAsync(WidgetDefinition definition,CancellationToken token=default)=>ExecuteAsync(()=>inner.SaveDefinitionAsync(definition,token),token);
     public Task DeleteDefinitionAsync(Guid id,CancellationToken token=default)=>ExecuteAsync(()=>inner.DeleteDefinitionAsync(id,token),token);

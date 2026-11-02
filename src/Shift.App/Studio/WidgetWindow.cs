@@ -55,6 +55,11 @@ internal sealed class WidgetWindow : Forms.Form
     private readonly List<Drawing.Font> ownedFonts = [];
     public WidgetInstance Instance { get; private set; }
     public bool LayoutDirty { get; private set; }
+    private bool layoutConflict;
+    public void SetLayoutConflict(bool value)
+    {
+        layoutConflict = value; ShowSurfaceStatus(); status.AccessibleName = status.Text; tips.SetToolTip(status, status.Text);
+    }
     public event EventHandler? HideRequested;
     protected override bool ShowWithoutActivation => true;
     protected override Forms.CreateParams CreateParams
@@ -218,6 +223,7 @@ internal sealed class WidgetWindow : Forms.Form
     {
         if (saveConflict) { status.Text = definition.Kind == WidgetKind.Notes ? L("Конфликт · сохраните копию / выберите текст в меню", "Conflict · save a copy / choose text in menu") : L("Конфликт состояния · выберите версию в меню", "State conflict · choose a version in the menu"); status.Visible = true; return; }
         if (dirty) { status.Text = draftAvailable ? L("Локальный черновик сохранён", "Local draft retained") : L("Сохранение…", "Saving…"); status.Visible = true; return; }
+        if (layoutConflict) { status.Text = L("Положение изменено в SHIFT · примените профиль заново", "Placement changed in SHIFT · reapply the profile"); status.Visible = true; return; }
         status.Text = preview ? L("Черновик: изменения не сохраняются", "Draft: changes are not saved")
             : definition.Style.Surface is WidgetSurface.Acrylic or WidgetSurface.Mica
                 ? L("Эффект недоступен: обычный фон / alpha", "Effect unavailable: solid / alpha fallback")

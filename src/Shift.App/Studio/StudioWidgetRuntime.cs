@@ -157,6 +157,9 @@ internal sealed class WidgetHost
     private readonly Action<string> notify;
     private readonly Action<Exception> fault;
     private readonly Dictionary<Guid, WidgetWindow> windows = [];
+    // Acknowledged storage baselines stay separate from live geometry and whole-profile revisions.
+    private readonly Dictionary<Guid, WidgetInstance> layoutBaselines = [];
+    private readonly HashSet<Guid> layoutConflicts = [];
     private readonly SemaphoreSlim hostGate = new(1, 1);
     private readonly TaskCompletionSource ready = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly TaskCompletionSource exited = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -257,7 +260,7 @@ internal sealed class WidgetHost
             }
             ClosePreview();
             foreach (var window in windows.Values) window.CloseOwned();
-            windows.Clear();
+            windows.Clear(); layoutBaselines.Clear(); layoutConflicts.Clear();
             profile = next;
             monitors = topologySnapshot;
             try
@@ -266,7 +269,7 @@ internal sealed class WidgetHost
                 {
                     var window = CreateWindow(instance, dictionary[instance.DefinitionId], states[instance.Id], false);
                     inputSuspensions.Add(window.SuspendInput());
-                    windows.Add(instance.Id, window);
+                    windows.Add(instance.Id, window); layoutBaselines[instance.Id] = instance;
                     await window.RestoreDraftAsync();
                     window.Show();
                 }
@@ -276,7 +279,7 @@ internal sealed class WidgetHost
             catch
             {
                 foreach (var window in windows.Values) window.CloseOwned();
-                windows.Clear(); countChanged(0); throw;
+                windows.Clear(); layoutBaselines.Clear(); layoutConflicts.Clear(); countChanged(0); throw;
             }
         }
         finally
@@ -301,7 +304,8 @@ internal sealed class WidgetHost
                 if (profile is null) return;
                 var latest = (await store.ListProfilesAsync()).FirstOrDefault(p => p.Id == profile.Id) ?? throw new InvalidOperationException("The active profile was deleted.");
                 profile = await store.SaveProfileAsync(latest with { Widgets = latest.Widgets.Select(w => w.Id == instance.Id ? w with { Visible = false } : w).ToArray() });
-                windows.Remove(instance.Id); window.CloseOwned(); countChanged(windows.Count);
+                windows.Remove(instance.Id); layoutBaselines.Remove(instance.Id); layoutConflicts.Remove(instance.Id);
+                window.CloseOwned(); countChanged(windows.Count);
                 if (windows.Count == 0 && preview is null) scheduler?.Stop();
             }
             catch (Exception ex) { if (!window.IsDisposed) window.ShowError(ex); log.Error("Widget could not be hidden safely", ex); }
@@ -322,23 +326,44 @@ internal sealed class WidgetHost
     public async Task SetInteractionAsync(WidgetInteraction interaction)
     {
         if (profile is null) return;
-        var latest = (await store.ListProfilesAsync()).FirstOrDefault(p => p.Id == profile.Id) ?? throw new InvalidOperationException("The active profile was deleted.");
-        // A mode switch may arrive between drag/resize and the scheduler's layout save.
-        // Merge those live edits into the latest record before acknowledging them as saved.
-        var dirtyLayouts = windows.Values.Where(w => w.LayoutDirty).ToDictionary(w => w.Instance.Id, w => w.CaptureLayout());
-        profile = await store.SaveProfileAsync(WidgetPresentation.MergeInteraction(latest, interaction, dirtyLayouts));
-        foreach (var window in windows.Values) window.SetInteraction(interaction, persisted: true);
-        foreach (var saved in WidgetPresentation.WrittenInstances(profile, dirtyLayouts.Keys))
-            if (windows.TryGetValue(saved.Id, out var window)) window.LayoutSaved(saved);
+        var input = windows.Values.Select(w => w.SuspendInput()).ToArray();
+        try
+        {
+            await SaveLayoutsAsync();
+            var latest = (await store.ListProfilesAsync()).FirstOrDefault(p => p.Id == profile.Id)
+                ?? throw new InvalidOperationException("The active profile was deleted.");
+            // A global mode command is explicit, but it must not overwrite a blocked
+            // pending geometry edit. Flush compatible edits before taking this snapshot.
+            profile = await store.SaveProfileAsync(WidgetPresentation.MergeInteraction(latest, interaction,
+                new Dictionary<Guid, WidgetLayout>()));
+            foreach (var window in windows.Values)
+            {
+                window.SetInteraction(interaction, persisted: true);
+                var saved = profile.Widgets.FirstOrDefault(w => w.Id == window.Instance.Id);
+                if (saved is null || saved.DefinitionId != window.Instance.DefinitionId || !saved.Visible)
+                    MarkLayoutConflict(window.Instance.Id);
+                else if (!layoutConflicts.Contains(saved.Id)) layoutBaselines[saved.Id] = saved;
+            }
+        }
+        finally { foreach (var lease in input) lease.Dispose(); }
     }
     public async Task GatherAsync(IReadOnlyList<MonitorIdentity> topologySnapshot)
     {
         if (topologySnapshot.Count == 0) throw new InvalidOperationException("No display is available.");
+        if (profile is null) return;
+        var latest = (await store.ListProfilesAsync()).FirstOrDefault(p => p.Id == profile.Id)
+            ?? throw new InvalidOperationException("The active profile was deleted.");
         monitors = topologySnapshot;
         var primary = monitors.FirstOrDefault(m => m.Primary) ?? monitors[0];
         var index = 0;
         foreach (var window in windows.Values)
         {
+            // Gather is an explicit new placement intent. Rebase surviving matching
+            // instances, but never resurrect a deletion or move a replacement definition.
+            var saved = latest.Widgets.FirstOrDefault(w => w.Id == window.Instance.Id);
+            if (saved is null || saved.DefinitionId != window.Instance.DefinitionId || !saved.Visible)
+            { MarkLayoutConflict(window.Instance.Id); continue; }
+            layoutBaselines[saved.Id] = saved; layoutConflicts.Remove(saved.Id); window.SetLayoutConflict(false);
             var layout = window.Instance.Layout with { MonitorId = primary.DeviceId, X = .04 + (index % 4) * .05, Y = .04 + (index % 4) * .05 };
             window.Reposition(layout, monitors, persist: true); index++;
         }
@@ -383,17 +408,30 @@ internal sealed class WidgetHost
         => a.Count == b.Count && a.Zip(b).All(p => p.First == p.Second);
     private async Task SaveLayoutsAsync()
     {
-        if (profile is null || !windows.Values.Any(w => w.LayoutDirty)) return;
-        var latest = (await store.ListProfilesAsync()).FirstOrDefault(p => p.Id == profile.Id)
-            ?? throw new InvalidOperationException("The active profile was deleted. Disable Studio to close its windows.");
-        // Snapshot the actual write set before awaiting storage. A clean fallback window
-        // must not be acknowledged against a preferred monitor/size that is temporarily absent.
-        var edits = windows.Values.Where(w => w.LayoutDirty).ToDictionary(w => w.Instance.Id,
-            w => w.Instance with { Layout = w.CaptureLayout() });
-        var saved = await store.SaveProfileAsync(WidgetPresentation.MergeLayoutEdits(latest, edits));
-        profile = saved;
-        foreach (var instance in WidgetPresentation.WrittenInstances(saved, edits.Keys))
-            if (windows.TryGetValue(instance.Id, out var window)) window.LayoutSaved(instance);
+        if (profile is null) return;
+        var edits = windows.Values.Where(w => w.LayoutDirty && !layoutConflicts.Contains(w.Instance.Id))
+            .Select(w => new StudioLayoutEdit(layoutBaselines[w.Instance.Id], w.CaptureLayout(), w.Instance.Interaction)).ToArray();
+        if (edits.Length == 0) return;
+        // Atomic per-instance compare/write handles unrelated profile metadata/editor
+        // changes without a stale whole-profile save or a blind retry.
+        var result = await store.SaveLayoutEditsAsync(profile.Id, edits);
+        foreach (var saved in result.Saved)
+            if (windows.TryGetValue(saved.Id, out var window))
+            {
+                layoutBaselines[saved.Id] = saved;
+                window.LayoutSaved(saved);
+                window.SetLayoutConflict(false);
+            }
+        foreach (var id in result.Conflicts) MarkLayoutConflict(id);
+    }
+    private void MarkLayoutConflict(Guid id)
+    {
+        if (!windows.TryGetValue(id, out var window)) return;
+        window.SetLayoutConflict(true);
+        if (layoutConflicts.Add(id))
+            notify(language == "en"
+                ? "A widget placement changed in SHIFT. Live geometry was not saved over it; reapply the profile or gather widgets."
+                : "Положение виджета изменено в SHIFT. Новое оформление не перезаписано; примените профиль заново или соберите виджеты.");
     }
     public IReadOnlyList<WidgetRuntimeState> CaptureStates(Guid profileId)
         => profile?.Id == profileId ? windows.Values.Where(w => !w.IsDisposed).Select(w => w.CaptureState()).ToArray() : [];
@@ -419,7 +457,7 @@ internal sealed class WidgetHost
             catch { stopping = false; scheduler?.Start(); throw; }
             ClosePreview();
             foreach (var window in windows.Values) window.CloseOwned();
-            windows.Clear(); countChanged(0);
+            windows.Clear(); layoutBaselines.Clear(); layoutConflicts.Clear(); countChanged(0);
         }
         finally { foreach (var input in inputSuspensions) input.Dispose(); }
     }

@@ -174,6 +174,20 @@ public sealed partial class SqliteStore
     private static async Task<DesktopProfile> SaveProfileInTransactionAsync(SqliteConnection db, SqliteTransaction tx,
         DesktopProfile profile, CancellationToken token)
     {
+        // Editors may have opened before a metadata-only application timestamp update.
+        // Preserve the latest timestamp without treating it as a configuration conflict.
+        using (var metadata = db.CreateCommand())
+        {
+            metadata.Transaction = tx; metadata.CommandText = "SELECT LastApplied FROM StudioProfiles WHERE Id=$id";
+            metadata.Parameters.AddWithValue("$id", profile.Id.ToString());
+            var value = await metadata.ExecuteScalarAsync(token);
+            if (value is string text)
+            {
+                var applied = DateTimeOffset.Parse(text, System.Globalization.CultureInfo.InvariantCulture);
+                if (profile.LastAppliedAt is null || applied > profile.LastAppliedAt.Value)
+                    profile = profile with { LastAppliedAt = applied };
+            }
+        }
         using (var cmd = db.CreateCommand())
         {
             cmd.Transaction = tx;
