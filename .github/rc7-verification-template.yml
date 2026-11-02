@@ -1,0 +1,111 @@
+name: RC7 public bytes verification
+on:
+  push:
+    branches: ['release/rc7-verify']
+    paths: ['.github/workflows/rc7-verify.yml']
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: LosarOS/SHIFT
+      SOURCE_SHA: '__SOURCE__'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: '__SOURCE__'
+          fetch-depth: 1
+      - name: Independently download and verify all public release bytes
+        shell: python
+        run: |
+          import hashlib,json,os,re,subprocess,tempfile,urllib.request,zipfile
+          from pathlib import Path
+          from datetime import datetime,timezone
+          repo='LosarOS/SHIFT';source=os.environ['SOURCE_SHA'];tag='v1.0.0-rc.7';version=tag[1:]
+          def api(path):
+              r=subprocess.run(['gh','api','repos/'+repo+'/'+path],capture_output=True,text=True,check=True)
+              return json.loads(r.stdout)
+          release=api('releases/tags/'+tag)
+          assert not release['draft'] and release['prerelease']
+          assert api('commits/'+tag)['sha']==source
+          portable=f'SHIFT-{version}-win-x64-portable.zip';setup=f'SHIFT-{version}-win-x64-setup.exe'
+          assert {a['name'] for a in release['assets']}=={portable,setup,'SHA256SUMS.txt','WINDOWS-VALIDATION.json','SHIFT-Native-Smoke-Evidence.zip','SHIFT-Windows-UI-Evidence.zip'} and len(release['assets'])==6
+          temp=Path(tempfile.mkdtemp(prefix='shift-public-',dir=os.environ['RUNNER_TEMP']));assets=[]
+          for a in release['assets']:
+              p=temp/a['name'];h=hashlib.sha256();size=0
+              try:
+                  with urllib.request.urlopen(a['browser_download_url']) as response,p.open('wb') as output:
+                      assert response.status==200
+                      while chunk:=response.read(1024*1024):
+                          output.write(chunk);h.update(chunk);size+=len(chunk)
+              except Exception as e:
+                  raise RuntimeError('Public download failed: '+a['name']+' / '+type(e).__name__) from None
+              digest=h.hexdigest();assert size>0 and size==a['size'] and a['digest']=='sha256:'+digest,a['name']
+              assets.append({'name':a['name'],'size':size,'sha256':digest,'url':a['browser_download_url']})
+              print(a['name'],size,digest)
+          sums={}
+          for line in (temp/'SHA256SUMS.txt').read_text(encoding='utf-8-sig').splitlines():
+              m=re.fullmatch(r'([0-9a-f]{64})  ([A-Za-z0-9.\-]+)',line);assert m and m[2] not in sums;sums[m[2]]=m[1]
+          assert set(sums)=={portable,setup}
+          assert all(sums[a['name']]==a['sha256'] for a in assets if a['name'] in sums)
+          report=json.loads((temp/'WINDOWS-VALIDATION.json').read_text(encoding='utf-8-sig'))
+          assert report['source_commit']==source and report['version']==version
+          counts=report['core_tests'];assert counts['total']>=461 and counts['passed']==counts['total'] and counts['failed']==counts['skipped']==0
+          for k in ['workspace_composer','launch_plan_preview','productivity_no_dispatch','locked_restore','windows_self_contained_publish','studio_profile_transfer','studio_notes_export','real_file_pickers_and_clipboard','installed_ui_smoke','installer_preservation_smoke','native_notes_multiline_initial_text']:
+              assert report[k]=='passed',k
+          assert report['signature']=='unsigned' and report['interactive_physical_windows_acceptance']=='not_verified'
+          with zipfile.ZipFile(temp/portable) as z:
+              assert z.testzip() is None;prefix=f'SHIFT-{version}-win-x64-portable/';names=set(z.namelist())
+              assert all(prefix+n in names for n in ['SHIFT.exe','resources.pri','portable.flag'])
+              assert z.read(prefix+'SHIFT.exe')[:2]==b'MZ'
+              assert not any(n.lower().endswith('shift.db') or '/data/' in n.lower() for n in names)
+          assert (temp/setup).read_bytes()[:2]==b'MZ'
+          out=Path('reports/evidence/rc7');out.mkdir(parents=True,exist_ok=True);(out/'WINDOWS-VALIDATION.json').write_bytes((temp/'WINDOWS-VALIDATION.json').read_bytes())
+          with zipfile.ZipFile(temp/'SHIFT-Native-Smoke-Evidence.zip') as z:
+              assert z.testzip() is None
+              def e(n):return json.loads(z.read(n).decode('utf-8-sig'))
+              gates={'workspace_productivity_russian_preview','workspace_launch_plan_read_only','workspace_composer_review_save_disabled_cleanup_no_dispatch'}
+              for n in ['portable-smoke.json','installed-smoke.json']:
+                  x=e(n);assert x['status']=='passed' and x['manual_acceptance'] is False and gates.issubset(x['checks'])
+              for n in ['installer-smoke.json','reinstalled-smoke.json']:
+                  assert e(n)['status']=='passed' and e(n)['manual_acceptance'] is False
+              x=e('studio-smoke.json');assert x['status']=='passed' and x['source_commit']==source and x['wallpaper_verified'] and len(set(x['checks']))>=20
+              assert e('studio-native-environment.json')['upgraded_from_actual_rc2'] is True
+              assert z.read('studio-wallpaper-cleanup.txt').decode('utf-8-sig').strip()=='WALLPAPER_RESTORED'
+              x=e('studio-sharing-smoke.json');assert x['status']=='passed' and x['source_commit']==source and x['existing_data_unchanged'] and x['live_widget_hwnds_unchanged']
+              assert x['file_picker_save']==x['file_picker_import']==x['clipboard']=='passed'
+              assert e('native-notes-newline-proof.json')['native_line']==1
+              for n in z.namelist():
+                  assert Path(n).name==n
+                  if n.endswith(('.json','.txt')):(out/n).write_bytes(z.read(n))
+          images=Path('docs/screenshots/rc7');images.mkdir(parents=True,exist_ok=True)
+          selected={'portable-launch-plan-ru.png':'launch-plan-ru.png','portable-workspace-composer-ru.png':'workspace-composer-ru.png','portable-workspace-composer.png':'workspace-composer-en.png','studio-ru-overview.png':'studio-overview.png','studio-desktop-clock-monitor.png':'desktop-widgets.png','portable-quick-launcher.png':'compact-launcher.png'};manifest=[]
+          with zipfile.ZipFile(temp/'SHIFT-Windows-UI-Evidence.zip') as z:
+              assert z.testzip() is None
+              for original,name in selected.items():
+                  b=z.read(original);(images/name).write_bytes(b);manifest.append({'file':name,'original_archive_entry':original,'sha256':hashlib.sha256(b).hexdigest(),'unaltered':True})
+          proof={'status':'VERIFIED PRERELEASE WITH DISCLOSED LIMITATIONS','source_commit':source,'release':release['html_url'],'published_assets':assets,'core_tests':counts,'workflow':report['workflow_run'],'verification_workflow':'https://github.com/'+repo+'/actions/runs/'+os.environ['GITHUB_RUN_ID'],'verified_at_utc':datetime.now(timezone.utc).isoformat(),'public_bytes_independently_downloaded':True,'signature':'unsigned','physical_windows_acceptance':'not_verified'}
+          (out/'independent-public-verification.json').write_text(json.dumps(proof,ensure_ascii=False,indent=2)+'\n')
+          (images/'source-manifest.json').write_text(json.dumps({'source_commit':source,'archive_url':next(a['url'] for a in assets if a['name']=='SHIFT-Windows-UI-Evidence.zip'),'images':manifest},indent=2)+'\n')
+          (images/'README.md').write_text('# RC7 — реальные Windows-снимки\n\nSource: '+source+'. Disposable Windows Server/один виртуальный монитор, синтетические данные. Байты PNG не изменены; исходные имена и SHA256 — в manifest.\n\n'+''.join('- ['+m['file']+']('+m['file']+')\n' for m in manifest)+'\nЭто не физическая Windows11/DPI/Narrator приёмка. [Отчёт](../../../reports/SHIFT-RC7-VALIDATION-RU.md).\n')
+          rows='\n'.join('| ['+a['name']+']('+a['url']+') | '+str(a['size'])+' | '+a['sha256']+' |' for a in assets)
+          Path('reports/SHIFT-RC7-PUBLIC-VERIFICATION.md').write_text('# RC7 — independent public-byte verification\n\nStatus: VERIFIED PRERELEASE WITH DISCLOSED LIMITATIONS.\n\nSource: '+source+'\n\n'+str(counts['total'])+' unique core tests,0failed,0skipped. All6assets independently downloaded in '+proof['verification_workflow']+'. API digests, sizes, SHA256SUMS, source/tag, actual native Composer/Plan/Studio/installer evidence and clean portable contents checked.\n\n| File | Bytes | SHA256 |\n| --- | --- | --- |\n'+rows+'\n\nUnsigned; physical Windows10/11/DPI/accessibility acceptance remains NOT VERIFIED.\n')
+          notes=Path('docs/RELEASE_NOTES.md').read_text()+'\n\n## Фактическая публикация\n\nVERIFIED PRERELEASE WITH DISCLOSED LIMITATIONS. '+str(counts['total'])+' tests; all6public assets independently downloaded and SHA256 verified. Source: '+source+'. [Русский отчёт](https://github.com/'+repo+'/blob/main/reports/SHIFT-RC7-VALIDATION-RU.md).\n'
+          (temp/'release-notes.md').write_text(notes)
+          subprocess.run(['gh','release','edit',tag,'--prerelease','--title','SHIFT Studio RC7 · Productivity & Reliability','--notes-file',str(temp/'release-notes.md')],check=True)
+          print('Public bytes, core/native evidence and all selected original PNGs VERIFIED.')
+          
+      - name: Commit only genuine evidence to a documentation branch
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch -c docs/rc7-release-evidence
+          git add reports/evidence/rc7 reports/SHIFT-RC7-PUBLIC-VERIFICATION.md docs/screenshots/rc7
+          git diff --cached --name-only | python -c "import sys; p=sys.stdin.read().splitlines(); assert p and all(x.startswith(('reports/evidence/rc7/','docs/screenshots/rc7/')) or x=='reports/SHIFT-RC7-PUBLIC-VERIFICATION.md' for x in p)"
+          git commit -m 'docs: add independently verified RC7 public evidence [skip ci]'
+          git push origin HEAD:refs/heads/docs/rc7-release-evidence
