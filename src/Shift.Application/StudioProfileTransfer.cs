@@ -32,6 +32,7 @@ public static class StudioProfileTransfer
             AllowDuplicateProperties = false,
             UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow
         };
+        WidgetTransfer.ConfigureQuickActionSerialization(options);
         options.Converters.Add(new JsonStringEnumConverter(allowIntegerValues: false));
         options.MakeReadOnly(populateMissingResolver: true);
         return options;

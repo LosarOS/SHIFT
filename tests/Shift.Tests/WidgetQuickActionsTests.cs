@@ -20,6 +20,17 @@ public sealed class WidgetQuickActionsTests
         Assert.NotEqual(definition.Id, imported.Id); Assert.Equal(definition.Content, imported.Content);
     }
 
+    [Fact] public void LegacyExportsOmitNewEmptyMemberButConfiguredDefinitionsRetainActions()
+    {
+        var legacy = new WidgetDefinition { Title = "Original Clock", Kind = WidgetKind.Clock };
+        Assert.DoesNotContain("\"Actions\"", WidgetTransfer.Export(legacy));
+        var profile = new DesktopProfile { Name = "Original", Widgets = [new() { DefinitionId = legacy.Id }] };
+        Assert.DoesNotContain("\"Actions\"", StudioProfileTransfer.Export(profile, [legacy]));
+        var configured = Definition(new WidgetQuickAction { Title = "Link", Kind = WidgetQuickActionKind.Url, Target = "https://example.test" });
+        Assert.Contains("\"Actions\"", WidgetTransfer.Export(configured));
+        Assert.Equal(configured.Content, WidgetTransfer.Import(WidgetTransfer.Export(configured)).Content);
+    }
+
     [Theory]
     [InlineData("javascript:alert(1)")]
     [InlineData("file:///C:/test.txt")]

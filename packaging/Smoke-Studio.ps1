@@ -371,6 +371,7 @@ try {
  if(Test-Path (Join-Path $data 'quick-action-dispatch.txt')){throw 'Quick action dispatched before consent.'}
  Click '' 'Отмена'
  $null=Wait-For {((Tool 'actions-refused') | ConvertFrom-Json).declined} 'quick-action refusal persisted'
+ $null=Wait-For {Find 'Launch.Retry'} 'launch completed before next explicit action'
  Click 'QuickAction.0' '' $quickWindow
  $null=Wait-For {Find '' 'Разрешить выполнение команд?'} 'second explicit Quick Action consent'
  Click '' 'Разрешить и запустить'
