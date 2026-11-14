@@ -36,6 +36,7 @@ $data = if ($Installed) { Join-Path $env:LOCALAPPDATA 'SHIFT' } else { Join-Path
 if ($Installed -and $ExtractedArchive) { throw 'Installed smoke cannot claim portable archive validation.' }
 if ($Installed -and $env:GITHUB_ACTIONS -ne 'true') { throw 'Installed smoke only runs on an isolated GitHub Actions runner.' }
 if (-not $Installed -and -not (Test-Path (Join-Path $app 'portable.flag'))) { throw 'Expected a disposable portable build.' }
+if(-not $ResumeOwnedData -and -not $PreserveData -and -not $Installed -and $DataOwner -eq [guid]::Empty -and $env:GITHUB_ACTIONS -eq 'true'){$DataOwner=[guid]::NewGuid()}
 $ownerFile = Join-Path $data '.shift-ci-owner'
 if ($PreserveData -or $ResumeOwnedData) {
     if ($env:GITHUB_ACTIONS -ne 'true' -or $DataOwner -eq [guid]::Empty) { throw 'Data reuse requires an explicit owner token on a disposable CI runner.' }
@@ -178,6 +179,14 @@ function Item-DeleteIds {
     return @($scope.FindAll([System.Windows.Automation.TreeScope]::Descendants,$condition)|Where-Object {$_.Current.AutomationId -cmatch '^Item\.Delete\.[0-9a-f]{32}$'}|ForEach-Object {$_.Current.AutomationId})
 }
 
+function Logical-DatabaseFingerprint {
+    $output=@(& dotnet $fingerprintTool database-fingerprint $data $DataOwner.ToString())
+    if($LASTEXITCODE -ne 0){throw 'Owned logical SQLite fingerprint failed.'}
+    $values=@($output|Where-Object {$_ -cmatch '^[0-9a-f]{64}$'})
+    if($values.Count -ne 1){throw 'Logical SQLite fingerprint did not return exactly one digest.'}
+    return $values[0]
+}
+
 function Capture([string]$Name) {
     if (-not $DiagnosticsDirectory -or $null -eq $process) { return }
     # UI Automation observes logical state before WinUI/DWM presents the frame.
@@ -198,6 +207,14 @@ function Capture([string]$Name) {
     } finally { $graphics.Dispose(); $bitmap.Dispose() }
 }
 try {
+    if($env:GITHUB_ACTIONS -eq 'true' -and -not $LegacyCompactLauncher -and -not $ResumeOwnedData){
+        $fingerprintProject=Join-Path (Split-Path $PSScriptRoot -Parent) 'tools/Shift.StudioAcceptance'
+        $fingerprintTool=Join-Path $fingerprintProject 'bin/Release/net10.0/Shift.StudioAcceptance.dll'
+        & dotnet restore $fingerprintProject --locked-mode --nologo
+        if($LASTEXITCODE -ne 0){throw 'Acceptance fingerprint locked restore failed.'}
+        & dotnet build $fingerprintProject -c Release --no-restore --nologo
+        if($LASTEXITCODE -ne 0){throw 'Acceptance fingerprint build failed.'}
+    }
     if ($env:GITHUB_ACTIONS -eq 'true' -and $env:SHIFT_CRASH_MONITOR) {
         $dumpDirectory = Join-Path $env:RUNNER_TEMP ('SHIFT-dumps-' + [guid]::NewGuid().ToString('N'))
         New-Item $dumpDirectory -ItemType Directory | Out-Null
@@ -528,7 +545,7 @@ try {
     $theme=Wait-For { Find-Control '' ([System.Windows.Automation.ControlType]::ComboBox) 'Field.Theme' } 'persisted theme'
     $selected=$theme.GetCurrentPattern([System.Windows.Automation.SelectionPattern]::Pattern).Current.GetSelection()
     if($selected.Count -ne 1 -or $selected[0].Current.Name -ne 'Midnight'){throw 'Theme did not survive restart.'}
-    if(-not $LegacyCompactLauncher -and -not $ResumeOwnedData){
+    if($env:GITHUB_ACTIONS -eq 'true' -and -not $LegacyCompactLauncher -and -not $ResumeOwnedData){
         Click '' 'Nav.History'
         $recoveryHistoryBefore=Wait-For {History-Count} 'history before backup inspection'
         Click '' 'Nav.Settings'
@@ -544,18 +561,25 @@ try {
             return $null
         } 'owned backup available in recovery catalog'
         Select-Choice 'Recovery.Backups' $choiceName
-        $recoveryHashes=@{}
-        foreach($path in @((Join-Path $data 'shift.db'),(Join-Path $data 'shift.db-wal'))){
-            if(Test-Path -LiteralPath $path){$recoveryHashes[$path]=(Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash}
-        }
+        # One read transaction covers schema and all user rows, including committed WAL.
+        # Physical live DB/WAL bytes can change at checkpoint without a logical data change.
+        $recoveryBefore=Logical-DatabaseFingerprint
+        $backupName=($choiceName -split '·')[-1].Trim()
+        if([IO.Path]::GetFileName($backupName) -cne $backupName){throw 'Unexpected backup catalog filename.'}
+        $inspectedBackup=Join-Path (Join-Path $data 'backups') $backupName
+        $backupHashBefore=(Get-FileHash -LiteralPath $inspectedBackup -Algorithm SHA256).Hash
         $recoveryMarkerHash=(Get-FileHash -LiteralPath (Join-Path $data 'dispatch-proof.txt') -Algorithm SHA256).Hash
         $recoveryMarkerTime=(Get-Item -LiteralPath (Join-Path $data 'dispatch-proof.txt')).LastWriteTimeUtc
         Click '' 'Recovery.Inspect'
         $null=Wait-For {$summary=Find-Control '' ([System.Windows.Automation.ControlType]::Text) 'Recovery.Preview';if($summary -and $summary.Current.Name.StartsWith('Backup validation passed:')){$summary}} 'validated read-only SQLite recovery preview'
         Capture 'recovery-center-preview'
         Click '' 'Dialog.Close'
-        foreach($path in $recoveryHashes.Keys){
-            if(-not(Test-Path -LiteralPath $path) -or (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -cne $recoveryHashes[$path]){throw 'Recovery preview/cancel changed live SQLite data.'}
+        $recoveryAfter=Logical-DatabaseFingerprint
+        if($recoveryAfter -cne $recoveryBefore){throw 'Recovery preview/cancel changed logical live SQLite data.'}
+        if((Get-FileHash -LiteralPath $inspectedBackup -Algorithm SHA256).Hash -cne $backupHashBefore){throw 'Recovery inspection changed the selected backup file.'}
+        if($DiagnosticsDirectory){
+            @{status='passed';mode=$label;comparison='read-only transaction: schema and all user rows';before=$recoveryBefore;after=$recoveryAfter;selected_backup_sha256=$backupHashBefore;source_commit=$env:GITHUB_SHA} |
+                ConvertTo-Json -Depth 3 | Set-Content (Join-Path $DiagnosticsDirectory "$label-recovery-logical-proof.json")
         }
         Click '' 'Nav.History'
         $recoveryHistoryAfter=Wait-For {History-Count} 'history after backup inspection'

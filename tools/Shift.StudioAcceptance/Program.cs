@@ -8,8 +8,21 @@ using Shift.Infrastructure;
 if (!OperatingSystem.IsWindows() || Environment.GetEnvironmentVariable("GITHUB_ACTIONS") != "true") throw new InvalidOperationException("Disposable Windows CI only.");
 if (args.Length < 3 || !Guid.TryParse(args[2], out var owner)) throw new ArgumentException("stage data-root owner required");
 var stage = args[0]; var data = Path.GetFullPath(args[1]);
+if (stage == "database-fingerprint")
+{
+    var marker = Path.Combine(data, ".shift-ci-owner");
+    if (owner == Guid.Empty || !File.Exists(marker) || File.ReadAllText(marker).Trim() != owner.ToString())
+        throw new InvalidOperationException("Unowned database fingerprint refused.");
+    Console.WriteLine(DatabaseFingerprintAcceptance.Compute(Path.Combine(data, "shift.db")));
+    return;
+}
 if (!File.Exists(Path.Combine(data, ".studio-ci-owner")) || File.ReadAllText(Path.Combine(data, ".studio-ci-owner")).Trim() != owner.ToString()) throw new InvalidOperationException("Unowned test data refused.");
 var store = new SqliteStore(Path.Combine(data, "shift.db"));
+if (stage.StartsWith("upgrade-rc7-", StringComparison.Ordinal))
+{
+    await Rc7UpgradeAcceptance.RunAsync(stage, store, data, args);
+    return;
+}
 if (stage.StartsWith("sharing-", StringComparison.Ordinal))
 {
     await StudioSharingAcceptance.RunAsync(stage, store, data);

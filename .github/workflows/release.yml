@@ -83,12 +83,18 @@ jobs:
           }
           $nativeNotes = Get-Content artifacts/diagnostics/studio/native-notes-newline-proof.json -Raw | ConvertFrom-Json
           if ($nativeNotes.source_commit -ne $env:GITHUB_SHA -or $nativeNotes.native_line -ne 1 -or $nativeNotes.initial_text.Replace("`r`n","`n").Replace("`r","`n") -cne "Initial CI note`nSecond line — local only") { throw 'Actual native Notes line rendering is not verified.' }
+          $upgrade = Get-Content artifacts/diagnostics/rc7-upgrade/rc7-upgrade-smoke.json -Raw | ConvertFrom-Json
+          if ($upgrade.status -ne 'passed' -or $upgrade.source_commit -ne $env:GITHUB_SHA -or $upgrade.manual_acceptance -ne $false) { throw 'Invalid actual RC7 upgrade evidence.' }
+          foreach ($gate in @('actual_rc7_ui_baseline','actual_schema2_to3_upgrade','workspace_history_settings_preserved','validated_schema2_safety_backup','old_rc7_visible_downgrade_refusal','downgrade_copy_sha256_unchanged','original_upgraded_profile_unchanged')) {
+            if ($upgrade.$gate -ne $true) { throw "Missing actual RC7 upgrade gate: $gate" }
+          }
           $report = [ordered]@{
             schema_version = 1; version = $env:SHIFT_VERSION; source_commit = $env:GITHUB_SHA
             workflow_run = "https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
             environment = 'GitHub Actions disposable Windows x64 runner'; signature = 'unsigned'
             core_tests = @{ total = [int]$counts.total; passed = [int]$counts.passed; failed = [int]$counts.failed; skipped = [int]$counts.notExecuted }
             locked_restore = 'passed'; windows_self_contained_publish = 'passed'
+            actual_rc7_upgrade = 'passed'; downgrade_refusal = 'passed'
             launch_scenario_preflight = 'passed'; recovery_center_inspection = 'passed'; quick_actions_native = 'passed'; sqlite_schema = 3
             workspace_composer = 'passed'; launch_plan_preview = 'passed'; productivity_no_dispatch = 'passed'
             russian_localization = 'passed'; quick_workspace_setup = 'passed'; studio_starter_presets = 'passed'
@@ -113,6 +119,7 @@ jobs:
           Copy-Item $nativeChecks[3] (Join-Path $evidenceRoot 'reinstalled-smoke.json')
           Copy-Item artifacts/diagnostics/studio/*.json $evidenceRoot
           Copy-Item artifacts/diagnostics/studio/*.txt $evidenceRoot
+          Copy-Item artifacts/diagnostics/rc7-upgrade/rc7-upgrade-smoke.json $evidenceRoot
           Compress-Archive -Path (Join-Path $evidenceRoot '*') -DestinationPath artifacts/SHIFT-Native-Smoke-Evidence.zip
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:

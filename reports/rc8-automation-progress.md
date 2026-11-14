@@ -34,3 +34,13 @@ Screenshots: `*-launch-scenario-ru.png`, `*-launch-scenario-stopped.png`, `*-lau
 RecoveryCenter is implemented by the independent recovery agent; root owns navigation. Native probe now creates an owned backup through Recovery.Create, selects a genuine catalog entry, validates and cancels. Live SQLite database/WAL hashes, history count and command marker/hash/mtime must remain unchanged across inspect/cancel. It does not click Restore. Gate `recovery_center_inspection_no_restore`; screenshot `*-recovery-center-preview.png`. Native execution remains pending; no green result inferred from script existence.
 
 Root notified that automatic linked Studio apply must not run for preflight rejection (PartialFailure with no StartedAt item); ordinary post-dispatch behavior is separate. UI and core changes are ready for root review/integration. No concurrent edits to root workflow/version files made.
+
+## Confirmed Windows proof failure and correction
+
+CI43651401999 reached the new recovery gate but Get-FileHash could not open the active SQLite database because Windows SQLite uses file sharing incompatible with that generic file reader. This was a probe failure; its failed native run is not a passed gate.
+
+The recovery gate now compares logical committed state using a dedicated owned acceptance-tool stage: SQLite read-only connection, query_only, one deferred read transaction, schema/user_version and every user-table row. Typed row values are hashed deterministically with duplicate-row counts preserved. It reads WAL through SQLite rather than racing physical database/WAL bytes or taking a checkpoint. Ownership requires the disposable GHA Windows profile's .shift-ci-owner marker. Fresh disposable portable smoke allocates its own marker; preserve/resume still require explicit caller ownership. Actual restore is never invoked.
+
+History count, marker hash/mtime and the selected idle backup's physical SHA256 checks remain enforced. A diagnostics *-recovery-logical-proof.json records source/before/after/backup SHA256. No generic error suppression, retries or removed readonly assertions.
+
+New DatabaseFingerprintTests: **3passed,0failed,0skipped**, Linux .NET10. Regressions prove checkpoint/row-order stability, sensitivity to real data/schema/duplicate changes, and missing-file refusal without creation. Acceptance-tool build succeeded0warnings/0errors. Corrected Windows native execution remains pending.

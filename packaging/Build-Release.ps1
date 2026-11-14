@@ -74,6 +74,8 @@ try {
         if ($env:GITHUB_ACTIONS -eq 'true') {
             & powershell.exe -NoProfile -File (Join-Path $PSScriptRoot 'Smoke-Studio.ps1') -AppDirectory $extractedApp -DiagnosticsDirectory (Join-Path $out 'diagnostics/studio')
             if ($LASTEXITCODE -ne 0) { throw 'Studio Windows acceptance failed.' }
+            & powershell.exe -NoProfile -File (Join-Path $PSScriptRoot 'Smoke-UpgradeRC7.ps1') -AppDirectory $extractedApp -DiagnosticsDirectory (Join-Path $out 'diagnostics/rc7-upgrade')
+            if ($LASTEXITCODE -ne 0) { throw 'Actual RC7 upgrade/downgrade preservation acceptance failed.' }
         }
     } finally {
         Remove-Item $extracted -Recurse -Force

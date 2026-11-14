@@ -27,3 +27,11 @@ Actual old RC7 Windows executable downgrade rejection still requires Windows nat
 Independent lifecycle finding sent to Quick Actions owner: old runtime action can resolve store.ListAsync then dispatch after Studio disabled/replaced/quit because precheck precedesawait. Owner asked to recheck sender identity/enabled/quit/busy afterawaitbefore StartLaunchAsync.
 
 Recovery.Create automation ID added. Automation owner is adding native inventory/create/inspect/cancel gate, including hash/history/command-marker no-side-effect assertions; result pending, not claimed passed here.
+
+## Actual RC7 upgrade acceptance — new, not yet executed
+
+Added acceptance-only packaging/Smoke-UpgradeRC7.ps1 and Rc7UpgradeAcceptance tool stages. Requires disposable GitHub Windows with explicit owned temp root and clean extracted candidate. It downloads immutable RC7 portable, checks fixed SHA256 + published sums + source manifest, downloads its exact old smoke script pinned by blob SHA256, and executes actual RC7 UI to create v2 workspace/history.
+
+The new candidate gets only a private SQLite online snapshot and owned marker fixture. Current UI resume smoke performs actual RC8 startup/restart; tool checks full saved workspace/history/settings records, schema3, FK integrity and matching validated v2 pre-migration backup. Original RC7 v2 data is retained until owned final cleanup. Old RC7 then receives a separate v3 database copy; the gate requires the visible original StartupError plus newer-version message, graceful exit and unchanged v3-copy SHA256. The original upgraded database SHA256 must also remain unchanged.
+
+Output rc7-upgrade-smoke.json only on success. Linux tool compilation0warnings/0errors. PowerShell native acceptance **NOT EXECUTED HERE**; root owns Windows workflow wiring and results. No application-source modification, no user profile/wallpaper use, no old-version failure counted as a successful upgrade.
