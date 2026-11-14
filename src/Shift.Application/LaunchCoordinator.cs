@@ -7,9 +7,16 @@ public sealed class LaunchCoordinator(IRunStore store, IItemLauncher launcher, I
     private readonly SemaphoreSlim gate = new(1, 1);
 
     public async Task<LaunchRun> RunAsync(Workspace workspace, ICommandConsent consent,
-        IProgress<LaunchProgress>? progress = null, CancellationToken token = default)
+        IProgress<LaunchProgress>? progress = null, CancellationToken token = default,
+        LaunchScenarioOptions? scenario = null, IWorkspaceDoctor? doctor = null)
     {
+        ArgumentNullException.ThrowIfNull(workspace);
         WorkspaceValidator.Validate(workspace);
+        workspace = workspace with { Items = Array.AsReadOnly(workspace.Items.ToArray()), Tags = Array.AsReadOnly(workspace.Tags.ToArray()) };
+        scenario ??= new LaunchScenarioOptions();
+        scenario.Validate();
+        if (scenario.Preflight != PreflightPolicy.Off && doctor is null)
+            throw new ArgumentException("Preflight requires Workspace Doctor.", nameof(doctor));
         if (!await gate.WaitAsync(0, token))
             throw new InvalidOperationException("A workspace launch is already in progress.");
         var ordered = workspace.Items.OrderBy(i => i.Order).ThenBy(i => i.Id).ToArray();
@@ -29,7 +36,34 @@ public sealed class LaunchCoordinator(IRunStore store, IItemLauncher launcher, I
         try
         {
             await PersistAsync();
-            var commands = ordered.Where(i => i.Enabled && i.Kind == ItemKind.Command).ToArray();
+            var rejected = new Dictionary<Guid, DoctorItemResult>();
+            if (scenario.Preflight != PreflightPolicy.Off)
+            {
+                var report = await doctor!.CheckAsync(workspace, token);
+                token.ThrowIfCancellationRequested();
+                if (report.WorkspaceId != workspace.Id || report.Items.Count != ordered.Length
+                    || report.Items.Select(i => i.ItemId).Distinct().Count() != ordered.Length
+                    || report.Items.Any(i => !ordered.Any(item => item.Id == i.ItemId) || !Enum.IsDefined(i.State)))
+                    throw new InvalidDataException("Workspace Doctor returned an invalid snapshot.");
+                log.Info($"Run {run.Id}: preflight Ready={report.Ready}, Warning={report.Warnings}, Error={report.Errors}, Unknown={report.Unknown}.");
+                foreach (var result in report.Items.Where(i => i.State != DoctorState.Ready && ordered.Any(item => item.Id == i.ItemId && item.Enabled)))
+                    Update(result.ItemId, state => state with { Error = "Scenario.PreflightObservation: " + string.Join(", ", result.Findings.Select(f => f.Code)) });
+                rejected = report.Items.Where(i => i.State == DoctorState.Error && ordered.Any(item => item.Id == i.ItemId && item.Enabled))
+                    .ToDictionary(i => i.ItemId);
+                if (scenario.Preflight == PreflightPolicy.StopOnErrors && rejected.Count > 0)
+                {
+                    foreach (var (id, result) in rejected)
+                        Update(id, state => state with { Status = ItemStatus.Failed, Error = PreflightError(result), FinishedAt = DateTimeOffset.UtcNow });
+                    run = run with { Status = RunStatus.PartialFailure };
+                    return await FinishAsync("Scenario.PreflightStopped");
+                }
+                if (scenario.Preflight == PreflightPolicy.SkipErrors)
+                    foreach (var (id, result) in rejected)
+                        Update(id, state => state with { Status = ItemStatus.Skipped, Error = PreflightError(result), FinishedAt = DateTimeOffset.UtcNow });
+                await PersistAsync();
+            }
+            var commands = ordered.Where(i => i.Enabled && i.Kind == ItemKind.Command
+                && !(scenario.Preflight == PreflightPolicy.SkipErrors && rejected.ContainsKey(i.Id))).ToArray();
             if (commands.Length > 0 && !await consent.ConfirmAsync(commands, token))
             {
                 run = run with
@@ -41,6 +75,7 @@ public sealed class LaunchCoordinator(IRunStore store, IItemLauncher launcher, I
             foreach (var item in ordered)
             {
                 token.ThrowIfCancellationRequested();
+                if (scenario.Preflight == PreflightPolicy.SkipErrors && rejected.ContainsKey(item.Id)) continue;
                 if (!item.Enabled)
                 {
                     Update(item.Id, s => s with { Status = ItemStatus.Skipped, FinishedAt = DateTimeOffset.UtcNow });
@@ -64,10 +99,15 @@ public sealed class LaunchCoordinator(IRunStore store, IItemLauncher launcher, I
                     Update(item.Id, s => s with { Status = ItemStatus.Failed, Error = ex.Message, FinishedAt = DateTimeOffset.UtcNow });
                 }
                 await PersistAsync();
+                if (scenario.OnLaunchError == LaunchErrorPolicy.Stop && run.Items.Any(i => i.ItemId == item.Id && i.Status == ItemStatus.Failed))
+                {
+                    run = run with { Status = RunStatus.PartialFailure };
+                    return await FinishAsync("Scenario.LaunchErrorStopped");
+                }
             }
             run = run with
             {
-                Status = run.Items.Any(i => i.Status == ItemStatus.Failed) ? RunStatus.PartialFailure : RunStatus.Completed
+                Status = run.Items.Any(i => i.Status == ItemStatus.Failed) || (scenario.Preflight == PreflightPolicy.SkipErrors && rejected.Count > 0) ? RunStatus.PartialFailure : RunStatus.Completed
             };
             return await FinishAsync(null);
         }
@@ -94,6 +134,9 @@ public sealed class LaunchCoordinator(IRunStore store, IItemLauncher launcher, I
             throw;
         }
         finally { gate.Release(); }
+
+        static string PreflightError(DoctorItemResult result) => "Scenario.PreflightError: "
+            + string.Join(", ", result.Findings.Where(f => f.State == DoctorState.Error).Select(f => f.Code));
 
         async Task<LaunchRun> FinishAsync(string? reason)
         {

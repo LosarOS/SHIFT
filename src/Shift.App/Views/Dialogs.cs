@@ -241,6 +241,12 @@ public sealed partial class MainWindow
         var path = await PickFileAsync([".db"]);
         if (path is null)
             return;
+        await RestoreBackupFromPathAsync(path);
+    }
+    private async Task RestoreBackupFromPathAsync(string path)
+    {
+        if (vm.IsLaunching || activeOperations > 1)
+            throw new ValidationException([s["WaitForActions"]]);
         if (!await ConfirmAsync(s["RestoreTitle"], path + "\n\n" + s["RestoreNote"], s["Restore"]))
             return;
         // File pickers and confirmation yield to the dispatcher. Other actions may have started

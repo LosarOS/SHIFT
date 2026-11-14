@@ -36,6 +36,7 @@ public sealed partial class MainWindow
             studioTopology = new WindowsMonitorTopology();
             var runtime = new StudioWidgetRuntime(StudioData, studioTopology, new WindowsSystemMetricsProvider(), log) { Language = s.Language };
             studioRuntime = runtime;
+            studioRuntime.QuickActionRequested += action => DispatcherQueue.TryEnqueue(() => _ = SafeAsync(() => RunStudioQuickActionAsync(runtime, action)));
             studioRuntime.EditRequested += id => DispatcherQueue.TryEnqueue(() => _ = SafeAsync(async () =>
             {
                 var instance = studioProfiles.SelectMany(p => p.Widgets).FirstOrDefault(w => w.Id == id);

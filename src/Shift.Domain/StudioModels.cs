@@ -1,6 +1,6 @@
 namespace Shift.Domain;
 
-public enum WidgetKind { Clock, SystemMonitor, FocusTimer, Notes }
+public enum WidgetKind { Clock, SystemMonitor, FocusTimer, Notes, QuickActions }
 public enum WidgetSurface { Solid, Translucent, Acrylic, Mica }
 public enum WidgetInteraction { Edit, Desktop, ClickThrough }
 public enum WallpaperPlacement { Center, Tile, Stretch, Fit, Fill, Span }
@@ -43,6 +43,7 @@ public sealed record WidgetContent
     public int FocusMinutes { get; init; } = 25;
     public int UpdateIntervalSeconds { get; init; } = 2;
     public string InitialNotes { get; init; } = "";
+    public WidgetQuickActionList Actions { get; init; } = [];
 }
 public sealed record WidgetDefinition
 {

@@ -29,6 +29,8 @@ internal sealed class WidgetWindow : Forms.Form
     private readonly Forms.Button reset = new() { AutoSize = true, Name = "Timer.Reset" };
     private readonly Forms.Panel header = new() { Dock = Forms.DockStyle.Top, Height = 34 };
     private readonly Forms.Button menuButton = new() { Dock = Forms.DockStyle.Right, Width = 34, Text = "⋯", FlatStyle = Forms.FlatStyle.Flat, Name = "Widget.Menu" };
+    private readonly List<Forms.Button> actionButtons = [];
+    private readonly Forms.FlowLayoutPanel actions = new() { Dock = Forms.DockStyle.Fill, FlowDirection = Forms.FlowDirection.TopDown, WrapContents = false, AutoScroll = true };
     private readonly Forms.Panel body = new() { Dock = Forms.DockStyle.Fill };
     private readonly SemaphoreSlim saving = new(1, 1);
     private readonly SemaphoreSlim draftGate = new(1, 1);
@@ -83,7 +85,7 @@ internal sealed class WidgetWindow : Forms.Form
     }
     private string L(string ru, string en) => language == "en" ? en : ru;
     public WidgetWindow(WidgetInstance instance, WidgetDefinition definition, WidgetRuntimeState? saved,
-        IReadOnlyList<MonitorIdentity> monitors, string language, bool preview, IStudioStore store, IAppLog log, Action edit, Action<string> notify)
+        IReadOnlyList<MonitorIdentity> monitors, string language, bool preview, IStudioStore store, IAppLog log, Action edit, Action<string> notify, Action<WidgetQuickAction> quickAction)
     {
         Validate(definition, instance.Layout);
         Instance = instance; this.definition = definition; this.monitors = monitors; this.language = language;
@@ -117,6 +119,22 @@ internal sealed class WidgetWindow : Forms.Form
             pause.Click += async (_, _) => await ChangeTimerAsync(() => timer.Pause());
             reset.Click += async (_, _) => await ChangeTimerAsync(() => timer.Reset(TimeSpan.FromMinutes(definition.Content.FocusMinutes)));
         }
+        if (definition.Kind == WidgetKind.QuickActions)
+        {
+            body.Controls.Clear(); body.Controls.Add(actions);
+            foreach (var action in definition.Content.Actions)
+            {
+                var button = new Forms.Button { Text = action.Title, AccessibleName = action.Title,
+                    AccessibleDescription = action.Kind == WidgetQuickActionKind.Workspace ? action.WorkspaceId.ToString() : action.Target,
+                    Name = "QuickAction." + actionButtons.Count, AutoEllipsis = true, Height = 38, Width = 200,
+                    Enabled = !preview, FlatStyle = Forms.FlatStyle.Flat };
+                tips.SetToolTip(button, action.Title + " · " + button.AccessibleDescription);
+                button.Click += (_, _) => { if (!preview) quickAction(action with { }); };
+                actions.Controls.Add(button); actionButtons.Add(button);
+            }
+            actions.SizeChanged += (_, _) => { foreach (var button in actionButtons) button.Width = Math.Max(80, actions.ClientSize.Width - 24); };
+            if (actionButtons.Count == 0) actions.Controls.Add(new Forms.Label { AutoSize = true, MaximumSize = new Drawing.Size(240, 0), Name = "QuickAction.Empty" });
+        }
         Controls.Add(body); Controls.Add(status); Controls.Add(header);
         menuButton.Click += (_, _) => ShowMenu();
         heading.MouseDown += (_, e) => { if (e.Button == Forms.MouseButtons.Left && Instance.Interaction == WidgetInteraction.Edit) { Native.ReleaseCapture(); Native.SendMessage(Handle, 0xA1, 2, 0); } };
@@ -142,6 +160,8 @@ internal sealed class WidgetWindow : Forms.Form
         BackColor = background; ForeColor = foreground;
         foreach (Forms.Control control in new Forms.Control[] { header, body, heading, menuButton, status, value, detail, secondaryDetail, notes, timerButtons, start, pause, reset })
         { control.BackColor = background; control.ForeColor = foreground; }
+        actions.BackColor = background; actions.ForeColor = foreground;
+        foreach (var button in actionButtons) { button.BackColor = background; button.ForeColor = foreground; button.FlatAppearance.BorderColor = foreground; }
         var family = style.FontFamily == "Segoe UI Variable" ? "Segoe UI" : style.FontFamily;
         Drawing.Font Own(float size, Drawing.FontStyle fontStyle = Drawing.FontStyle.Regular)
         { var font = new Drawing.Font(family, size, fontStyle, Drawing.GraphicsUnit.Point); ownedFonts.Add(font); return font; }
@@ -189,6 +209,7 @@ internal sealed class WidgetWindow : Forms.Form
         notes.AccessibleName = L("Текст заметки, автосохранение", "Note text, autosave");
         notes.AccessibleDescription = L("Заметка хранится локально. Изменения сохраняются автоматически.", "This note stays local. Changes are saved automatically.");
         start.AccessibleName = L("Старт", "Start"); pause.AccessibleName = L("Пауза", "Pause"); reset.AccessibleName = L("Сброс", "Reset");
+        foreach (var label in actions.Controls.OfType<Forms.Label>()) label.Text = L("Добавьте действия в мастерской", "Add actions in Widget Lab");
         UpdateTimerButtons(); RenderReading(); ShowSurfaceStatus();
     }
     private void UpdateTimerButtons()

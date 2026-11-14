@@ -68,7 +68,7 @@ public static class StudioProfileTransfer
             {
                 Key = key, Title = definition.Title, Kind = definition.Kind,
                 Style = definition.Style with { },
-                Content = definition.Content with { InitialNotes = includeInitialNotes ? definition.Content.InitialNotes : "" }
+                Content = definition.Content with { InitialNotes = includeInitialNotes ? definition.Content.InitialNotes : "", Actions = [] }
             });
         }
         var pack = new Pack
@@ -127,6 +127,7 @@ public static class StudioProfileTransfer
             {
                 Require(source.Style is not null && source.Content is not null,
                     "Studio profile pack appearance and content are required.");
+                Require(source.Content!.Actions is not null && source.Content.Actions.Count == 0, "Profile packs cannot contain local quick actions. Configure them after import.");
                 Require(pack.InitialNotesIncluded || source.Content!.InitialNotes == "",
                     "Studio profile pack note privacy metadata does not match its content.");
                 var definition = new WidgetDefinition

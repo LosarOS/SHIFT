@@ -86,6 +86,7 @@ public sealed record LaunchRun(Guid Id, Guid WorkspaceId, string WorkspaceName,
 
 public sealed record AppSettings
 {
+    public IReadOnlyDictionary<Guid, LaunchScenarioOptions> WorkspaceScenarios { get; init; } = new Dictionary<Guid, LaunchScenarioOptions>();
     public AppTheme Theme { get; init; } = AppTheme.Dark;
     public string Language { get; init; } = "ru";
     public bool StartWithWindows

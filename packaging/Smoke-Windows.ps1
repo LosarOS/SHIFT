@@ -162,6 +162,22 @@ function Select-Choice([string]$Id,[string]$Value) {
     } "collapsed choice $Id"
 }
 
+function Assert-Choice([string]$Id,[string]$Value) {
+    # Observe only. Do not repair a lost persisted selection by choosing it again.
+    $null=Wait-For {
+        $control=Find-Control '' ([System.Windows.Automation.ControlType]::ComboBox) $Id
+        if(-not $control){return $null}
+        $selected=@($control.GetCurrentPattern([System.Windows.Automation.SelectionPattern]::Pattern).Current.GetSelection())
+        if($selected.Count -eq 1 -and $selected[0].Current.Name -ceq $Value){return $true}
+        return $null
+    } "persisted selection $Id = $Value"
+}
+function Item-DeleteIds {
+    $scope=[System.Windows.Automation.AutomationElement]::FromHandle($process.MainWindowHandle)
+    $condition=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::Button)
+    return @($scope.FindAll([System.Windows.Automation.TreeScope]::Descendants,$condition)|Where-Object {$_.Current.AutomationId -cmatch '^Item\.Delete\.[0-9a-f]{32}$'}|ForEach-Object {$_.Current.AutomationId})
+}
+
 function Capture([string]$Name) {
     if (-not $DiagnosticsDirectory -or $null -eq $process) { return }
     # UI Automation observes logical state before WinUI/DWM presents the frame.
@@ -272,6 +288,43 @@ try {
             Click '' 'Dialog.Close'
             if(Test-Path -LiteralPath $marker){throw 'Productivity preview dispatched a command.'}
             $productivityChecks+='workspace_productivity_russian_preview'
+            # RC8 scenario settings: safe owned missing-file failure, no consent/dispatch.
+            Click '' 'Workspace.Scenario'
+            Select-Choice 'Scenario.Preflight' 'Остановить при ошибках'
+            Select-Choice 'Scenario.OnError' 'Остановить оставшиеся шаги'
+            Capture 'launch-scenario-ru'
+            Click '' 'Dialog.Primary'
+            Click '' 'Workspace.Scenario'
+            Assert-Choice 'Scenario.Preflight' 'Остановить при ошибках'
+            Assert-Choice 'Scenario.OnError' 'Остановить оставшиеся шаги'
+            Click '' 'Dialog.Close'
+            $originalScenarioIds=@(Item-DeleteIds)
+            if($originalScenarioIds.Count -ne 1){throw 'Scenario requires exactly one owned command fixture.'}
+            $missingScenarioFile=Join-Path $data ('scenario-missing-'+[guid]::NewGuid().ToString('N')+'.txt')
+            if(Test-Path -LiteralPath $missingScenarioFile){throw 'Expected missing scenario fixture target.'}
+            Click '' 'Item.New'
+            Set-Field 'Field.Name' 'Owned missing scenario target'
+            Select-Choice 'Field.Kind' 'Файл'
+            Set-Field 'Field.Target' $missingScenarioFile
+            Click 'Сохранить'
+            $null=Wait-For {$ids=@(Item-DeleteIds);if($ids.Count -eq 2){$true}} 'saved owned missing-file item'
+            $temporaryScenarioIds=@(Item-DeleteIds|Where-Object {$_ -notin $originalScenarioIds})
+            if($temporaryScenarioIds.Count -ne 1){throw 'Cannot identify owned temporary scenario item.'}
+            Click '' 'Workspace.Launch'
+            $null=Wait-For {Find-Control 'Есть ошибки' ([System.Windows.Automation.ControlType]::Text)} 'preflight stops the scenario before dispatch'
+            $null=Wait-For {$b=Find-Control '' ([System.Windows.Automation.ControlType]::Button) 'Launch.Retry';if($b -and $b.Current.IsEnabled){$b}} 'finished preflight run'
+            if((Test-Path -LiteralPath $marker) -or (Find-Control 'Разрешить и запустить' ([System.Windows.Automation.ControlType]::Button))){throw 'Preflight stop dispatched a command or requested consent.'}
+            Capture 'launch-scenario-stopped'
+            Click '' 'Quick.Open';Set-Field 'Quick.Search' 'context SHIFT'
+            $null=Wait-For {Quick-Selection} 'owned scenario workspace selection'
+            Click '' 'Quick.Review'
+            Click '' $temporaryScenarioIds[0]
+            Click '' 'Dialog.Primary'
+            $null=Wait-For {$ids=@(Item-DeleteIds);if($ids.Count -eq 1 -and $ids[0] -ceq $originalScenarioIds[0]){$true}} 'temporary missing-file item removed, original command retained'
+            if(Test-Path -LiteralPath $marker){throw 'Scenario editor/cleanup dispatched a command.'}
+            # Keep the saved policy through the existing restart to test persistence.
+            $productivityChecks+='workspace_scenario_preflight_stop_no_dispatch'
+
         }
         Click '' 'Workspace.Launch'
         $null = Wait-For { Find-Control 'Разрешить и запустить' ([System.Windows.Automation.ControlType]::Button) } 'command consent'
@@ -453,6 +506,24 @@ try {
     Set-Field 'Quick.Search' 'SHIFT smoke'
     $null=Wait-For { Find-Control '↗  SHIFT smoke workspace' ([System.Windows.Automation.ControlType]::Text) } 'persisted workspace after restart'
     Click '' 'Quick.Close'
+    if(-not $LegacyCompactLauncher -and -not $ResumeOwnedData){
+        Click '' 'Quick.Open';Set-Field 'Quick.Search' 'context SHIFT'
+        $null=Wait-For {Quick-Selection} 'persisted scenario workspace selection'
+        Click '' 'Quick.Review'
+        Click '' 'Workspace.Scenario'
+        Assert-Choice 'Scenario.Preflight' 'Stop on errors'
+        Assert-Choice 'Scenario.OnError' 'Stop remaining steps'
+        Capture 'launch-scenario-restored-en'
+        # Restore default local settings without dispatch; installer preservation fixtures stay stable.
+        Select-Choice 'Scenario.Preflight' 'No preflight (legacy behavior)'
+        Select-Choice 'Scenario.OnError' 'Continue remaining steps'
+        Click '' 'Dialog.Primary'
+        Click '' 'Workspace.Scenario'
+        Assert-Choice 'Scenario.Preflight' 'No preflight (legacy behavior)'
+        Assert-Choice 'Scenario.OnError' 'Continue remaining steps'
+        Click '' 'Dialog.Close'
+        $productivityChecks+='workspace_scenario_settings_restart_and_cleanup'
+    }
     Click '' 'Nav.Settings'
     $theme=Wait-For { Find-Control '' ([System.Windows.Automation.ControlType]::ComboBox) 'Field.Theme' } 'persisted theme'
     $selected=$theme.GetCurrentPattern([System.Windows.Automation.SelectionPattern]::Pattern).Current.GetSelection()

@@ -103,7 +103,8 @@ public sealed class ShellViewModel(LocalDataStore store, LaunchCoordinator coord
         {
             // Coordinator awaits capture the caller's UI context. Inline progress avoids stale queued
             // callbacks overwriting the final result or a newer launch.
-            var run = await coordinator.RunAsync(workspace, consent, new InlineProgress<LaunchProgress>(p => { ActiveRun = p.Run; updated(p.Run); }), LaunchCancellation.Token);
+            var run = await coordinator.RunAsync(workspace, consent, new InlineProgress<LaunchProgress>(p => { ActiveRun = p.Run; updated(p.Run); }), LaunchCancellation.Token,
+                Settings.WorkspaceScenarios.GetValueOrDefault(workspace.Id), new WorkspaceDoctor(new LocalItemInspection()));
             ActiveRun = run;
             return run;
         }

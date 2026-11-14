@@ -76,7 +76,9 @@ public sealed class StudioPresetTests
     [Fact] public void RecipeCatalogCoversAllFourRealWidgetTypesAndHasStableLocalizationKeys()
     {
         Assert.Equal(3, StudioPresetCatalog.All.Count);
-        Assert.Equal(Enum.GetValues<WidgetKind>().Order(), StudioPresetCatalog.All.SelectMany(p => p.WidgetKinds).Distinct().Order());
+        // QuickActions needs user-selected destinations and must never be populated by a preset.
+        Assert.DoesNotContain(StudioPresetCatalog.All, p => p.WidgetKinds.Contains(WidgetKind.QuickActions));
+        Assert.Equal(new[] { WidgetKind.Clock, WidgetKind.SystemMonitor, WidgetKind.FocusTimer, WidgetKind.Notes }.Order(), StudioPresetCatalog.All.SelectMany(p => p.WidgetKinds).Distinct().Order());
         Assert.All(StudioPresetCatalog.All, recipe =>
         {
             Assert.Equal("Studio.Preset." + recipe.Id, recipe.NameKey);
