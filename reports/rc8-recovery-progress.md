@@ -35,3 +35,14 @@ Added acceptance-only packaging/Smoke-UpgradeRC7.ps1 and Rc7UpgradeAcceptance to
 The new candidate gets only a private SQLite online snapshot and owned marker fixture. Current UI resume smoke performs actual RC8 startup/restart; tool checks full saved workspace/history/settings records, schema3, FK integrity and matching validated v2 pre-migration backup. Original RC7 v2 data is retained until owned final cleanup. Old RC7 then receives a separate v3 database copy; the gate requires the visible original StartupError plus newer-version message, graceful exit and unchanged v3-copy SHA256. The original upgraded database SHA256 must also remain unchanged.
 
 Output rc7-upgrade-smoke.json only on success. Linux tool compilation0warnings/0errors. PowerShell native acceptance **NOT EXECUTED HERE**; root owns Windows workflow wiring and results. No application-source modification, no user profile/wallpaper use, no old-version failure counted as a successful upgrade.
+
+
+## Actual RC7 old-harness failure and bounded adaptation
+
+CI43653711472 failed inside the immutable original RC7 smoke at line107: Set-Field GetCurrentPattern(ValuePattern) returned Unsupported Pattern. The actual RC7 process had already created a workspace and genuine Declined/Completed history; this is not claimed as a completed baseline. The caller field ID was absent in the old log, so its exact identity was not inferred from timestamps alone.
+
+Smoke-UpgradeRC7 now retains/verifies the immutable source script, then modifies exactly Set-Field in a separate compatible copy. The helper waits for an enabled writable ValuePattern from a fresh peer, invokes SetValue once and acknowledges its value via another fresh peer. Linebreak equivalence is normalized; spaces/content are not trimmed. No launch/consent action retries, no feature gates removed, no binary changes or fabricated v2 data. Timeout remains a failure.
+
+Diagnostics retain both complete scripts, SHA256 hashes, a unified helper diff and adaptation JSON. The final proof explicitly records original_harness_passed=false rather than pretending the unmodified old harness passed. Compatible harness parsing is an early mandatory gate.
+
+Actual local verification: trusted pinned PowerShell7.6.0 installed in a workspace-owned tool directory; both main script and generated compatible old script parsed successfully. Exactly one helper replacement and preserved UTF8 BOM verified. This is syntax/patch evidence, not Windows UI runtime acceptance. Windows result pending root CI.

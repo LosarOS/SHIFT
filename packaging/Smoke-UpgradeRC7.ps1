@@ -44,10 +44,65 @@ try {
  $oldSmoke=Join-Path $root 'Smoke-RC7.ps1'
  Invoke-WebRequest ('https://raw.githubusercontent.com/LosarOS/SHIFT/'+$source+'/packaging/Smoke-Windows.ps1') -OutFile $oldSmoke -UseBasicParsing
  if((Get-FileHash -LiteralPath $oldSmoke -Algorithm SHA256).Hash.ToLowerInvariant() -cne '3ff83fd85acea23d0182029479661d6d1b2237ccb87f08f9e0238de384094a47'){throw 'Pinned RC7 smoke script hash mismatch.'}
+
+ # Retain the immutable original. Only its UIA edit-peer readiness helper is adapted:
+ # Server runner 43653711472 exposed a transient Edit peer without ValuePattern.
+ # No feature assertion or action is removed, and SetValue is invoked exactly once.
+ $originalHarnessHash=(Get-FileHash -LiteralPath $oldSmoke -Algorithm SHA256).Hash.ToLowerInvariant()
+ $originalHarness=[IO.File]::ReadAllText($oldSmoke,[Text.Encoding]::UTF8).Replace("`r`n","`n")
+ $oldSetField=@'
+function Set-Field([string]$Id,[string]$Value) {
+    $control = Wait-For { Find-Control '' ([System.Windows.Automation.ControlType]::Edit) $Id } "field $Id"
+    $control.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($Value)
+}
+'@
+ $readySetField=@'
+function Set-Field([string]$Id,[string]$Value) {
+    Write-Host "RC7 compatibility harness: waiting for writable ValuePattern on $Id"
+    $pattern = Wait-For {
+        $candidate=Find-Control '' ([System.Windows.Automation.ControlType]::Edit) $Id
+        if($null -eq $candidate -or -not $candidate.Current.IsEnabled){return $null}
+        [object]$current=$null
+        try {
+            if($candidate.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern,[ref]$current) -and
+               $null -ne $current -and -not $current.Current.IsReadOnly){return $current}
+        } catch [System.Windows.Automation.ElementNotAvailableException] { return $null }
+        return $null
+    } "writable field pattern $Id"
+    $pattern.SetValue($Value)
+    $expectedValue=$Value.Replace("`r`n","`n").Replace("`r","`n")
+    $null=Wait-For {
+        $candidate=Find-Control '' ([System.Windows.Automation.ControlType]::Edit) $Id
+        if($null -eq $candidate){return $null}
+        [object]$current=$null
+        try {
+            if($candidate.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern,[ref]$current) -and
+               $null -ne $current -and $current.Current.Value.Replace("`r`n","`n").Replace("`r","`n") -ceq $expectedValue){return $true}
+        } catch [System.Windows.Automation.ElementNotAvailableException] { return $null }
+        return $null
+    } "field value acknowledged $Id"
+}
+'@
+ if(($originalHarness.Split([string[]]@($oldSetField),[StringSplitOptions]::None)).Length -ne 2){throw 'Pinned RC7 helper differs; refusing broad harness replacement.'}
+ $patchedHarness=$originalHarness.Replace($oldSetField,$readySetField)
+ $compatibleSmoke=Join-Path $root 'Smoke-RC7-Compatible.ps1'
+ [IO.File]::WriteAllText($compatibleSmoke,$patchedHarness,(New-Object Text.UTF8Encoding($true)))
+ $parseTokens=$null;$parseErrors=$null
+ $null=[System.Management.Automation.Language.Parser]::ParseFile($compatibleSmoke,[ref]$parseTokens,[ref]$parseErrors)
+ if(@($parseErrors).Count -gt 0){throw ('Compatible RC7 harness parse failed: '+(($parseErrors | ForEach-Object {$_.Message}) -join '; '))}
+ $oldLines=@($oldSetField -split "`n");$newLines=@($readySetField -split "`n")
+ $startLine=@($originalHarness.Substring(0,$originalHarness.IndexOf($oldSetField,[StringComparison]::Ordinal)) -split "`n").Count
+ $patchLines=@('--- Smoke-RC7-original.ps1','+++ Smoke-RC7-compatible.ps1',("@@ -{0},{1} +{0},{2} @@" -f $startLine,$oldLines.Count,$newLines.Count))
+ $patchLines+=@($oldLines | ForEach-Object {'-'+$_});$patchLines+=@($newLines | ForEach-Object {'+'+$_})
+ [IO.File]::WriteAllText((Join-Path $diagnostics 'rc7-harness.patch'),($patchLines -join "`n")+"`n",(New-Object Text.UTF8Encoding($false)))
+ $compatibleHarnessHash=(Get-FileHash -LiteralPath $compatibleSmoke -Algorithm SHA256).Hash.ToLowerInvariant()
+ Copy-Item -LiteralPath $oldSmoke -Destination (Join-Path $diagnostics 'Smoke-RC7-original.ps1')
+ Copy-Item -LiteralPath $compatibleSmoke -Destination (Join-Path $diagnostics 'Smoke-RC7-compatible.ps1')
+ @{original_sha256=$originalHarnessHash;compatible_sha256=$compatibleHarnessHash;patch='Set-Field only: wait/reacquire writable ValuePattern; SetValue once; readback acknowledgement';reason='CI43653711472 original helper line107 Unsupported Pattern';diff_file='rc7-harness.patch';compatible_parser_passed=$true;readback_newlines_normalized=$true;original_harness_passed=$false;feature_assertions_removed=$false;binary_changed=$false} | ConvertTo-Json | Set-Content (Join-Path $diagnostics 'rc7-harness-adaptation.json')
  Expand-Archive -LiteralPath $zip -DestinationPath (Join-Path $root 'old')
  $oldApp=Join-Path $root 'old/SHIFT-1.0.0-rc.7-win-x64-portable'
- & powershell.exe -NoProfile -File $oldSmoke -AppDirectory $oldApp -DataOwner $owner -PreserveData -ExtractedArchive -DiagnosticsDirectory (Join-Path $diagnostics 'actual-rc7-baseline')
- if($LASTEXITCODE -ne 0){throw 'Actual immutable RC7 UI baseline failed.'}
+ & powershell.exe -NoProfile -File $compatibleSmoke -AppDirectory $oldApp -DataOwner $owner -PreserveData -ExtractedArchive -DiagnosticsDirectory (Join-Path $diagnostics 'actual-rc7-baseline')
+ if($LASTEXITCODE -ne 0){throw 'Actual immutable RC7 binary failed the recorded compatibility harness.'}
  $oldData=Join-Path $oldApp 'data'
  $candidate=Join-Path $root 'candidate'
  New-Item $candidate -ItemType Directory | Out-Null
@@ -90,7 +145,7 @@ try {
  if((Get-FileHash -LiteralPath $downgrade -Algorithm SHA256).Hash -cne $before){throw 'Old RC7 modified the downgraded v3 copy.'}
  Tool 'upgrade-rc7-check' $data
  if((Get-FileHash -LiteralPath (Join-Path $data 'shift.db') -Algorithm SHA256).Hash -cne $upgradedBefore){throw 'Original upgraded database changed during downgrade-copy acceptance.'}
- @{status='passed';source_commit=$env:GITHUB_SHA;baseline_source=$source;baseline_version='1.0.0-rc.7';baseline_portable_sha256=$actual;actual_rc7_ui_baseline=$true;actual_schema2_to3_upgrade=$true;workspace_history_settings_preserved=$true;validated_schema2_safety_backup=$true;old_rc7_visible_downgrade_refusal=$true;downgrade_copy_sha256_unchanged=$true;original_upgraded_profile_unchanged=$true;manual_acceptance=$false;environment='disposable Windows runner; owned portable data only'} | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $diagnostics 'rc7-upgrade-smoke.json')
+ @{status='passed';source_commit=$env:GITHUB_SHA;baseline_source=$source;baseline_version='1.0.0-rc.7';baseline_portable_sha256=$actual;original_harness_sha256=$originalHarnessHash;compatible_harness_sha256=$compatibleHarnessHash;harness_adaptation='ValuePattern readiness/readback only';original_harness_passed=$false;actual_rc7_ui_baseline=$true;actual_schema2_to3_upgrade=$true;workspace_history_settings_preserved=$true;validated_schema2_safety_backup=$true;old_rc7_visible_downgrade_refusal=$true;downgrade_copy_sha256_unchanged=$true;original_upgraded_profile_unchanged=$true;manual_acceptance=$false;environment='disposable Windows runner; owned portable data only'} | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $diagnostics 'rc7-upgrade-smoke.json')
  Write-Host 'Actual RC7 upgrade, preservation and visible downgrade refusal passed.'
 } finally {
  if($null -ne $process){$process.Refresh();if(-not $process.HasExited){$process.Kill();$process.WaitForExit()};$process.Dispose()}
