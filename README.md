@@ -1,101 +1,146 @@
-<div align="center">
+# SHIFT ↗
 
-> **SHIFT RC7:** [Windows prerelease](https://github.com/LosarOS/SHIFT/releases/tag/v1.0.0-rc.7) · [Русский быстрый старт](docs/QUICKSTART-RU.md) · [Validation report](reports/SHIFT-RC7-VALIDATION-RU.md). Reviewed multi-item composition, read-only launch plans and safer Studio layout saves. Studio remains opt-in.
-[Installer](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.7/SHIFT-1.0.0-rc.7-win-x64-setup.exe) · [Portable](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.7/SHIFT-1.0.0-rc.7-win-x64-portable.zip) · [SHA256](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.7/SHA256SUMS.txt) · [Русский](README.ru.md)
+[English](README.en.md) · [Быстрый старт](docs/QUICKSTART-RU.md) · [Перенос профилей и заметок](docs/STUDIO-SHARING-RU.md)
 
-![SHIFT — Your work. One SHIFT away.](docs/assets/shift-cover.svg)
+![SHIFT](docs/assets/product-banner.svg)
 
-**A native, local-first workspace launcher for Windows.**
+**Одно пространство. Своё окружение. Один SHIFT.**
 
-[Русский](README.ru.md) · [Get started](docs/INSTALLATION.md) · [Architecture](docs/ARCHITECTURE.md) · [Roadmap](docs/ROADMAP.md) · [Validation](docs/VALIDATION.md) · [Audit](docs/AUDIT.md)
+SHIFT — нативное приложение для Windows 10/11 x64, которое собирает приложения, папки, файлы, ссылки и команды в рабочие пространства. Запускайте нужный набор по порядку и отдельно применяйте своё оформление Studio: обои, часы, системный монитор, заметки и таймер фокусировки.
 
-</div>
+Данные остаются на компьютере. Без обязательной регистрации, облака, телеметрии и платных API.
 
-Bring your apps, folders, documents, projects and links into a workspace. Open your context in one action, see what happened, and move on with your day.
+> **Выпущен [SHIFT 1.0.0-rc.7](https://github.com/LosarOS/SHIFT/releases/tag/v1.0.0-rc.7).** [Установщик](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.7/SHIFT-1.0.0-rc.7-win-x64-setup.exe) · [Portable](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.7/SHIFT-1.0.0-rc.7-win-x64-portable.zip) · [SHA256](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.7/SHA256SUMS.txt). **461 тест**, native Windows UIA и installer preservation прошли; публичные файлы повторно скачаны и сверены. [Отчёт с доказательствами](reports/SHIFT-RC7-VALIDATION-RU.md). Неподписанный prerelease; физическая Windows10/11, DPI и accessibility ещё требуют приёмки. Stable1.0 не объявлен.
 
-**1.0.0-rc.7 is available as an unsigned Windows prerelease.** [Windows downloads and checksums](https://github.com/LosarOS/SHIFT/releases). Native build, portable/installed UI Automation and installer preservation have passed; publication additionally verifies the extracted distribution and GitHub-downloaded bytes. Manual Windows 10/11, accessibility and DPI acceptance remain required before stable1.0. The exact verified state is recorded in [VALIDATION](docs/VALIDATION.md). A version number is not a substitute for testing.
+![Студия SHIFT — настоящее приложение на Windows CI](docs/screenshots/rc7/studio-overview.png)
 
-![SHIFT Studio — actual Windows CI capture](docs/screenshots/rc7/studio-overview.png)
+[Реальные снимки RC7](docs/screenshots/rc7/README.md) с синтетическими тестовыми данными; это не концепт-рендеры.
 
-Actual Windows runner capture with synthetic acceptance data. [Native RC7 views and exact limits](docs/screenshots/rc7/README.md).
+## Для разных рабочих дней
 
-## RC7: review your workspace before dispatch
+| Пространство | Что можно собрать |
+| --- | --- |
+| Разработка | IDE, рабочая папка, документация, терминал и спокойное оформление |
+| Учёба | Документы, PDF, заметки и нужные сайты |
+| Стрим | OBS, чат, dashboard и отдельный профиль виджетов |
 
-Add a list of paths or URLs, review duplicates and invalid rows, and append only selected entries. New items are disabled by default. The launch plan shows actual ordering, enabled/skipped steps, command shells and configured delay totals without starting anything. [Workspace guide in Russian](docs/WORKSPACE-PRODUCTIVITY-RU.md).
+Вы выбираете приложения и оформление сами. Примеры не устанавливают программы и не меняют Windows без действия пользователя.
 
-Studio saves layout changes per instance against acknowledged state. Newer editor geometry, hidden/replaced widgets and notes are protected; LastApplied metadata no longer causes configuration revision conflicts. **461 unique core tests** plus actual portable/installed RU/EN UI scenarios passed. [Evidence and remaining acceptance gates](reports/SHIFT-RC7-VALIDATION-RU.md).
+## Что умеет SHIFT
 
-![Reviewed workspace composition — actual Windows capture](docs/screenshots/rc7/workspace-composer-en.png)
+- **Рабочие пространства.** Создание, редактирование, копирование, избранное, теги, поиск и сортировка по реальной истории использования. Мастер «Создать из приложений» помогает выбрать локальные ярлыки и проверить порядок до сохранения.
+- **Понятный запуск.** Порядок, задержки, включение отдельных элементов, статусы и отмена оставшейся очереди. Команды требуют просмотра и отдельного подтверждения при каждом запуске.
+- **Проверка пространства.** Workspace Doctor проверяет локальные пути, формат URL и доступность оболочки без запуска приложений, команд и скрытых сетевых запросов. Это предварительная диагностика, а не гарантия готовности стороннего приложения.
+- **Быстрое переключение.** Ctrl+K открывает компактный лаунчер; глобальный Ctrl+Alt+Space включается отдельно. В RC5 поиск понимает несколько слов из имени, описания и тегов; выбранную строку можно открыть через «Открыть детали» без запуска.
+- **История и данные.** Результаты каждого элемента, поиск, фильтр ошибок, страницы истории и повтор по текущему содержимому пространства. SQLite, JSON пространства, согласованный backup и проверка восстановления.
+- **Studio.** Независимые визуальные профили, явная связь с пространствами, статичные обои по мониторам, восстановление предыдущего оформления с проверкой конфликтов. Studio выключен по умолчанию.
+- **Четыре виджета.** Настоящее локальное время, ЦП/ОЗУ, заметки с автосохранением и таймер фокусировки. Отдельные управляемые окна, без внедрения в Explorer и прав администратора. Мастерская позволяет редактировать черновик и смотреть отдельный предпросмотр до сохранения.
+- **Готовые окружения.** «Разработка», «Стриминг» и «Фокус» создают наборы виджетов без автоматического изменения Windows. Сохраняются темы Dark, Light, Midnight и Forest, а также RU/EN.
 
-## Designed for your working day
+## Новое в RC7
 
-- **Workspaces that stay yours.** Create, edit, clone, tag, search and favorite. Sort by recency, name or frequency of use.
-- **One visible launch queue.** Set order and delays; disable optional steps; cancel remaining steps. One failure does not stop the other items.
-- **Inspect before launching.** Workspace Doctor checks local paths, executable headers, URL format and shell availability without opening targets. Review warnings and jump directly to the item editor. Shortcut targets, arbitrary arguments and application readiness are explicitly unverified.
-- **A compact launcher.** Press Ctrl+K in SHIFT or opt into Ctrl+Alt+Space. Search across names, descriptions and tags, select with arrow keys, review without launching or press Enter with the usual command consent.
-- **History with useful detail.** Results per item, Unicode search, failure filtering, pagination, retry and local usage counts across the full database.
-- **Control over executable actions.** Review and confirm commands on every launch. Importing a workspace never starts it.
-- **Data without a service.** SQLite, versioned JSON import/export, online backups, validated restore with a safety backup and interrupted-run recovery.
-- **Studio environments.** Opt-in visual profiles, reversible static wallpaper, Clock, System Monitor, Notes and Focus Timer. Native windows, no Explorer injection.
-- **Your environment, portable.** Share reviewed Studio configuration packs without wallpaper/paths/current notes. Export actual Notes as readable text; reuse full styles in Widget Lab with preview and cancel. [Guide in Russian](docs/STUDIO-SHARING-RU.md).
-- **Windows at home.** Native WinUI controls, four palettes, RU/EN, tray, notifications, per-user startup and existing-instance activation.
+**«Вставить список».** Добавляйте пути или ссылки пачкой, проверяйте ошибки и повторы, выбирайте нужные строки и общую задержку. Новые элементы выключены по умолчанию. Ни одна строка не запускается при предпросмотре и сохранении.
 
-No account, telemetry, paid API, backend, Docker or cloud dependency. Opening a site or app can of course let that site or app access the network.
+**«План запуска».** До старта видны порядок, включённые и пропущенные шаги, оболочки команд и накопленные настроенные задержки. Это снимок настроек, а не обещание готовности приложений.
 
-## What “launch” means
+**Защита Studio.** Фоновое сохранение расположения больше не перезаписывает профиль целиком. Более новые правки редактора, скрытие и замена виджетов защищены; время последнего применения записывается отдельно. При конфликте доступно явное повторное применение или «Собрать».
 
-Success means Windows accepted the request to open an item. SHIFT does not guarantee that another app is ready or that a shell command completed successfully. Cancelling does not close programs already opened.
+[Пошаговое руководство](docs/WORKSPACE-PRODUCTIVITY-RU.md).
 
-This release launches saved workspaces. Capturing arbitrary open sessions, restoring window layouts and scheduling routines are [separate roadmap features](docs/ROADMAP.md).
+![План запуска — реальный русский интерфейс Windows](docs/screenshots/rc7/launch-plan-ru.png)
 
-## Build and run
+## Сохранённое исправление RC6
 
-Windows x64, .NET **10** SDK and Windows build tools. WinUI targets Windows 10 build 19041+; Windows 11 is the primary UX target. Windows 10 compatibility, clean-machine prerequisites and installer behavior must be checked in the release matrix.
+Многострочные Notes после мастерской WinUI и импорта теперь правильно отображаются в desktop-виджете. Проверены настоящий Windows-контрол, сохранение и повторное применение. Исправление не требует миграции базы.
+
+## Возможности Studio, сохранённые в RC7
+
+**Переносимые профили Studio.** Экспортируйте набор виджетов с оформлением и относительным расположением в `.shiftstudio.json`. Импорт проверяет файл, показывает состав, позволяет переименовать профиль и создаёт отдельную копию одной транзакцией. Применение остаётся явным действием. Обои, локальные пути, привязки к пространствам, текущие заметки и таймеры в пакет не входят.
+
+**Экспорт заметок профиля.** «Сохранить заметки» собирает текущий текст открытых виджетов выбранного профиля и сохранённые скрытые заметки в читаемый UTF-8 файл. Разные экземпляры одного шаблона сохраняют свой текст. Перед передачей доступен просмотр и копирование. Неоткрытые recovery-черновики нужно восстанавливать через меню виджета отдельно.
+
+**Своё оформление.** Возьмите полный стиль другого виджета в мастерской: палитру, шрифт, прозрачность, рамку и тень. Содержимое не копируется. Изменения остаются черновиком; отмена ничего не сохраняет. Исправлены меню после Escape и потеря строк в многострочных редакторах.
+
+**Управление с клавиатуры.** Компактный лаунчер использует настоящий список с выделением и доступными именами действий. В окне виджета: Ctrl+S — сохранить, Ctrl+Shift+S — сохранить текст заметки в файл, Shift+F10 — открыть меню. Для конфликта таймера можно явно выбрать состояние окна или базы.
+
+[Как переносить оформление и сохранять заметки →](docs/STUDIO-SHARING-RU.md)
+
+**Success означает передачу запроса Windows**, а не готовность запущенной программы или успешное завершение команды. Отмена не закрывает уже запущенные приложения. SHIFT пока не захватывает произвольную открытую сессию, вкладки браузера или расположение сторонних окон.
+
+## Интерфейс в работе
+
+Снимки работающего RC7 на disposable Windows Server с синтетическими данными; полная физическая Windows 11/DPI приёмка ими не подменяется.
+
+| Рабочий контекст | Оформление |
+| --- | --- |
+| ![Добавление списка](docs/screenshots/rc7/workspace-composer-ru.png) | ![Четыре настоящих виджета](docs/screenshots/rc7/desktop-widgets.png) |
+| ![Быстрый запуск](docs/screenshots/rc7/compact-launcher.png) | ![Студия](docs/screenshots/rc7/studio-overview.png) |
+
+## Установка и обновление
+
+Требуется Windows x64; WinUI нацелен на Windows 10 build 19041+ и Windows 11. Полная физическая приёмка Windows 10/11, смешанных DPI, нескольких мониторов и специальных возможностей остаётся отдельной релизной проверкой. CI на Windows Server её не заменяет.
+
+Установщик работает для текущего пользователя. Portable нужно полностью распаковать в папку с правом записи; `portable.flag` должен оставаться рядом с `SHIFT.exe`. Для обновления сначала выйдите из SHIFT через трей и сохраните **всю папку данных**. Неподписанные EXE могут вызвать предупреждение SmartScreen.
+
+[Подробная установка и восстановление данных](docs/INSTALLATION.md) · [Быстрый старт на русском](docs/QUICKSTART-RU.md)
+
+## Частые вопросы
+
+**Нужен аккаунт?** Нет: пространства, заметки и оформление хранятся локально.
+
+**SHIFT восстановит все вкладки и окна?** Нет. Текущая версия запускает сохранённые элементы; произвольный захват сессии и window layout — отдельные будущие возможности.
+
+**Можно остановить запуск?** Можно отменить оставшиеся шаги. Уже открытые программы не закрываются.
+
+**Почему Windows предупреждает об EXE?** Бинарники неподписанные; проверяйте источник и SHA256. Отсутствие предупреждений SmartScreen не гарантируется.
+
+## Разработка и сборка
+
+Стек: C#, .NET 10, WinUI 3 / Windows App SDK, SQLite, PowerShell 7 и Inno Setup 6. Основное окно использует WinUI; лёгкий native-host виджетов работает в том же процессе через управляемые Windows-окна. Браузерный runtime для простых виджетов не нужен.
+
+На Windows с .NET 10 SDK, Windows SDK / Build Tools и поддержкой Windows-разработки:
 
 ```powershell
 dotnet restore SHIFT.sln --locked-mode
-dotnet test tests/Shift.Tests -c Release
+dotnet test tests/Shift.Tests -c Release --no-restore
 dotnet run --project src/Shift.App -c Debug
 ```
 
-For an IDE, use Visual Studio 2026 with .NET 10 and Windows development support. Core tests also run on Linux/macOS:
+В IDE используйте Visual Studio с поддержкой .NET 10 и Windows-разработки. Linux/macOS подходят для тестов ядра; их успешный запуск не подтверждает работоспособность Windows EXE:
 
 ```sh
 dotnet test tests/Shift.Tests -c Release
 ```
 
-Create the Windows distribution with PowerShell 7 and Inno Setup 6:
+Windows-дистрибутив собирается штатным сценарием:
 
 ```powershell
 pwsh ./packaging/Build-Release.ps1 -Version 1.0.0-rc.7
 ```
 
-The script runs locked restore, core tests, self-contained publish and UI Automation smoke, then creates a portable ZIP, per-user installer and SHA-256 checksums in `artifacts/`. Windows CI additionally tests the installed app and uninstall. The UI smoke includes an explicitly approved harmless command that writes a marker into its disposable test profile; it also verifies refusal does not execute it. Diagnostics and real-window screenshots are saved by CI; screenshots are genuine disposable Windows runner captures.
-
-No signing key is included. Public downloads must state their signing and validation status. [Installation, data paths and recovery →](docs/INSTALLATION.md)
-
-## Local data, explicit trust
-
-Installed data: `%LOCALAPPDATA%\SHIFT`. Portable data: `data\` alongside `SHIFT.exe`, selected by `portable.flag`. Background serialization keeps SQLite work off the UI thread. Completed runs survive workspace deletion. Automatic backups retain the latest ten daily snapshots; manual backups are kept until you remove them.
-
-Workspace files, backups and logs are **unencrypted**. They may reveal personal paths, document names or command text. Do not store passwords or tokens in launch arguments. Redact diagnostics before sharing them.
-
-SHIFT is not a sandbox. Apps, shortcuts, documents through registered handlers and commands are executable trust decisions. Review imported items. See [SECURITY](SECURITY.md).
-
-## Project map
+Сценарий проверяет locked restore, тесты ядра, self-contained publish, ресурсы WinUI и извлечённый portable. Windows pipeline дополнительно проверяет native UI, установку, повторную установку, удаление и сохранность данных. Результаты каждого выпуска отражаются в его evidence и validation report. Публикация требует прохождения соответствующих gates и сверки скачанных бинарников; одного успешного compile недостаточно.
 
 ```text
 src/
-  Shift.Domain/          Models, validation and usage records
-  Shift.Application/     Launch orchestration, contracts and JSON transfer
-  Shift.Infrastructure/  SQLite, background store, backup/restore, OS dispatch, IPC
-  Shift.App/             WinUI shell, compact launcher, localization and OS integration
-tests/Shift.Tests/       Core, persistence, restore and request-construction tests
-packaging/               Portable / installer build and Windows UI smoke
-.github/workflows/       Cross-platform core CI and Windows release checks
-docs/                    Product, UX, architecture, roadmap and release evidence
+  Shift.Domain/          Модели и инварианты
+  Shift.Application/     Запуск, профили, перенос и contracts
+  Shift.Infrastructure/  SQLite, Windows API, локальные файлы и логи
+  Shift.App/             WinUI, локализация, мастерская и native-host виджетов
+tests/Shift.Tests/       Unit и integration tests
+packaging/               Windows build, portable, installer и smoke
+.github/workflows/       Cross-platform CI и Windows release pipeline
+docs/                    Продукт, архитектура, инструкции и QA
+reports/                 Фактические результаты инженерных сессий
 ```
 
-[Product brief](docs/PRD.md) · [UX](docs/UX.md) · [Architecture](docs/ARCHITECTURE.md) · [QA checklist](docs/QA.md) · [Changelog](CHANGELOG.md) · [Release notes](docs/RELEASE_NOTES.md)
+## Приватность и восстановление
 
-Contributions: [CONTRIBUTING](CONTRIBUTING.md). License: [MIT](LICENSE); dependencies retain their [own licenses](THIRD-PARTY-NOTICES.md).
+Установленная версия хранит данные в `%LOCALAPPDATA%\SHIFT`; portable — в `data\` рядом с EXE. SQLite, JSON, текстовые экспорты, буфер обмена и backup не зашифрованы. Названия, описания, заметки, пути и аргументы могут содержать личную информацию — просматривайте файл перед передачей и не храните секреты в командах.
+
+Пакет профиля — способ перенести оформление, **не полная резервная копия**. SQLite backup не содержит сами файлы обоев и локальные recovery-черновики. Для полной копии выйдите из приложения и сохраните каталог данных целиком, включая `Studio/Images`, `Studio/RecoveryNotes` и `migration-backups`.
+
+Команды, `.exe`, ярлыки и документы через системные обработчики — доверенные действия с пользовательскими правами. SHIFT не является sandbox. Импорт ничего не запускает автоматически. Studio не меняет Explorer, не требует elevation и не меняет системные политики. Статичные обои применяются с подтверждением; Spotlight и слайд-шоу не поддерживаются. Acrylic/Mica используют явно обозначенный fallback, без обещания настоящего стекла.
+
+[Безопасность](SECURITY.md) · [Архитектура](docs/ARCHITECTURE.md) · [Roadmap](docs/ROADMAP.md) · [Фактическая валидация](docs/VALIDATION.md) · [Журнал RC7](reports/SHIFT-RC7-ENGINEERING-SESSION.md) · [Changelog](CHANGELOG.md)
+
+MIT · SHIFT contributors

@@ -1,0 +1,47 @@
+{
+  "renderer": "Playwright / headless system Chromium, device_scale_factor=1",
+  "rendered_date": "2026-11-14",
+  "purpose": "brand illustrations only, not application screenshots",
+  "social_preview_uploaded": false,
+  "images": [
+    {
+      "repository": "SHIFT",
+      "file": "social-preview.png",
+      "width": 1280,
+      "height": 640,
+      "bytes": 232254,
+      "distinct_colors": 1600,
+      "max_channel_stddev": 21.41,
+      "kind": "brand illustration, not runtime screenshot",
+      "source": "social-preview.svg",
+      "source_sha256": "a5327b3e62c076dc2f1b9b006282be7bfce50a68758a305c645c1f1a68bd970e",
+      "png_sha256": "42f423205f62730a48000b837b25b95fe7a0596ca83ef47ad54a6483c45d5a83"
+    },
+    {
+      "repository": "SHIFT",
+      "file": "release-visual.png",
+      "width": 1200,
+      "height": 460,
+      "bytes": 168937,
+      "distinct_colors": 1751,
+      "max_channel_stddev": 26.408,
+      "kind": "brand illustration, not runtime screenshot",
+      "source": "release-visual.svg",
+      "source_sha256": "c7e22e468178933d14f5ef02491073c8e5a5481530fec14e31b2140de4f10552",
+      "png_sha256": "faabf278ce5a33b9730a9713e520b2276472edc20232f0d4ada0fb831ee8edd4"
+    },
+    {
+      "repository": "SHIFT",
+      "file": "product-mark.png",
+      "width": 256,
+      "height": 256,
+      "bytes": 3515,
+      "distinct_colors": 124,
+      "max_channel_stddev": 62.046,
+      "kind": "brand illustration, not runtime screenshot",
+      "source": "product-mark.svg",
+      "source_sha256": "fea6449fd0d5e81d639e53784e648c42856395f0483a8823e8a5c07a59a324f7",
+      "png_sha256": "3bd38961c5d8667425cd8f85e1611a52c187e3c025525414e00b6471f64ba8e1"
+    }
+  ]
+}
