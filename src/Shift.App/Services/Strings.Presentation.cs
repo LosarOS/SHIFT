@@ -46,7 +46,7 @@ public sealed partial class Strings
         if (message.StartsWith("Scenario.PreflightObservation: ", StringComparison.Ordinal))
             return (Language == "ru" ? "Результат предварительной проверки: " : "Preflight observation: ") + string.Join(", ", message[31..].Split(',').Select(code => this[code.Trim()]));
         if (message.StartsWith("Scenario.PreflightError: ", StringComparison.Ordinal))
-            return (Language == "ru" ? "Пропущено после проверки: " : "Skipped after preflight: ") + string.Join(", ", message[25..].Split(',').Select(code => this[code.Trim()]));
+            return (Language == "ru" ? "Результат проверки: " : "Preflight finding: ") + string.Join(", ", message[25..].Split(',').Select(code => this[code.Trim()]));
         if (Language != "ru" || string.IsNullOrEmpty(message)) return message;
         foreach (var (english, russian) in OperationalMessages)
         {

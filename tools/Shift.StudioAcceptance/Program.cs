@@ -56,7 +56,7 @@ if (stage == "seed")
     if (upgraded && (!(await store.ListAsync()).Any(w => w.Name == "SHIFT smoke workspace") || !(await store.HistoryAsync()).Any())) throw new InvalidOperationException("RC2 workspace/history was lost.");
     await store.SaveSettingsAsync(new AppSettings { OnboardingComplete = true, Language = "en", Theme = AppTheme.Midnight, MinimizeToTray = false, Notifications = false });
     var definitions = new List<WidgetDefinition>();
-    foreach (var kind in new[] { WidgetKind.Clock, WidgetKind.SystemMonitor, WidgetKind.Notes, WidgetKind.FocusTimer }) definitions.Add(await store.SaveDefinitionAsync(new WidgetDefinition { Id = Id(10 + (int)kind), Title = "Studio CI " + kind,
+    foreach (var kind in new[] { WidgetKind.Clock, WidgetKind.SystemMonitor, WidgetKind.FocusTimer, WidgetKind.Notes }) definitions.Add(await store.SaveDefinitionAsync(new WidgetDefinition { Id = Id(10 + (int)kind), Title = "Studio CI " + kind,
         Kind = kind, Style = StudioTemplates.For("Midnight") with { Opacity = .85, Surface = WidgetSurface.Translucent }, Content = new() { ShowSeconds = true, InitialNotes = kind == WidgetKind.Notes ? "Initial CI note\r\nSecond line — local only" : "Initial CI note", FocusMinutes = 1, UpdateIntervalSeconds = 1 } }));
     // A valid declaration beyond the old editor's bounds must survive an unrelated edit.
     var boundary = await store.SaveDefinitionAsync(new WidgetDefinition { Id = Id(14), Title = "Studio CI preserved", Kind = WidgetKind.Notes,
@@ -78,7 +78,7 @@ if (stage == "seed")
                 Layout = new WidgetLayout { MonitorId = monitors[0].DeviceId, Width = 280, Height = 210, X = count == 4 ? .15 + (i % 2) * .48 : (i % 4) * .24, Y = count == 4 ? .04 + (i / 2) * .48 : (i / 4) * .32 } }).ToArray() };
         if (count == 4 && original?.CanRestore == true) profile = profile with { Wallpapers = original.Wallpapers.Select(w => new WallpaperAssignment(w.MonitorId, managed)).ToArray(), ChangeWallpaperPosition = true, WallpaperPosition = WallpaperPlacement.Fill };
         await store.SaveProfileAsync(profile);
-        foreach (var instance in profile.Widgets.Where(w => w.DefinitionId == definitions[(int)WidgetKind.FocusTimer].Id))
+        foreach (var instance in profile.Widgets.Where(w => w.DefinitionId == definitions.Single(d => d.Kind == WidgetKind.FocusTimer).Id))
             await store.SaveWidgetStateAsync(new WidgetRuntimeState { InstanceId = instance.Id, Timer = new() { RemainingSeconds = 3 } });
     }
     var provider = new WindowsSystemMetricsProvider(); var first = provider.Sample(); await Task.Delay(1100); var metrics = provider.Sample();
