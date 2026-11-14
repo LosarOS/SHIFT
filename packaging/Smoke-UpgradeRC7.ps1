@@ -1,4 +1,4 @@
-# Actual RC7 -> RC8 portable upgrade and downgrade refusal. Owned disposable Windows CI only.
+﻿# Actual RC7 -> RC8 portable upgrade and downgrade refusal. Owned disposable Windows CI only.
 [CmdletBinding()]
 param([Parameter(Mandatory=$true)][string]$AppDirectory,[Parameter(Mandatory=$true)][string]$DiagnosticsDirectory)
 $ErrorActionPreference='Stop'

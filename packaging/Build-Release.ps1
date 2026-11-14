@@ -8,6 +8,17 @@ Set-StrictMode -Version Latest
 if (-not $IsWindows) { throw 'Release packaging requires Windows x64 and PowerShell 7.' }
 if (-not (Test-Path $IsccPath)) { throw 'Install Inno Setup 6 or pass -IsccPath.' }
 $repo = Split-Path $PSScriptRoot -Parent
+# Fail before restore/publish if a native acceptance script cannot be parsed.
+foreach ($script in Get-ChildItem $PSScriptRoot -Filter 'Smoke-*.ps1' -File) {
+    $parseTokens = $null; $parseErrors = $null
+    [System.Management.Automation.Language.Parser]::ParseFile($script.FullName, [ref]$parseTokens, [ref]$parseErrors) | Out-Null
+    if ($parseErrors.Count) { throw "Native smoke syntax error: $($script.Name): $($parseErrors | Out-String)" }
+    $bytes = [IO.File]::ReadAllBytes($script.FullName)
+    if (@($bytes | Where-Object { $_ -ge 128 }).Count -gt 0 -and ($bytes.Length -lt 3 -or $bytes[0] -ne 239 -or $bytes[1] -ne 187 -or $bytes[2] -ne 191)) {
+        throw "Windows PowerShell smoke requires UTF-8 BOM: $($script.Name)"
+    }
+}
+
 $out = Join-Path $repo 'artifacts'
 $publish = Join-Path $out 'publish'
 $portable = Join-Path $out "SHIFT-$Version-win-x64-portable"
