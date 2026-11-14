@@ -24,6 +24,13 @@ public sealed partial class MainWindow
                 ?? throw new InvalidOperationException(T("Пространство удалено. Измените быстрое действие в мастерской.", "The workspace was deleted. Edit the quick action in Widget Lab."));
         }
         else workspace = new Workspace { Name = action.Title, Items = [WidgetQuickActions.ToItem(action)] };
+        // Data refresh may yield while Studio is disabled/replaced or another operation starts.
+        if (!ReferenceEquals(studioRuntime, sender) || !studioSettings.Enabled || quitRequested || maintenance || dialogOpen || vm.IsLaunching)
+        {
+            ShowNotice(T("Быстрое действие не запущено", "Quick action was not started"),
+                T("Состояние SHIFT изменилось. Проверьте Studio и нажмите действие снова.", "SHIFT state changed. Check Studio and click the action again."), true);
+            return;
+        }
         await StartLaunchAsync(workspace);
     }
 

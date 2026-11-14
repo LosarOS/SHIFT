@@ -15,6 +15,11 @@ if (stage.StartsWith("sharing-", StringComparison.Ordinal))
     await StudioSharingAcceptance.RunAsync(stage, store, data);
     return;
 }
+if (stage.StartsWith("actions-", StringComparison.Ordinal))
+{
+    await StudioQuickActionsAcceptance.RunAsync(stage, store, data);
+    return;
+}
 var json = new JsonSerializerOptions { WriteIndented = true, PropertyNameCaseInsensitive = true };
 var proofPath = Path.Combine(data, "studio-ci.json");
 var wallpaper = new WindowsWallpaperService();

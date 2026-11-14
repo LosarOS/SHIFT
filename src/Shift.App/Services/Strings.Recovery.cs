@@ -5,7 +5,7 @@ public sealed partial class Strings
     public string Recovery(string key) => RecoveryValues.TryGetValue(key, out var value) ? (Language == "ru" ? value.Ru : value.En) : key;
     private static readonly Dictionary<string, (string Ru, string En)> RecoveryValues = new()
     {
-        ["CancelPending"] = ("Отмена запрошена. Дождитесь завершения текущего снимка, затем закройте окно.", "Cancellation requested. Wait for the current snapshot to finish, then close this window."),
+        ["CancelPending"] = ("Отмена запрошена. Окно закроется после завершения текущего снимка.", "Cancellation requested. This window will close when the current snapshot finishes."),
         ["Center"] = ("Центр восстановления", "Recovery Center"),
         ["Scope"] = ("Копия SQLite содержит пространства, историю, настройки и конфигурацию Studio. Файлы обоев и локальные recovery-черновики заметок в неё НЕ входят. Восстановление заменяет базу, но не применяет оформление и не запускает приложения.", "A SQLite backup contains workspaces, history, settings and Studio configuration. Wallpaper files and local Notes recovery drafts are NOT included. Restore replaces the database without applying profiles or launching apps."),
         ["FullCopy"] = ("Для полной копии: выйдите из SHIFT через «Выход», затем скопируйте весь каталог данных, включая Studio/Images, Studio/RecoveryNotes и migration-backups. Не копируйте только shift.db из работающего приложения: часть данных может находиться в WAL.", "For a complete copy: Quit SHIFT, then copy the entire data directory, including Studio/Images, Studio/RecoveryNotes and migration-backups. Do not copy only shift.db while SHIFT is running: committed data may still be in WAL."),

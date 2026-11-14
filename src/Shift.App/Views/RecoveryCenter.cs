@@ -16,7 +16,7 @@ public sealed partial class MainWindow
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(details, "Recovery.Preview");
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetLiveSetting(details, Microsoft.UI.Xaml.Automation.Peers.AutomationLiveSetting.Polite);
         var discovery = Text("", 12, true);
-        var selectedPath = ""; string? validatedPath = null; var closed = false; var busy = false;
+        var selectedPath = ""; string? validatedPath = null; var closed = false; var busy = false; var closeRequested = false;
         var browse = Button(s.Recovery("Browse"), () => { });
         var check = Button(s.Recovery("Inspect"), () => { });
         var create = Button(s["Backup"], () => { });
@@ -24,7 +24,8 @@ public sealed partial class MainWindow
         body.Children.Add(picker); body.Children.Add(discovery); body.Children.Add(actions); body.Children.Add(details);
         var dialog = Dialog(s.Recovery("Center"), new ScrollViewer { Content = body, MaxHeight = 520, MaxWidth = 680 }, s["Restore"], s["Cancel"]);
         dialog.IsPrimaryButtonEnabled = false;
-        dialog.Closing += (_, args) => { if (busy) { cancellation.Cancel(); args.Cancel = true; details.Text = s.Recovery("CancelPending"); } };
+        dialog.Closing += (_, args) => { if (busy) { closeRequested = true; cancellation.Cancel(); args.Cancel = true; details.Text = s.Recovery("CancelPending"); } };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(create, "Recovery.Create");
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(check, "Recovery.Inspect");
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(browse, "Recovery.Browse");
         void Reset(string path)
@@ -36,6 +37,7 @@ public sealed partial class MainWindow
         {
             busy = value; picker.IsEnabled = browse.IsEnabled = check.IsEnabled = create.IsEnabled = !value && !cancellation.IsCancellationRequested;
             dialog.IsPrimaryButtonEnabled = !value && validatedPath is not null;
+            if (!value && closeRequested) dialog.Hide();
         }
         async Task Refresh()
         {

@@ -8,8 +8,8 @@ namespace Shift.App;
 public sealed partial class MainWindow
 {
     private string StudioPackNotice => T(
-        "Переносит виджеты, оформление и относительное расположение. Обои, пути к файлам, привязка к пространству, текущие заметки и таймеры не включаются. Это не резервная копия данных.",
-        "Transfers widgets, appearance and relative placement. Wallpaper, file paths, workspace binding, current notes and timers are excluded. This is not a data backup.");
+        "Переносит виджеты, оформление и относительное расположение. Обои, пути к файлам, привязка к пространству, текущие заметки, таймеры и цели быстрых действий не включаются. Быстрые действия настройте заново после импорта. Это не резервная копия данных.",
+        "Transfers widgets, appearance and relative placement. Wallpaper, file paths, workspace binding, current notes, timers and quick action destinations are excluded. Configure quick actions again after import. This is not a data backup.");
 
     private async Task ExportStudioProfileAsync(DesktopProfile source)
     {

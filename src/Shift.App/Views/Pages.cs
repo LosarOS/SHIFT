@@ -452,7 +452,7 @@ public sealed partial class MainWindow
             // Dispatch and desktop apply have separate results; never retry dispatched applications on a visual failure.
             try
             {
-                if ((run.Status is RunStatus.Completed or RunStatus.PartialFailure) && studioReady && studioSettings.Enabled)
+                if ((run.Status is RunStatus.Completed or RunStatus.PartialFailure) && run.Items.Any(item => item.StartedAt is not null) && studioReady && studioSettings.Enabled)
                 {
                     var profiles = await StudioData.ListProfilesAsync();
                     var linked = profiles.FirstOrDefault(p => p.Enabled && p.WorkspaceId == workspace.Id && p.ApplyOnWorkspaceLaunch);

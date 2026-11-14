@@ -58,6 +58,8 @@ public sealed partial class Strings
     }
     private static readonly (string English, string Russian)[] OperationalMessages =
     [
+        ("Profile packs cannot contain local quick actions. Configure them after import.", "Пакеты профиля не содержат локальных быстрых действий. Настройте их после импорта."),
+        ("Studio migration found invalid references.", "Миграция Studio остановлена: обнаружены нарушенные связи. Исходная база сохранена."),
         ("Studio profile file exceeds the supported size.", "Файл профиля превышает лимит 2 МиБ."),
         ("Studio profile pack exceeds the supported size.", "Пакет профиля пуст или превышает лимит 2 МиБ."),
         ("Unsupported Studio profile pack format or version.", "Формат или версия пакета профиля не поддерживается."),

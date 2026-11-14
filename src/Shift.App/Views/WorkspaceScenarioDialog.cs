@@ -51,6 +51,6 @@ public sealed partial class MainWindow
             catch (Exception ex) { args.Cancel = true; errors.Title = s["ValidationHint"]; errors.Message = s.ErrorDetails(ex); errors.IsOpen = true; }
             finally { saving = false; dialog.IsPrimaryButtonEnabled = true; deferral.Complete(); }
         };
-        await dialog.ShowAsync();
+        await ShowDialogAsync(dialog);
     }
 }

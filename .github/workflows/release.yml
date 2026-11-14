@@ -63,7 +63,7 @@ jobs:
           $portableEvidence = Get-Content $nativeChecks[0] -Raw | ConvertFrom-Json
           if ($portableEvidence.portable_smoke_archive -ne $true) { throw 'Portable smoke did not use the extracted distribution ZIP.' }
           $installedEvidence = Get-Content $nativeChecks[1] -Raw | ConvertFrom-Json
-          foreach ($gate in @('workspace_productivity_russian_preview','workspace_launch_plan_read_only','workspace_composer_review_save_disabled_cleanup_no_dispatch')) {
+          foreach ($gate in @('workspace_productivity_russian_preview','workspace_launch_plan_read_only','workspace_composer_review_save_disabled_cleanup_no_dispatch','workspace_scenario_preflight_stop_no_dispatch','workspace_scenario_settings_restart_and_cleanup','recovery_center_inspection_no_restore')) {
             foreach ($proof in @($portableEvidence, $installedEvidence)) {
               if ($gate -notin $proof.checks) { throw "Missing productivity UI gate: $gate" }
             }
@@ -78,7 +78,7 @@ jobs:
           foreach ($gate in @('compact_selection_pattern','compact_keyboard_navigation','compact_cross_field_search','compact_empty_actions','compact_review_without_dispatch','compact_keyboard_command_refusal','multiline_workspace_and_item_editing')) {
             if ($gate -notin $portableEvidence.checks) { throw "Missing compact launcher gate: $gate" }
           }
-          foreach ($gate in @('lab_preview_cancel_save_no_preview_writes','four_real_windows_notes_timer','reapply_no_duplicate_windows','wallpaper_apply_restore','disable_reenable','restart_persistence_and_quit','mode_change_preserves_geometry','timer_restart_after_completion','russian_live_language_without_recreation','editor_preserves_boundaries_custom_style_and_missing_monitor','starter_preset_cancel_atomic_save_and_apply','russian_quick_setup_order_save_cancel','disabled_profile_stays_disabled_after_restart','recovery_gather_persists_geometry','russian_profile_transfer_and_notes_export','widget_desktop_keyboard_save_and_menu','widget_lab_reuse_appearance_save_cancel','notes_clipboard_survives_process_exit','multiline_editor_content_preserved','native_notes_multiline_initial_text')) {
+          foreach ($gate in @('lab_preview_cancel_save_no_preview_writes','four_real_windows_notes_timer','reapply_no_duplicate_windows','wallpaper_apply_restore','disable_reenable','restart_persistence_and_quit','mode_change_preserves_geometry','timer_restart_after_completion','russian_live_language_without_recreation','editor_preserves_boundaries_custom_style_and_missing_monitor','starter_preset_cancel_atomic_save_and_apply','russian_quick_setup_order_save_cancel','disabled_profile_stays_disabled_after_restart','recovery_gather_persists_geometry','russian_profile_transfer_and_notes_export','widget_desktop_keyboard_save_and_menu','widget_lab_reuse_appearance_save_cancel','notes_clipboard_survives_process_exit','multiline_editor_content_preserved','native_notes_multiline_initial_text','quick_actions_lab_restart_consent_dispatch')) {
             if ($gate -notin $studio.checks) { throw "Missing Studio gate: $gate" }
           }
           $nativeNotes = Get-Content artifacts/diagnostics/studio/native-notes-newline-proof.json -Raw | ConvertFrom-Json
@@ -89,6 +89,7 @@ jobs:
             environment = 'GitHub Actions disposable Windows x64 runner'; signature = 'unsigned'
             core_tests = @{ total = [int]$counts.total; passed = [int]$counts.passed; failed = [int]$counts.failed; skipped = [int]$counts.notExecuted }
             locked_restore = 'passed'; windows_self_contained_publish = 'passed'
+            launch_scenario_preflight = 'passed'; recovery_center_inspection = 'passed'; quick_actions_native = 'passed'; sqlite_schema = 3
             workspace_composer = 'passed'; launch_plan_preview = 'passed'; productivity_no_dispatch = 'passed'
             russian_localization = 'passed'; quick_workspace_setup = 'passed'; studio_starter_presets = 'passed'
             widget_lab_reuse_appearance = 'passed'; widget_desktop_keyboard = 'passed'; studio_profile_transfer = 'passed'; studio_notes_export = 'passed'; real_file_pickers_and_clipboard = 'passed'; compact_launcher_selection_and_keyboard = 'passed'

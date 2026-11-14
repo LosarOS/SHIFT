@@ -528,6 +528,43 @@ try {
     $theme=Wait-For { Find-Control '' ([System.Windows.Automation.ControlType]::ComboBox) 'Field.Theme' } 'persisted theme'
     $selected=$theme.GetCurrentPattern([System.Windows.Automation.SelectionPattern]::Pattern).Current.GetSelection()
     if($selected.Count -ne 1 -or $selected[0].Current.Name -ne 'Midnight'){throw 'Theme did not survive restart.'}
+    if(-not $LegacyCompactLauncher -and -not $ResumeOwnedData){
+        Click '' 'Nav.History'
+        $recoveryHistoryBefore=Wait-For {History-Count} 'history before backup inspection'
+        Click '' 'Nav.Settings'
+        Click '' 'Settings.RecoveryCenter'
+        Click '' 'Recovery.Create'
+        $choiceName=Wait-For {
+            $combo=Find-Control '' ([System.Windows.Automation.ControlType]::ComboBox) 'Recovery.Backups'
+            if(-not $combo -or -not $combo.Current.IsEnabled){return $null}
+            $combo.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand()
+            $condition=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::ListItem)
+            $choice=[System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Descendants,$condition)|Where-Object {$_.Current.ProcessId -eq $process.Id -and $_.Current.Name.EndsWith('.db')}|Select-Object -First 1
+            if($choice){return $choice.Current.Name}
+            return $null
+        } 'owned backup available in recovery catalog'
+        Select-Choice 'Recovery.Backups' $choiceName
+        $recoveryHashes=@{}
+        foreach($path in @((Join-Path $data 'shift.db'),(Join-Path $data 'shift.db-wal'))){
+            if(Test-Path -LiteralPath $path){$recoveryHashes[$path]=(Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash}
+        }
+        $recoveryMarkerHash=(Get-FileHash -LiteralPath (Join-Path $data 'dispatch-proof.txt') -Algorithm SHA256).Hash
+        $recoveryMarkerTime=(Get-Item -LiteralPath (Join-Path $data 'dispatch-proof.txt')).LastWriteTimeUtc
+        Click '' 'Recovery.Inspect'
+        $null=Wait-For {$summary=Find-Control '' ([System.Windows.Automation.ControlType]::Text) 'Recovery.Preview';if($summary -and $summary.Current.Name.StartsWith('Backup validation passed:')){$summary}} 'validated read-only SQLite recovery preview'
+        Capture 'recovery-center-preview'
+        Click '' 'Dialog.Close'
+        foreach($path in $recoveryHashes.Keys){
+            if(-not(Test-Path -LiteralPath $path) -or (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -cne $recoveryHashes[$path]){throw 'Recovery preview/cancel changed live SQLite data.'}
+        }
+        Click '' 'Nav.History'
+        $recoveryHistoryAfter=Wait-For {History-Count} 'history after backup inspection'
+        if($recoveryHistoryAfter -ne $recoveryHistoryBefore -or
+            (Get-FileHash -LiteralPath (Join-Path $data 'dispatch-proof.txt') -Algorithm SHA256).Hash -cne $recoveryMarkerHash -or
+            (Get-Item -LiteralPath (Join-Path $data 'dispatch-proof.txt')).LastWriteTimeUtc -ne $recoveryMarkerTime){throw 'Recovery preview/cancel dispatched or changed history.'}
+        $productivityChecks+='recovery_center_inspection_no_restore'
+        Click '' 'Nav.Settings'
+    }
     Capture 'settings-restored'
     if(-not(Test-Path (Join-Path $data 'dispatch-proof.txt'))){throw 'Command proof data did not survive restart.'}
     $process.CloseMainWindow() | Out-Null
