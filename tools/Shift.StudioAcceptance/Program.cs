@@ -43,7 +43,7 @@ if (stage == "seed")
     if (upgraded && (!(await store.ListAsync()).Any(w => w.Name == "SHIFT smoke workspace") || !(await store.HistoryAsync()).Any())) throw new InvalidOperationException("RC2 workspace/history was lost.");
     await store.SaveSettingsAsync(new AppSettings { OnboardingComplete = true, Language = "en", Theme = AppTheme.Midnight, MinimizeToTray = false, Notifications = false });
     var definitions = new List<WidgetDefinition>();
-    foreach (var kind in Enum.GetValues<WidgetKind>()) definitions.Add(await store.SaveDefinitionAsync(new WidgetDefinition { Id = Id(10 + (int)kind), Title = "Studio CI " + kind,
+    foreach (var kind in new[] { WidgetKind.Clock, WidgetKind.SystemMonitor, WidgetKind.Notes, WidgetKind.FocusTimer }) definitions.Add(await store.SaveDefinitionAsync(new WidgetDefinition { Id = Id(10 + (int)kind), Title = "Studio CI " + kind,
         Kind = kind, Style = StudioTemplates.For("Midnight") with { Opacity = .85, Surface = WidgetSurface.Translucent }, Content = new() { ShowSeconds = true, InitialNotes = kind == WidgetKind.Notes ? "Initial CI note\r\nSecond line — local only" : "Initial CI note", FocusMinutes = 1, UpdateIntervalSeconds = 1 } }));
     // A valid declaration beyond the old editor's bounds must survive an unrelated edit.
     var boundary = await store.SaveDefinitionAsync(new WidgetDefinition { Id = Id(14), Title = "Studio CI preserved", Kind = WidgetKind.Notes,
