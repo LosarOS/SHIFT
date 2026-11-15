@@ -18,7 +18,7 @@ Backup inspection is not a complete resource archive. Before upgrade, Quit SHIFT
 
 After publication, choose the x64 setup EXE or fully extract the portable ZIP. Existing public downloads remain RC7 until the candidate is approved. [RC8 guide](RC8-GUIDE-EN.md) · [validation journal](../reports/PRODUCT-EVOLUTION-2026-11-14.md).
 
-512 unique core tests passed on Linux and Windows. Candidate Windows publish, native UI/Studio, installer and actual RC7-upgrade checks have separate retained evidence; their final status is recorded in the journal rather than inferred from core compilation.
+514 unique core tests passed on Linux and Windows. Candidate Windows publish, native UI/Studio, installer and actual RC7-upgrade checks have separate retained evidence; their final status is recorded in the journal rather than inferred from core compilation.
 
 ## Limitations
 

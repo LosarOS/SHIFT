@@ -49,3 +49,9 @@ GitHub metadata description/topics/homepage вернули403 Resource not acces
 Первый Quick Actions Lab PNG перекрыт10 stress-window fixture; это сохраняется как техническое evidence, не как чистый marketing shot. Probe теперь поднимает только owned main через документированный BringWindowToTop и проверяет foreground перед DwmFlush/Capture. Окна не скрываются, изображение не редактируется. Качество нового кадра будет проверено отдельно.
 
 Короткие измерения прежнего успешного932 на disposable Windows Server2025, один дисплей: working set0/1/5/10 widgets =161.31/297.65/301.46/307.51MiB; private65.91/178.91/181.66/187.19MiB. Каждая CPU-выборка около2s,0/0/0.1953/0% всей машины. Нули отражают квантование короткой выборки, не гарантию отсутствия нагрузки. Нет сравнительного benchmark, длительного soak, лабораторной точности или утверждения об ускорении. Lab/profile timing и sleep NOT MEASURED. Сырые значения studio-performance-raw.json находятся в исходном Actions artifact.
+
+## Финальный checkpoint — source28b69a5
+
+[Windows43661035655](https://github.com/LosarOS/SHIFT/actions/runs/43661035655) **SUCCESS**: исправление каталога входит в actual binary.514/0/0 Windows и Linux. Новый artifact14140392572 скачан, распакован в свежий owned каталог и независимо сверён; source932 retained как исторический checkpoint. Root прочитал original validation, точные RU refusal title/reason и просмотрел новый чистый Lab/Recovery PNG; ложное предупреждение исчезло.
+
+Все окончательные размеры/хеши, bounded feature statuses, auto/manual QA boundaries и download links: [итоговая валидация](RC8-VALIDATION-RU.md). Публикация/merge продуктов ожидает отдельного подтверждения. Сборка43660954465 отменена ещё на setup как superseded encoding-only probe change; её статус не используется как доказательство. Финальные исходники приложения соответствуют28b; последующие commits только документация/evidence.
