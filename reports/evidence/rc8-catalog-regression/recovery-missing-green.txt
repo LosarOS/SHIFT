@@ -1,0 +1,9 @@
+  Shift.Domain -> /workspace/SHIFT/src/Shift.Domain/bin/Release/net10.0/Shift.Domain.dll
+  Shift.Application -> /workspace/SHIFT/src/Shift.Application/bin/Release/net10.0/Shift.Application.dll
+  Shift.Infrastructure -> /workspace/SHIFT/src/Shift.Infrastructure/bin/Release/net10.0/Shift.Infrastructure.dll
+  Shift.Tests -> /workspace/SHIFT/tests/Shift.Tests/bin/Release/net10.0/Shift.Tests.dll
+Test run for /workspace/SHIFT/tests/Shift.Tests/bin/Release/net10.0/Shift.Tests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:    12, Skipped:     0, Total:    12, Duration: 597 ms - Shift.Tests.dll (net10.0)
+VSTEST_ARTIFACTS_DIRECTORY environment variable was not found, falling back to a user-private temporary directory. This is most likely caused by an outdated Microsoft.NET.Test.Sdk package reference in the test project.
