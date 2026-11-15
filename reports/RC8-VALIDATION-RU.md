@@ -1,8 +1,10 @@
 # SHIFT RC8 — итог кандидата, 15 ноября 2026
 
+> Обновление публикации: владелец подтвердил выпуск; [публичные файлы, итоговый source commit, свежие Windows gates и повторная сверка SHA256](RELEASE-PUBLICATION-2026-11-15.md). Доказательства кандидата ниже сохраняют исходные SHA/хеши и не подменяют результаты опубликованной пересборки.
+
 ## Результат
 
-Реализован кандидат **1.0.0-rc.8**. Автоматические gates: **PASS**. Публичный release status: **BLOCKED — ожидается отдельное подтверждение владельца на публичную публикацию**. Stable1.0 не назначена.
+Реализован кандидат **1.0.0-rc.8**. Автоматические gates: **PASS**. Публичный release status: **VERIFIED PRERELEASE WITH DISCLOSED LIMITATIONS**. Stable1.0 не назначена.
 
 База: main `205a5ff421f6084c7714f794e505e0d5e59b5afb`, RC7. Проверенный Windows source: **`a5effcdcc4861ff099636be7782dd5155a029671`**. PR24 объединён обычным merge в незaщищённый main; код совпадает с ранее проверенным feature-кандидатом28b. [Main CI43665373830](https://github.com/LosarOS/SHIFT/actions/runs/43665373830) также SUCCESS. Последующие изменения отчётов/руководств не меняют входные файлы приложения. [PR24](https://github.com/LosarOS/SHIFT/pull/24) · [Windows43665382675](https://github.com/LosarOS/SHIFT/actions/runs/43665382675).
 

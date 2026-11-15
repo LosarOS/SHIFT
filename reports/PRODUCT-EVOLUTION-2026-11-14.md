@@ -61,3 +61,8 @@ GitHub metadata description/topics/homepage вернули403 Resource not acces
 GitHub API подтвердил main.protected=false. Обычное слияние входило в согласованный scope (отдельное подтверждение в последнем задании требовалось для защищённой ветки и публичного Release). После проверки равенства app/test/packaging inputs проверенному28b PR24 merged без force-push: **maina5effcdcc4861ff099636be7782dd5155a029671**. Публикация ещё не разрешена/не выполнена.
 
 Main CI43665373830 **SUCCESS**, canonical main43665382675 **SUCCESS**. Root повторно скачал actual mainartifact14142410522, independentlyverified raw bytes/TRX/PE/PRI/native/upgrade, просмотрел original PNG. Всё новое main evidence: `evidence/rc8-main-candidate/`; прежние checkpoints сохранены с исходными source IDs. Итоговый [validation report](RC8-VALIDATION-RU.md) теперь привязан к mainS. Docs-only follow-up готовится отдельной веткой docs/rc8-final-validation; приложение не меняется.
+
+
+## Publication checkpoint — 2026-11-15
+
+Owner explicitly approved the prerelease. **SHIFT1.0.0-rc.8 is published**, source `e8b432cab4c6007389e84f1e88f8fc7b950325d5`, [Windows run43695742372](https://github.com/LosarOS/SHIFT/actions/runs/43695742372) SUCCESS.514/514 core tests passed; portable/installed/Studio/upgrade/installer gates passed. All six public assets were downloaded independently after publication and verified. [Publication report, exact hashes and remaining limits](RELEASE-PUBLICATION-2026-11-15.md). This checkpoint supersedes historical pending-publication statements above; candidate sources/hashes remain historical, not relabelled. Status: **VERIFIED PRERELEASE WITH DISCLOSED LIMITATIONS**, unsigned; physical Windows matrix and full Recovery Center restore-click remain separate.
