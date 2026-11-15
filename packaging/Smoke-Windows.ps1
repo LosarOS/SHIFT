@@ -104,8 +104,29 @@ function Click([string]$Name,[string]$Id='') {
     $control.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
 }
 function Set-Field([string]$Id,[string]$Value) {
-    $control = Wait-For { Find-Control '' ([System.Windows.Automation.ControlType]::Edit) $Id } "field $Id"
-    $control.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($Value)
+    Write-Host "Waiting for writable field ValuePattern on $Id"
+    $pattern = Wait-For {
+        $candidate=Find-Control '' ([System.Windows.Automation.ControlType]::Edit) $Id
+        if($null -eq $candidate -or -not $candidate.Current.IsEnabled){return $null}
+        [object]$current=$null
+        try {
+            if($candidate.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern,[ref]$current) -and
+               $null -ne $current -and -not $current.Current.IsReadOnly){return $current}
+        } catch [System.Windows.Automation.ElementNotAvailableException] { return $null }
+        return $null
+    } "writable field pattern $Id"
+    $pattern.SetValue($Value)
+    $expectedValue=$Value.Replace("`r`n","`n").Replace("`r","`n")
+    $null=Wait-For {
+        $candidate=Find-Control '' ([System.Windows.Automation.ControlType]::Edit) $Id
+        if($null -eq $candidate){return $null}
+        [object]$current=$null
+        try {
+            if($candidate.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern,[ref]$current) -and
+               $null -ne $current -and $current.Current.Value.Replace("`r`n","`n").Replace("`r","`n") -ceq $expectedValue){return $true}
+        } catch [System.Windows.Automation.ElementNotAvailableException] { return $null }
+        return $null
+    } "field value acknowledged $Id"
 }
 function Quick-Selection {
     $list = Find-Control '' ([System.Windows.Automation.ControlType]::List) 'Quick.Results'
@@ -128,13 +149,22 @@ function History-Count {
 function Quick-Key([string]$Keys) {
     # Never inject into another program or an unverified modal dialog. Each key is sent once;
     # retries only reacquire the intended foreground window/focus, never repeat dispatch.
-    $field = Wait-For { Find-Control '' ([System.Windows.Automation.ControlType]::Edit) 'Quick.Search' } 'compact keyboard target'
-    [void][ShiftWindowProbe]::SetForegroundWindow($process.MainWindowHandle)
-    $field.SetFocus()
+    $focusState=@{id='';samples=0}
     $null = Wait-For {
+        $field=Find-Control '' ([System.Windows.Automation.ControlType]::Edit) 'Quick.Search'
+        if($null -eq $field -or -not $field.Current.IsEnabled){return $null}
+        [void][ShiftWindowProbe]::SetForegroundWindow($process.MainWindowHandle)
+        try { $field.SetFocus() }
+        catch [System.Windows.Automation.ElementNotAvailableException] { $focusState.samples=0;return $null }
         $focused = [System.Windows.Automation.AutomationElement]::FocusedElement
+        $identity=$field.GetRuntimeId() -join ':'
         if ([ShiftWindowProbe]::GetForegroundWindow() -eq $process.MainWindowHandle -and $focused -and
-            $focused.Current.ProcessId -eq $process.Id -and $focused.Current.AutomationId -ceq 'Quick.Search') { $true }
+            $focused.Current.ProcessId -eq $process.Id -and $focused.Current.AutomationId -ceq 'Quick.Search' -and
+            ($focused.GetRuntimeId() -join ':') -ceq $identity) {
+            if($focusState.id -ceq $identity){$focusState.samples++}else{$focusState.id=$identity;$focusState.samples=1}
+            if($focusState.samples -ge 3){return $true}
+        }else{$focusState.samples=0}
+        return $null
     } 'owned compact launcher keyboard focus'
     [System.Windows.Forms.SendKeys]::SendWait($Keys)
 }

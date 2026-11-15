@@ -46,3 +46,9 @@ Smoke-UpgradeRC7 now retains/verifies the immutable source script, then modifies
 Diagnostics retain both complete scripts, SHA256 hashes, a unified helper diff and adaptation JSON. The final proof explicitly records original_harness_passed=false rather than pretending the unmodified old harness passed. Compatible harness parsing is an early mandatory gate.
 
 Actual local verification: trusted pinned PowerShell7.6.0 installed in a workspace-owned tool directory; both main script and generated compatible old script parsed successfully. Exactly one helper replacement and preserved UTF8 BOM verified. This is syntax/patch evidence, not Windows UI runtime acceptance. Windows result pending root CI.
+
+## Second harness readiness finding — 2026-11-15
+
+CI43654962743 failed the current Quick-Key helper at SetFocus with ElementNotAvailable after language/rebuild. The immutable RC7 contains the identical unsafe helper. Its compatible harness now replaces exactly TWO helpers: Set-Field (writable ValuePattern + readback) and Quick-Key (fresh enabled peer, stable owned foreground/focus before one SendWait). Each replacement must match exactly once; all other source and feature assertions remain unchanged. Original hash guard remains intact. Diagnostic diff contains two correctly offset hunks and both script hashes; provenance names both failures and original_harness_passed remains false.
+
+Local PowerShell7.6 parser passed main and generated compatible script. Verified generated text differs only by these two exact replacements, with exactly one SetValue and one SendWait in the respective helpers. This does not establish Windows runtime success; root runs the next batch CI. No production source changed.
