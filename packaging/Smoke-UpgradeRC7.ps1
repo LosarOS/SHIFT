@@ -176,6 +176,11 @@ function Quick-Key([string]$Keys) {
  Add-Type -AssemblyName UIAutomationTypes
  $process=Start-Process (Join-Path $oldApp 'SHIFT.exe') -WorkingDirectory $oldApp -PassThru
  $null=$process.Handle # Retain the live process handle for Windows PowerShell exit-code observation.
+ # RC7 refuses before persisted settings/language load; its default RU display translates this known exception.
+ # Compare exact immutable-source messages in both supported languages, not a generic error substring.
+ $refusalTitles=@('SHIFT не смог открыть локальные данные','SHIFT could not open local data')
+ $refusalReasons=@('Эта база создана более новой версией SHIFT. Обновите приложение перед открытием.','This database belongs to a newer SHIFT version. Update SHIFT before opening it.')
+ $observedNames=@();$observedTitle='';$observedReason=''
  $deadline=[DateTime]::UtcNow.AddSeconds(40);$refused=$false
  while([DateTime]::UtcNow -lt $deadline){
   $process.Refresh();if($process.HasExited){throw 'Old RC7 exited without visible downgrade explanation.'}
@@ -185,18 +190,42 @@ function Quick-Key([string]$Keys) {
     $condition=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::Text)
     $labels=$window.FindAll([System.Windows.Automation.TreeScope]::Descendants,$condition)
     $names=@($labels | ForEach-Object {$_.Current.Name})
-    if(@($names | Where-Object {$_ -like '*This database belongs to a newer SHIFT version*'}).Count -gt 0 -and @($names | Where-Object {$_ -eq 'SHIFT не смог открыть локальные данные' -or $_ -eq 'SHIFT could not open local data'}).Count -gt 0){$refused=$true;break}
+    $observedNames=@($names | Select-Object -First 500)
+    $titles=@($names | Where-Object {$refusalTitles -ccontains $_})
+    $reasons=@($names | Where-Object {$refusalReasons -ccontains $_})
+    if($titles.Count -gt 0 -and $reasons.Count -gt 0){$observedTitle=$titles[0];$observedReason=$reasons[0];$refused=$true;break}
    } catch [System.Windows.Automation.ElementNotAvailableException] { }
   }
   Start-Sleep -Milliseconds 200
  }
- if(-not $refused){throw 'Old RC7 did not visibly refuse schema3.'}
+ # Retain actual runtime evidence even on a failed refusal probe. No UI or images are synthesized.
+ @{schema_version=1;baseline_source=$source;visible_refusal=$refused;observed_title=$observedTitle;observed_reason=$observedReason;window_text=$observedNames;expected_reason_source='immutable RC7 Strings.Presentation.cs OperationalMessages';manual_acceptance=$false} | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $diagnostics 'rc7-downgrade-observed-ui.json')
+ if(Test-Path -LiteralPath (Join-Path $oldData 'logs')){Copy-Item -LiteralPath (Join-Path $oldData 'logs') -Destination (Join-Path $diagnostics 'rc7-downgrade-logs') -Recurse}
+ Add-Type -AssemblyName System.Drawing
+ Add-Type -TypeDefinition @'
+using System; using System.Runtime.InteropServices;
+public static class Rc7DowngradeCapture {
+ [StructLayout(LayoutKind.Sequential)] public struct Rect { public int Left,Top,Right,Bottom; }
+ [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out Rect rect);
+}
+'@
+ $process.Refresh()
+ if($process.MainWindowHandle -ne [IntPtr]::Zero){
+  $rect=New-Object Rc7DowngradeCapture+Rect
+  if([Rc7DowngradeCapture]::GetWindowRect($process.MainWindowHandle,[ref]$rect) -and $rect.Right -gt $rect.Left -and $rect.Bottom -gt $rect.Top){
+   $bitmap=New-Object System.Drawing.Bitmap(($rect.Right-$rect.Left),($rect.Bottom-$rect.Top))
+   $graphics=[System.Drawing.Graphics]::FromImage($bitmap)
+   try{$graphics.CopyFromScreen($rect.Left,$rect.Top,0,0,$bitmap.Size);$bitmap.Save((Join-Path $diagnostics 'rc7-downgrade-refusal.png'),[System.Drawing.Imaging.ImageFormat]::Png)}finally{$graphics.Dispose();$bitmap.Dispose()}
+  }
+ }
+ if(-not $refused){throw 'Old RC7 did not visibly show the exact supported-language newer-schema refusal; inspect recorded UI evidence.'}
+
  if(-not $process.CloseMainWindow() -or -not $process.WaitForExit(15000) -or $process.ExitCode -ne 0){throw 'Old RC7 refusal did not exit gracefully.'}
  $process.Dispose();$process=$null
  if((Get-FileHash -LiteralPath $downgrade -Algorithm SHA256).Hash -cne $before){throw 'Old RC7 modified the downgraded v3 copy.'}
  Tool 'upgrade-rc7-check' $data
  if((Get-FileHash -LiteralPath (Join-Path $data 'shift.db') -Algorithm SHA256).Hash -cne $upgradedBefore){throw 'Original upgraded database changed during downgrade-copy acceptance.'}
- @{status='passed';source_commit=$env:GITHUB_SHA;baseline_source=$source;baseline_version='1.0.0-rc.7';baseline_portable_sha256=$actual;original_harness_sha256=$originalHarnessHash;compatible_harness_sha256=$compatibleHarnessHash;harness_adaptation='Set-Field ValuePattern readiness/readback + Quick-Key stable owned focus; two helper hunks only';original_harness_passed=$false;actual_rc7_ui_baseline=$true;actual_schema2_to3_upgrade=$true;workspace_history_settings_preserved=$true;validated_schema2_safety_backup=$true;old_rc7_visible_downgrade_refusal=$true;downgrade_copy_sha256_unchanged=$true;original_upgraded_profile_unchanged=$true;manual_acceptance=$false;environment='disposable Windows runner; owned portable data only'} | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $diagnostics 'rc7-upgrade-smoke.json')
+ @{status='passed';source_commit=$env:GITHUB_SHA;baseline_source=$source;baseline_version='1.0.0-rc.7';baseline_portable_sha256=$actual;original_harness_sha256=$originalHarnessHash;compatible_harness_sha256=$compatibleHarnessHash;harness_adaptation='Set-Field ValuePattern readiness/readback + Quick-Key stable owned focus; two helper hunks only';original_harness_passed=$false;actual_rc7_ui_baseline=$true;actual_schema2_to3_upgrade=$true;workspace_history_settings_preserved=$true;validated_schema2_safety_backup=$true;old_rc7_visible_downgrade_refusal=$true;downgrade_observed_title=$observedTitle;downgrade_observed_reason=$observedReason;downgrade_copy_sha256_unchanged=$true;original_upgraded_profile_unchanged=$true;manual_acceptance=$false;environment='disposable Windows runner; owned portable data only'} | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $diagnostics 'rc7-upgrade-smoke.json')
  Write-Host 'Actual RC7 upgrade, preservation and visible downgrade refusal passed.'
 } finally {
  if($null -ne $process){$process.Refresh();if(-not $process.HasExited){$process.Kill();$process.WaitForExit()};$process.Dispose()}
