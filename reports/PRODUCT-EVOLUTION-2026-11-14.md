@@ -55,3 +55,9 @@ GitHub metadata description/topics/homepage вернули403 Resource not acces
 [Windows43661035655](https://github.com/LosarOS/SHIFT/actions/runs/43661035655) **SUCCESS**: исправление каталога входит в actual binary.514/0/0 Windows и Linux. Новый artifact14140392572 скачан, распакован в свежий owned каталог и независимо сверён; source932 retained как исторический checkpoint. Root прочитал original validation, точные RU refusal title/reason и просмотрел новый чистый Lab/Recovery PNG; ложное предупреждение исчезло.
 
 Все окончательные размеры/хеши, bounded feature statuses, auto/manual QA boundaries и download links: [итоговая валидация](RC8-VALIDATION-RU.md). Публикация/merge продуктов ожидает отдельного подтверждения. Сборка43660954465 отменена ещё на setup как superseded encoding-only probe change; её статус не используется как доказательство. Финальные исходники приложения соответствуют28b; последующие commits только документация/evidence.
+
+## Merge и проверенный main source
+
+GitHub API подтвердил main.protected=false. Обычное слияние входило в согласованный scope (отдельное подтверждение в последнем задании требовалось для защищённой ветки и публичного Release). После проверки равенства app/test/packaging inputs проверенному28b PR24 merged без force-push: **maina5effcdcc4861ff099636be7782dd5155a029671**. Публикация ещё не разрешена/не выполнена.
+
+Main CI43665373830 **SUCCESS**, canonical main43665382675 **SUCCESS**. Root повторно скачал actual mainartifact14142410522, independentlyverified raw bytes/TRX/PE/PRI/native/upgrade, просмотрел original PNG. Всё новое main evidence: `evidence/rc8-main-candidate/`; прежние checkpoints сохранены с исходными source IDs. Итоговый [validation report](RC8-VALIDATION-RU.md) теперь привязан к mainS. Docs-only follow-up готовится отдельной веткой docs/rc8-final-validation; приложение не меняется.
