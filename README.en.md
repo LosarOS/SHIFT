@@ -23,6 +23,16 @@ Bring your apps, folders, documents, projects and links into a workspace. Open y
 
 Actual Windows runner capture with synthetic acceptance data. [Native RC7 views and exact limits](docs/screenshots/rc7/README.md).
 
+## New in RC8
+
+**Launch policies.** Choose a read-only preflight policy and whether errors stop dispatch or skip invalid items. Separately choose whether a dispatch failure stops remaining steps. Commands keep their usual consent flow.
+
+**Quick Actions.** Put selected workspaces, folders, files and HTTP(S) links in a native desktop widget. Preview and import do not execute actions; workspace commands still require approval.
+
+**Recovery Center.** Find a SQLite backup, inspect a private snapshot and review its contents before separately confirming restore. A full copy of external resources requires copying the entire data directory after Quit.
+
+[RC8 guide](docs/RC8-GUIDE-EN.md) · [Actual new screens with provenance](docs/screenshots/rc8-main-candidate/README.md) · [Published build and exact verification limits](reports/RELEASE-PUBLICATION-2026-11-15.md).
+
 ## Included from RC7: review before dispatch
 
 Add a list of paths or URLs, review duplicates and invalid rows, and append only selected entries. New items are disabled by default. The launch plan shows actual ordering, enabled/skipped steps, command shells and configured delay totals without starting anything. [Workspace guide in Russian](docs/WORKSPACE-PRODUCTIVITY-RU.md).
