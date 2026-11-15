@@ -39,3 +39,13 @@
 GitHub metadata description/topics/homepage вернули403 Resource not accessible by integration. Файлы README/брендинга подготовлены; social preview и pinning не применены. Профильный PR LosarOS/LosarOS#1 безопасно объединён в незащищённый main; это не merge продукта.
 
 Следующий checkpoint должен содержать окончательные source SHA, Actions status, размеры/хеши бинарников, ссылки на retained evidence и точные оставшиеся gates.
+
+## Windows checkpoint — source932999a, 15 ноября
+
+[Canonical43659620650](https://github.com/LosarOS/SHIFT/actions/runs/43659620650) **SUCCESS**; [PR CI43659598698](https://github.com/LosarOS/SHIFT/actions/runs/43659598698) **SUCCESS**. Полные Windows publish, portable/native Studio, RC7 upgrade/refusal, installed/reinstall/uninstall прошли. Root скачал оригинальный190173278-byte Actions artifact через GitHub connector, source/version/proofs прочитаны; independent byte checks и genuine PNG сохраняются отдельно. Публикационный job на ветке не выполнялся.
+
+Обнаружено при финальном UI review: каталог Recovery Center считает отсутствующие необязательные папки ошибкой доступа. Воспроизведение **3 failed/9 passed** на прежнем коде; узкий catch(FileNotFoundException) рядом с DirectoryNotFoundException: **12 passed**, без изменения обработки Unauthorized/прочего IO. Два новых regression cases + усилен существующий. Исправление56f6268 требует нового final Windows source, прежний успешный932 не доказывает новый бинарник.
+
+Первый Quick Actions Lab PNG перекрыт10 stress-window fixture; это сохраняется как техническое evidence, не как чистый marketing shot. Probe теперь поднимает только owned main через документированный BringWindowToTop и проверяет foreground перед DwmFlush/Capture. Окна не скрываются, изображение не редактируется. Качество нового кадра будет проверено отдельно.
+
+Короткие измерения прежнего успешного932 на disposable Windows Server2025, один дисплей: working set0/1/5/10 widgets =161.31/297.65/301.46/307.51MiB; private65.91/178.91/181.66/187.19MiB. Каждая CPU-выборка около2s,0/0/0.1953/0% всей машины. Нули отражают квантование короткой выборки, не гарантию отсутствия нагрузки. Нет сравнительного benchmark, длительного soak, лабораторной точности или утверждения об ускорении. Lab/profile timing и sleep NOT MEASURED. Сырые значения studio-performance-raw.json находятся в исходном Actions artifact.
