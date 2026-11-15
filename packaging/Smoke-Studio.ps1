@@ -355,7 +355,17 @@ try {
  Click 'Nav.Studio';Click 'Studio.Tab.Widgets';Click 'Studio.Widget.Edit.00000000-0000-4000-8000-000000000501'
  Set-Field 'Studio.QuickActions.Title' 'CI launch reviewed workspace'
  Select-Value 'Studio.QuickActions.Workspace' 'Quick Actions CI workspace'
- Click 'Studio.QuickActions.Add';Capture 'ru-quick-actions-lab'
+ Click 'Studio.QuickActions.Add'
+ # UIA Invoke does not activate the WinUI owner. Keep every real widget visible,
+ # but bring the owned Lab window above the non-topmost stress fixture before capture.
+ $labHandle=[intptr]$main.Current.NativeWindowHandle
+ $null=Wait-For {
+  [void][StudioProbe]::SetForegroundWindow($labHandle)
+  if([StudioProbe]::GetForegroundWindow() -eq $labHandle){return $true}
+  return $null
+ } 'owned Lab window in foreground for real capture'
+ [void][StudioProbe]::DwmFlush()
+ Capture 'ru-quick-actions-lab'
  Click '' 'Сохранить';$null=Wait-For {Find 'Studio.Widget.Search'} 'quick-actions editor saved'
  $null=Tool 'actions-check-editor'
  Click 'Studio.Tab.Profiles';Click 'Studio.Profile.Apply.00000000-0000-4000-8000-000000000502'
