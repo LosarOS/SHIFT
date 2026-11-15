@@ -1,6 +1,8 @@
 # SHIFT 1.0.0-rc.8 — сценарии и быстрые действия
 
-Release candidate. Публикация ожидает проверок и отдельного подтверждения владельца. [Full English notes](RELEASE_NOTES.en.md).
+Предварительная версия RC8. [Full English notes](https://github.com/LosarOS/SHIFT/blob/main/docs/RELEASE_NOTES.en.md).
+
+![Иллюстрация SHIFT](https://raw.githubusercontent.com/LosarOS/SHIFT/main/docs/assets/release-visual.png)
 
 ## Что нового
 
@@ -16,7 +18,7 @@ SQLite schema3: транзакционная миграция с резервн�
 
 ## Проверки и ограничения
 
-514 core tests passed/0 skipped на Windows и Linux. Реальные portable/installed/Studio/RC7-upgrade gates прошли; downloaded bytes проверены отдельно. [Подробная валидация и ограничения](../reports/RC8-VALIDATION-RU.md). Unsigned; возможен SmartScreen. Физические Windows10/11, mixed DPI/мониторы, Narrator, sleep/RDP и полный runtime matrix отдельно от Windows Server CI. Проверка до запуска не гарантирует готовность приложений. Нет автоматического закрытия сторонних процессов, повторного dispatch или исполнения импортированных действий.
+514 core tests passed/0 skipped на Windows и Linux. Реальные portable/installed/Studio/RC7-upgrade gates прошли; downloaded bytes проверены отдельно. [Подробная валидация и ограничения](https://github.com/LosarOS/SHIFT/blob/main/reports/RC8-VALIDATION-RU.md). Unsigned; возможен SmartScreen. Физические Windows10/11, mixed DPI/мониторы, Narrator, sleep/RDP и полный runtime matrix отдельно от Windows Server CI. Проверка до запуска не гарантирует готовность приложений. Нет автоматического закрытия сторонних процессов, повторного dispatch или исполнения импортированных действий.
 
 ## English
 
