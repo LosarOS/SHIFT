@@ -1,0 +1,2 @@
+d31706874bede74e35ae41b7c298aea534712cdd56e056679dcbf71fc51a2be1  SHIFT-1.0.0-rc.8-win-x64-portable.zip
+a72caa210f776f0f77470a97deec14ecc200eb496814d3acde5383d9a593a0b6  SHIFT-1.0.0-rc.8-win-x64-setup.exe
