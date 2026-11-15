@@ -19,6 +19,7 @@ public sealed partial class Strings
     {
         WidgetKind.Clock => Language == "ru" ? "Часы" : "Clock",
         WidgetKind.SystemMonitor => Language == "ru" ? "Системный монитор" : "System monitor",
+        WidgetKind.QuickActions => Language == "ru" ? "Быстрые действия" : "Quick actions",
         WidgetKind.FocusTimer => Language == "ru" ? "Фокус-таймер" : "Focus timer",
         _ => Language == "ru" ? "Заметки" : "Notes"
     };
@@ -40,6 +41,12 @@ public sealed partial class Strings
     }
     public string LocalizeMessage(string message)
     {
+        if (message == "Scenario.PreflightStopped") return Language == "ru" ? "Запуск остановлен: проверка обнаружила ошибки." : "Launch stopped: preflight found errors.";
+        if (message == "Scenario.LaunchErrorStopped") return Language == "ru" ? "Оставшиеся шаги остановлены после ошибки запуска." : "Remaining steps stopped after a launch error.";
+        if (message.StartsWith("Scenario.PreflightObservation: ", StringComparison.Ordinal))
+            return (Language == "ru" ? "Результат предварительной проверки: " : "Preflight observation: ") + string.Join(", ", message[31..].Split(',').Select(code => this[code.Trim()]));
+        if (message.StartsWith("Scenario.PreflightError: ", StringComparison.Ordinal))
+            return (Language == "ru" ? "Результат проверки: " : "Preflight finding: ") + string.Join(", ", message[25..].Split(',').Select(code => this[code.Trim()]));
         if (Language != "ru" || string.IsNullOrEmpty(message)) return message;
         foreach (var (english, russian) in OperationalMessages)
         {
@@ -51,6 +58,8 @@ public sealed partial class Strings
     }
     private static readonly (string English, string Russian)[] OperationalMessages =
     [
+        ("Profile packs cannot contain local quick actions. Configure them after import.", "Пакеты профиля не содержат локальных быстрых действий. Настройте их после импорта."),
+        ("Studio migration found invalid references.", "Миграция Studio остановлена: обнаружены нарушенные связи. Исходная база сохранена."),
         ("Studio profile file exceeds the supported size.", "Файл профиля превышает лимит 2 МиБ."),
         ("Studio profile pack exceeds the supported size.", "Пакет профиля пуст или превышает лимит 2 МиБ."),
         ("Unsupported Studio profile pack format or version.", "Формат или версия пакета профиля не поддерживается."),

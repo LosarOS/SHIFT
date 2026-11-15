@@ -1,0 +1,33 @@
+  Shift.Domain -> /workspace/SHIFT/src/Shift.Domain/bin/Release/net10.0/Shift.Domain.dll
+  Shift.Application -> /workspace/SHIFT/src/Shift.Application/bin/Release/net10.0/Shift.Application.dll
+  Shift.Infrastructure -> /workspace/SHIFT/src/Shift.Infrastructure/bin/Release/net10.0/Shift.Infrastructure.dll
+  Shift.Tests -> /workspace/SHIFT/tests/Shift.Tests/bin/Release/net10.0/Shift.Tests.dll
+Test run for /workspace/SHIFT/tests/Shift.Tests/bin/Release/net10.0/Shift.Tests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.43]     Shift.Tests.BackupCatalogTests.Inventory_handles_absent_directory_and_known_subdirectories [FAIL]
+[xUnit.net 00:00:00.44]     Shift.Tests.BackupCatalogTests.Inventory_missing_root_is_absent_not_an_access_warning [FAIL]
+[xUnit.net 00:00:00.49]     Shift.Tests.BackupCatalogTests.Inventory_missing_optional_directories_do_not_warn [FAIL]
+  Failed Shift.Tests.BackupCatalogTests.Inventory_handles_absent_directory_and_known_subdirectories [8 ms]
+  Error Message:
+   Assert.Empty() Failure: Collection was not empty
+Collection: ["/tmp/shift-recovery-tests-e28d31dd89e6463588602c71"···]
+  Stack Trace:
+     at Shift.Tests.BackupCatalogTests.Inventory_handles_absent_directory_and_known_subdirectories() in /workspace/SHIFT/tests/Shift.Tests/BackupCatalogTests.cs:line 98
+--- End of stack trace from previous location ---
+  Failed Shift.Tests.BackupCatalogTests.Inventory_missing_root_is_absent_not_an_access_warning [4 ms]
+  Error Message:
+   Assert.Empty() Failure: Collection was not empty
+Collection: ["/tmp/shift-recovery-tests-3c36985e639a4adf90479bd9"···]
+  Stack Trace:
+     at Shift.Tests.BackupCatalogTests.Inventory_missing_root_is_absent_not_an_access_warning() in /workspace/SHIFT/tests/Shift.Tests/BackupCatalogTests.cs:line 109
+--- End of stack trace from previous location ---
+  Failed Shift.Tests.BackupCatalogTests.Inventory_missing_optional_directories_do_not_warn [2 ms]
+  Error Message:
+   Assert.Empty() Failure: Collection was not empty
+Collection: ["/tmp/shift-recovery-tests-5eae1d17e03c4619b1ab39c4"···, "/tmp/shift-recovery-tests-5eae1d17e03c4619b1ab39c4"···]
+  Stack Trace:
+     at Shift.Tests.BackupCatalogTests.Inventory_missing_optional_directories_do_not_warn() in /workspace/SHIFT/tests/Shift.Tests/BackupCatalogTests.cs:line 120
+--- End of stack trace from previous location ---
+
+Failed!  - Failed:     3, Passed:     9, Skipped:     0, Total:    12, Duration: 247 ms - Shift.Tests.dll (net10.0)
+VSTEST_ARTIFACTS_DIRECTORY environment variable was not found, falling back to a user-private temporary directory. This is most likely caused by an outdated Microsoft.NET.Test.Sdk package reference in the test project.

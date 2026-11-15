@@ -217,6 +217,7 @@ public sealed partial class MainWindow
         actions.Children.Add(launch);
         actions.Children.Add(AsyncButton(s["Edit"], () => EditWorkspaceAsync(workspace), false, "Workspace.Edit"));
         actions.Children.Add(AsyncButton(s["Plan.Action"], () => OpenLaunchPlanAsync(workspace), false, "Workspace.Plan"));
+        actions.Children.Add(AsyncButton(T("Сценарий запуска", "Launch scenario"), () => OpenScenarioAsync(workspace), false, "Workspace.Scenario"));
         actions.Children.Add(AsyncButton(s["Doctor.Check"], () => OpenDoctorAsync(workspace), false, "Workspace.Doctor"));
         var more = new DropDownButton { Content = "···", Padding = new Thickness(15, 9, 15, 9) };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(more, T("Действия с пространством", "Workspace actions"));
@@ -451,7 +452,7 @@ public sealed partial class MainWindow
             // Dispatch and desktop apply have separate results; never retry dispatched applications on a visual failure.
             try
             {
-                if ((run.Status is RunStatus.Completed or RunStatus.PartialFailure) && studioReady && studioSettings.Enabled)
+                if ((run.Status is RunStatus.Completed or RunStatus.PartialFailure) && run.Items.Any(item => item.StartedAt is not null) && studioReady && studioSettings.Enabled)
                 {
                     var profiles = await StudioData.ListProfilesAsync();
                     var linked = profiles.FirstOrDefault(p => p.Enabled && p.WorkspaceId == workspace.Id && p.ApplyOnWorkspaceLaunch);
@@ -522,6 +523,7 @@ public sealed partial class MainWindow
         var restore = AsyncButton(s["Restore"], RestoreBackupAsync);
         restore.IsEnabled = !vm.IsLaunching;
         buttons.Children.Add(restore);
+        buttons.Children.Add(AsyncButton(s.Recovery("Center"), OpenRecoveryCenterAsync, false, "Settings.RecoveryCenter"));
         data.Children.Add(buttons);
         data.Children.Add(Text(s["Privacy"], 12, true));
         screen.Children.Add(Card(data));

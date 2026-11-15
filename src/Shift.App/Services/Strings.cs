@@ -10,6 +10,8 @@ public sealed partial class Strings
         : DescribeError(error);
     private static readonly Dictionary<string, (string Ru, string En)> Values = new()
     {
+        ["Validation.Scenario.Invalid"] = ("Некорректные настройки сценария запуска.", "Launch scenario settings are invalid."),
+        ["Validation.Studio.Actions"] = ("Проверьте быстрые действия: до 12, с названием и допустимой целью; для пространства выберите сохранённое пространство.", "Check quick actions: up to 12 titled actions with valid targets; select a saved workspace for workspace actions."),
         ["Compose.Action"] = ("Вставить список", "Paste a list"),
         ["Compose.Title"] = ("Добавить несколько элементов", "Add multiple items"),
         ["Compose.Scope"] = ("Один путь или HTTP/HTTPS адрес на строку. Выберите общий тип. Команды и параметры не угадываются; файлы и приложения не открываются.", "One path or HTTP/HTTPS URL per line. Choose the type for this batch. Commands and arguments are never inferred; targets are not opened."),

@@ -6,7 +6,7 @@ body:
     id: version
     attributes:
       label: SHIFT version and package type
-      placeholder: 0.1.0 / portable or installer
+      placeholder: 1.0.0-rc.7 / portable or installer
     validations:
       required: true
   - type: input

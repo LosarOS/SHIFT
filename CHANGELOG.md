@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.0-rc.8 — candidate, not published
+
+- Added opt-in workspace preflight and launch-error policies with durable results, cancellation and unchanged command consent.
+- Added native Quick Actions widgets with up to12 bounded declarative destinations and a real Lab editor.
+- Added read-only SQLite backup inventory/inspection and explicit guarded restore through Recovery Center.
+- Migrated SQLite schema2 to3 transactionally with validated safety copies; old definitions omit empty new fields.
+- Added51 regression cases over RC7, independent actual RC7 upgrade/downgrade probes and RU/EN product guides. Windows candidate evidence remains distinct from physical Windows/DPI acceptance.
+
 ## 1.0.0-rc.7 — 2026-11-02
 
 - Added bounded, reviewed workspace batch composition with selection, per-batch delay, disabled defaults, duplicate/invalid rows and stale-preview protection.

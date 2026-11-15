@@ -1,5 +1,5 @@
 #ifndef AppVersion
-  #define AppVersion "1.0.0-rc.7"
+  #define AppVersion "1.0.0-rc.8"
 #endif
 #ifndef SourceDir
   #error SourceDir must point to the dotnet publish directory

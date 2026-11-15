@@ -19,6 +19,7 @@ public sealed class StudioWidgetRuntime : IWidgetRuntime
     public string Language { get => language; set { language = value == "en" ? "en" : "ru"; if (host is { } h) h.Post(() => h.SetLanguage(language)); } }
     public int WindowCount => Volatile.Read(ref windowCount);
     public event Action<Guid>? EditRequested;
+    public event Action<WidgetQuickAction>? QuickActionRequested;
     public event Action<string>? NotificationRequested;
     public event Action<Exception>? RuntimeFaulted;
     public StudioWidgetRuntime(IStudioStore store, IMonitorTopology topology, ISystemMetricsProvider metrics, IAppLog log)
@@ -139,7 +140,7 @@ public sealed class StudioWidgetRuntime : IWidgetRuntime
         if (host is { } existing && !existing.Exited.IsCompleted) return existing;
         var created = new WidgetHost(store, topology, metrics, log, language,
             count => Volatile.Write(ref windowCount, count), id => EditRequested?.Invoke(id),
-            text => NotificationRequested?.Invoke(text), ex => { log.Error("Studio widget runtime failed", ex); RuntimeFaulted?.Invoke(ex); });
+            text => NotificationRequested?.Invoke(text), action => QuickActionRequested?.Invoke(action), ex => { log.Error("Studio widget runtime failed", ex); RuntimeFaulted?.Invoke(ex); });
         await created.StartAsync().ConfigureAwait(false);
         host = created;
         return created;
@@ -156,6 +157,7 @@ internal sealed class WidgetHost
     private readonly Action<Guid> edit;
     private readonly Action<string> notify;
     private readonly Action<Exception> fault;
+    private readonly Action<WidgetQuickAction> quickAction;
     private readonly Dictionary<Guid, WidgetWindow> windows = [];
     // Acknowledged storage baselines stay separate from live geometry and whole-profile revisions.
     private readonly Dictionary<Guid, WidgetInstance> layoutBaselines = [];
@@ -176,8 +178,8 @@ internal sealed class WidgetHost
     private bool topologyDirty = true;
     public Task Exited => exited.Task;
     public WidgetHost(IStudioStore store, IMonitorTopology topology, ISystemMetricsProvider metrics, IAppLog log,
-        string language, Action<int> countChanged, Action<Guid> edit, Action<string> notify, Action<Exception> fault)
-    { this.store = store; this.topology = topology; this.metrics = metrics; this.log = log; this.language = language; this.countChanged = countChanged; this.edit = edit; this.notify = notify; this.fault = fault; }
+        string language, Action<int> countChanged, Action<Guid> edit, Action<string> notify, Action<WidgetQuickAction> quickAction, Action<Exception> fault)
+    { this.store = store; this.topology = topology; this.metrics = metrics; this.log = log; this.language = language; this.countChanged = countChanged; this.edit = edit; this.notify = notify; this.quickAction = quickAction; this.fault = fault; }
     public Task StartAsync()
     {
         var thread = new Thread(() =>
@@ -290,7 +292,7 @@ internal sealed class WidgetHost
     private WidgetWindow CreateWindow(WidgetInstance instance, WidgetDefinition definition, WidgetRuntimeState? state, bool isPreview)
     {
         var window = new WidgetWindow(instance, definition, state, monitors, language, isPreview, store, log,
-            () => edit(instance.Id), text => notify(text));
+            () => edit(instance.Id), text => notify(text), action => quickAction(action));
         window.HideRequested += async (_, _) =>
         {
             await hostGate.WaitAsync();

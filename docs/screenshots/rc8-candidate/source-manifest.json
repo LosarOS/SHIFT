@@ -1,0 +1,63 @@
+{
+  "source_commit": "932999ab9f702cbfcd53f308ae985d4bc5cf7a43",
+  "workflow_run": 43659620650,
+  "artifact_id": 14139648135,
+  "original_archive_sha256": "9ff321cd655dd8d0f9eaafb834ac05dcc8b580b022d2189e5427da7dbd974294",
+  "scope": "candidate checkpoint; publication not performed; may be superseded by later source",
+  "images": [
+    {
+      "file": "docs/screenshots/rc8-candidate/launch-scenario-ru.png",
+      "archive_member": "diagnostics/portable-launch-scenario-ru.png",
+      "sha256": "19c68c35cb37b7b5806fb0976a81800d1e01bc021b02ebf344ceae675632a5ae",
+      "unaltered_png_bytes": true,
+      "visually_reviewed": true,
+      "caption": "RU scenario settings: stop on preflight errors and stop remaining dispatch steps.",
+      "marketing_suitable": true
+    },
+    {
+      "file": "docs/screenshots/rc8-candidate/launch-scenario-stopped.png",
+      "archive_member": "diagnostics/portable-launch-scenario-stopped.png",
+      "sha256": "4c9d60001e6e0ecea81a6b8f747def4fd656bab6d5f7c782479fe4e12e196032",
+      "unaltered_png_bytes": true,
+      "visually_reviewed": true,
+      "caption": "Missing owned test target produces readable failure; command step skipped without dispatch.",
+      "marketing_suitable": true
+    },
+    {
+      "file": "docs/screenshots/rc8-candidate/recovery-center-preview.png",
+      "archive_member": "diagnostics/portable-recovery-center-preview.png",
+      "sha256": "927ffe9055bbb39ef2cb594682c124ae57db3d2976b1de0f4e887b32f3c1894d",
+      "unaltered_png_bytes": true,
+      "visually_reviewed": true,
+      "caption": "English SQLite-only preview: schema3 and actual counts. Optional missing-directory warning is visible; no restore or full-resource backup claimed.",
+      "marketing_suitable": true
+    },
+    {
+      "file": "docs/screenshots/rc8-candidate/desktop-quick-actions.png",
+      "archive_member": "diagnostics/studio/studio-desktop-quick-actions.png",
+      "sha256": "637876a6d0dd4bc36452c04d9e3e59f545894e17613a054246e6290d0e8e1c0b",
+      "unaltered_png_bytes": true,
+      "visually_reviewed": true,
+      "caption": "Actual owned Quick Actions widget with one reviewed workspace action. Normal Windows Server desktop shown.",
+      "marketing_suitable": true
+    },
+    {
+      "file": "docs/screenshots/rc8-candidate/rc7-downgrade-refusal.png",
+      "archive_member": "diagnostics/rc7-upgrade/rc7-downgrade-refusal.png",
+      "sha256": "dd38d19461fb4b84ea4a6b067deea8b0451e754d3adc0fb7b501eeae6d78e2a5",
+      "unaltered_png_bytes": true,
+      "visually_reviewed": true,
+      "caption": "Immutable actual RC7 refusing a newer schema3 copy. This intentional failure state proves downgrade protection, not a normal launch error in RC8.",
+      "marketing_suitable": false
+    },
+    {
+      "file": "reports/evidence/rc8-candidate/technical-quick-actions-lab-obscured.png",
+      "archive_member": "diagnostics/studio/studio-ru-quick-actions-lab.png",
+      "sha256": "02907d905c4761b23c5b8cc1d21fa814e16e7f9322c613da33f88eb2fb1902b2",
+      "unaltered_png_bytes": true,
+      "visually_reviewed": true,
+      "caption": "Technical stress-fixture frame: ten other widget windows obscure Widget Lab. Not a clean product/marketing capture; no complete Lab visual acceptance claimed.",
+      "marketing_suitable": false
+    }
+  ]
+}

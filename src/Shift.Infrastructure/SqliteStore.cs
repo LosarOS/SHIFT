@@ -49,7 +49,7 @@ public sealed partial class SqliteStore : IWorkspaceStore, IRunStore, ISettingsS
         using var versionCmd = db.CreateCommand();
         versionCmd.CommandText = "PRAGMA user_version";
         var version = Convert.ToInt32(await versionCmd.ExecuteScalarAsync(token));
-        if (version is < 0 or > 2)
+        if (version is < 0 or > 3)
             throw new InvalidOperationException("This database belongs to a newer SHIFT version. Update SHIFT before opening it.");
         if (version == 0)
         {
@@ -58,13 +58,14 @@ public sealed partial class SqliteStore : IWorkspaceStore, IRunStore, ISettingsS
             if (Convert.ToInt64(await existingSchema.ExecuteScalarAsync(token)) != 0)
                 throw new InvalidDataException("Unversioned nonempty databases cannot be initialized as SHIFT data.");
         }
-        if (version == 1)
+        if (version is 1 or 2)
         {
             // Snapshot committed WAL contents before the first migration schema mutation.
             LastMigrationBackupPath = await BackupAsync(Path.Combine(Path.GetDirectoryName(DatabasePath)!, "migration-backups"), token);
             await ValidateBackupAsync(LastMigrationBackupPath, token);
         }
         await ExecuteAsync(db, null, "PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;", token);
+        if (version == 2) { await MigrateQuickActionsAsync(db, token); return; }
         using var tx = db.BeginTransaction();
         await ExecuteAsync(db, tx, """
             CREATE TABLE IF NOT EXISTS Workspaces (
@@ -95,7 +96,7 @@ public sealed partial class SqliteStore : IWorkspaceStore, IRunStore, ISettingsS
             """, token);
         if (version < 2)
             await ExecuteAsync(db, tx, StudioSchema, token);
-        await ExecuteAsync(db, tx, "PRAGMA user_version=2", token);
+        await ExecuteAsync(db, tx, "PRAGMA user_version=3", token);
         tx.Commit();
     }
     public string? LastMigrationBackupPath { get; private set; }
@@ -268,13 +269,13 @@ public sealed partial class SqliteStore : IWorkspaceStore, IRunStore, ISettingsS
         if (json is null)
             return new AppSettings();
         var settings = JsonSerializer.Deserialize<AppSettings>(json, WorkspaceTransfer.Json) ?? throw new InvalidDataException("Settings are empty.");
-        if (!Enum.IsDefined(settings.Theme) || settings.Language is not ("ru" or "en") || settings.BackupDirectory is null)
+        if (!Enum.IsDefined(settings.Theme) || settings.Language is not ("ru" or "en") || settings.BackupDirectory is null || !LaunchScenarioOptions.ValidSettings(settings))
             throw new InvalidDataException("Settings format is invalid.");
         return settings;
     }
     public async Task SaveSettingsAsync(AppSettings settings, CancellationToken token = default)
     {
-        if (!Enum.IsDefined(settings.Theme) || settings.Language is not ("ru" or "en") || settings.BackupDirectory is null)
+        if (!Enum.IsDefined(settings.Theme) || settings.Language is not ("ru" or "en") || settings.BackupDirectory is null || !LaunchScenarioOptions.ValidSettings(settings))
             throw new ValidationException(["Settings format is invalid."]);
         await using var db = await OpenAsync(token);
         await ExecuteAsync(db, null, "INSERT INTO AppSettings VALUES(1,$json) ON CONFLICT(Id) DO UPDATE SET Json=excluded.Json", token, ("$json", JsonSerializer.Serialize(settings, WorkspaceTransfer.Json)));
@@ -350,7 +351,7 @@ public sealed partial class SqliteStore : IWorkspaceStore, IRunStore, ISettingsS
             throw new InvalidDataException("SHIFT backups cannot contain executable triggers or views.");
         check.CommandText = "PRAGMA user_version";
         var backupVersion = Convert.ToInt32(await check.ExecuteScalarAsync(token));
-        if (backupVersion is not (1 or 2))
+        if (backupVersion is not (1 or 2 or 3))
             throw new InvalidDataException("Unsupported backup database version.");
         foreach (var table in new[] { "Workspaces", "WorkspaceItems", "Tags", "WorkspaceTagLinks", "LaunchRuns", "LaunchRunItems", "AppSettings" })
         {
@@ -376,7 +377,7 @@ public sealed partial class SqliteStore : IWorkspaceStore, IRunStore, ISettingsS
         if (await check.ExecuteScalarAsync(token) is string settingsJson)
         {
             var settings = JsonSerializer.Deserialize<AppSettings>(settingsJson, WorkspaceTransfer.Json);
-            if (settings is null || !Enum.IsDefined(settings.Theme) || settings.Language is not ("ru" or "en") || settings.BackupDirectory is null)
+            if (settings is null || !Enum.IsDefined(settings.Theme) || settings.Language is not ("ru" or "en") || settings.BackupDirectory is null || !LaunchScenarioOptions.ValidSettings(settings))
                 throw new InvalidDataException("Backup settings are invalid.");
         }
         check.Parameters.Clear();
@@ -390,7 +391,7 @@ public sealed partial class SqliteStore : IWorkspaceStore, IRunStore, ISettingsS
         var candidate = new SqliteStore(path, readOnly: true);
         foreach (var workspace in await candidate.ListAsync(token))
             WorkspaceValidator.Validate(workspace);
-        if (backupVersion == 2)
+        if (backupVersion >= 2)
             await candidate.ValidateStudioBackupAsync(token);
         for (var offset = 0; ; offset += 200)
         {
@@ -437,7 +438,7 @@ public sealed partial class SqliteStore : IWorkspaceStore, IRunStore, ISettingsS
                 using var version = inspected.CreateCommand(); version.CommandText = "PRAGMA user_version";
                 snapshotVersion = Convert.ToInt32(await version.ExecuteScalarAsync(token));
             }
-            if (snapshotVersion == 1)
+            if (snapshotVersion is 1 or 2)
             {
                 // Upgrade the owned snapshot BEFORE replacing live data. Failed migration must
                 // leave the working database unchanged, including backup-path/DDL failures.

@@ -75,6 +75,8 @@ public sealed partial class MainWindow
         }
         if (retainedLayout is not null) profile.SelectedIndex = retainedProfileId is Guid retained ? Math.Max(0, studioProfiles.ToList().FindIndex(p => p.Id == retained) + 1) : 0;
         var clockContent = Stack(12); var monitorContent = Stack(12); var timerContent = Stack(12); var notesContent = Stack(12);
+        var quickActions = draft.Content.Actions.Select(a => a with { }).ToList();
+        StackPanel quickActionsContent = null!;
         var applyingAppearance = false;
         var fields = Stack(12); var preview = new Border { Height = 150, CornerRadius = new CornerRadius(16), Padding = new Thickness(16) };
         var previewText = new TextBlock { TextWrapping = TextWrapping.Wrap }; preview.Child = previewText;
@@ -86,7 +88,7 @@ public sealed partial class MainWindow
                 Background = background.Text, Foreground = foreground.Text, Accent = accent.Text, Opacity = opacity.Value, FontFamily = fonts[Math.Max(0, font.SelectedIndex)],
                 FontSize = fontSize.Value, CornerRadius = corners.Value, Padding = padding.Value, BorderWidth = borderWidth.Value, Shadow = shadow.IsChecked == true },
             Content = draft.Content with { Use24Hour = clock24.IsChecked == true, ShowSeconds = seconds.IsChecked == true, DateFormat = date.Text,
-                FocusMinutes = (int)focus.Value, UpdateIntervalSeconds = (int)interval.Value, InitialNotes = notes.Text } };
+                FocusMinutes = (int)focus.Value, UpdateIntervalSeconds = (int)interval.Value, InitialNotes = notes.Text, Actions = new WidgetQuickActionList(quickActions) } };
         WidgetLayout Layout() => new() { Width = width.Value, Height = height.Value, X = x.Value, Y = y.Value,
             MonitorId = monitorIds[Math.Max(0, monitor.SelectedIndex)], AlwaysOnTop = alwaysOnTop.IsChecked == true };
         void RevealContentErrors(Exception exception)
@@ -113,6 +115,7 @@ public sealed partial class MainWindow
                 {
                     WidgetKind.Clock => DateTime.Now.ToString(candidate.Content.Use24Hour ? (candidate.Content.ShowSeconds ? "HH:mm:ss" : "HH:mm") : (candidate.Content.ShowSeconds ? "hh:mm:ss tt" : "hh:mm tt")) + "\n" + DateTime.Now.ToString(candidate.Content.DateFormat, s.Culture),
                     WidgetKind.Notes => candidate.Content.InitialNotes.Length > 0 ? candidate.Content.InitialNotes : T("Ваша локальная заметка", "Your local note"),
+                    WidgetKind.QuickActions => string.Join("\n", candidate.Content.Actions.Select(a => "↗ " + a.Title)),
                     WidgetKind.FocusTimer => $"{candidate.Content.FocusMinutes}:00 · " + T("Готов к старту", "Ready to start"),
                     _ => T("Реальные показатели — во внешнем предпросмотре", "Live metrics appear in desktop preview")
                 };
@@ -138,6 +141,7 @@ public sealed partial class MainWindow
             monitorContent.Visibility = selected == WidgetKind.SystemMonitor ? Visibility.Visible : Visibility.Collapsed;
             timerContent.Visibility = selected == WidgetKind.FocusTimer ? Visibility.Visible : Visibility.Collapsed;
             notesContent.Visibility = selected == WidgetKind.Notes ? Visibility.Visible : Visibility.Collapsed;
+            quickActionsContent.Visibility = selected == WidgetKind.QuickActions ? Visibility.Visible : Visibility.Collapsed;
         }
         void Changed() { if (applyingAppearance) return; UpdateMockup(); if (previewOpen) timer.Start(); }
         void ApplyAppearance(WidgetStyle style)
@@ -224,6 +228,8 @@ public sealed partial class MainWindow
         notesContent.Children.Add(StudioField(T("Начальный текст новой заметки", "Initial text for a new note"), notes, "Studio.Widget.Notes"));
         notesContent.Children.Add(Text(T("Этот текст используется для новых экземпляров. Текущую заметку редактируйте в окне виджета.",
             "This text is used for new instances. Edit a current note in its widget window."), 12, true));
+        quickActionsContent = QuickActionsEditor(quickActions, Changed);
+        fields.Children.Add(quickActionsContent);
         fields.Children.Add(clockContent); fields.Children.Add(monitorContent); fields.Children.Add(timerContent); fields.Children.Add(notesContent);
         fields.Children.Add(Text(T("Размещение в профиле", "Profile placement"), 19, weight: Microsoft.UI.Text.FontWeights.SemiBold));
         fields.Children.Add(StudioField(T("Добавить в профиль", "Add to profile"), profile, "Studio.Widget.Profile"));

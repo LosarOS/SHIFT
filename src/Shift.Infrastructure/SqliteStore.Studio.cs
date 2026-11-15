@@ -21,7 +21,7 @@ public sealed partial class SqliteStore
         CREATE TABLE StudioWallpapers(ProfileId TEXT NOT NULL REFERENCES StudioProfiles(Id) ON DELETE CASCADE,
           MonitorId TEXT NOT NULL,ImagePath TEXT NOT NULL,PRIMARY KEY(ProfileId,MonitorId));
         CREATE TABLE StudioDefinitions(Id TEXT PRIMARY KEY,SchemaVersion INTEGER NOT NULL CHECK(SchemaVersion=1),
-          Title TEXT NOT NULL,Kind INTEGER NOT NULL CHECK(Kind BETWEEN 0 AND 3),Style TEXT NOT NULL CHECK(json_valid(Style)),
+          Title TEXT NOT NULL,Kind INTEGER NOT NULL CHECK(Kind BETWEEN 0 AND 4),Style TEXT NOT NULL CHECK(json_valid(Style)),
           Content TEXT NOT NULL CHECK(json_valid(Content)),Revision INTEGER NOT NULL CHECK(Revision>0));
         CREATE TABLE StudioInstances(Id TEXT PRIMARY KEY,ProfileId TEXT NOT NULL REFERENCES StudioProfiles(Id) ON DELETE CASCADE,
           DefinitionId TEXT NOT NULL REFERENCES StudioDefinitions(Id) ON DELETE RESTRICT,SortOrder INTEGER NOT NULL,

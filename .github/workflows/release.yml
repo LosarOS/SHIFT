@@ -7,7 +7,7 @@ on:
       version:
         description: 'Release candidate version; manual dispatch builds artifacts without publishing'
         required: true
-        default: '1.0.0-rc.7'
+        default: '1.0.0-rc.8'
       verify_existing:
         description: 'Revalidate unchanged existing release bytes using corrected smoke; does not publish'
         type: boolean
@@ -63,7 +63,7 @@ jobs:
           $portableEvidence = Get-Content $nativeChecks[0] -Raw | ConvertFrom-Json
           if ($portableEvidence.portable_smoke_archive -ne $true) { throw 'Portable smoke did not use the extracted distribution ZIP.' }
           $installedEvidence = Get-Content $nativeChecks[1] -Raw | ConvertFrom-Json
-          foreach ($gate in @('workspace_productivity_russian_preview','workspace_launch_plan_read_only','workspace_composer_review_save_disabled_cleanup_no_dispatch')) {
+          foreach ($gate in @('workspace_productivity_russian_preview','workspace_launch_plan_read_only','workspace_composer_review_save_disabled_cleanup_no_dispatch','workspace_scenario_preflight_stop_no_dispatch','workspace_scenario_settings_restart_and_cleanup','recovery_center_inspection_no_restore')) {
             foreach ($proof in @($portableEvidence, $installedEvidence)) {
               if ($gate -notin $proof.checks) { throw "Missing productivity UI gate: $gate" }
             }
@@ -78,17 +78,25 @@ jobs:
           foreach ($gate in @('compact_selection_pattern','compact_keyboard_navigation','compact_cross_field_search','compact_empty_actions','compact_review_without_dispatch','compact_keyboard_command_refusal','multiline_workspace_and_item_editing')) {
             if ($gate -notin $portableEvidence.checks) { throw "Missing compact launcher gate: $gate" }
           }
-          foreach ($gate in @('lab_preview_cancel_save_no_preview_writes','four_real_windows_notes_timer','reapply_no_duplicate_windows','wallpaper_apply_restore','disable_reenable','restart_persistence_and_quit','mode_change_preserves_geometry','timer_restart_after_completion','russian_live_language_without_recreation','editor_preserves_boundaries_custom_style_and_missing_monitor','starter_preset_cancel_atomic_save_and_apply','russian_quick_setup_order_save_cancel','disabled_profile_stays_disabled_after_restart','recovery_gather_persists_geometry','russian_profile_transfer_and_notes_export','widget_desktop_keyboard_save_and_menu','widget_lab_reuse_appearance_save_cancel','notes_clipboard_survives_process_exit','multiline_editor_content_preserved','native_notes_multiline_initial_text')) {
+          foreach ($gate in @('lab_preview_cancel_save_no_preview_writes','four_real_windows_notes_timer','reapply_no_duplicate_windows','wallpaper_apply_restore','disable_reenable','restart_persistence_and_quit','mode_change_preserves_geometry','timer_restart_after_completion','russian_live_language_without_recreation','editor_preserves_boundaries_custom_style_and_missing_monitor','starter_preset_cancel_atomic_save_and_apply','russian_quick_setup_order_save_cancel','disabled_profile_stays_disabled_after_restart','recovery_gather_persists_geometry','russian_profile_transfer_and_notes_export','widget_desktop_keyboard_save_and_menu','widget_lab_reuse_appearance_save_cancel','notes_clipboard_survives_process_exit','multiline_editor_content_preserved','native_notes_multiline_initial_text','quick_actions_lab_restart_consent_dispatch')) {
             if ($gate -notin $studio.checks) { throw "Missing Studio gate: $gate" }
           }
           $nativeNotes = Get-Content artifacts/diagnostics/studio/native-notes-newline-proof.json -Raw | ConvertFrom-Json
           if ($nativeNotes.source_commit -ne $env:GITHUB_SHA -or $nativeNotes.native_line -ne 1 -or $nativeNotes.initial_text.Replace("`r`n","`n").Replace("`r","`n") -cne "Initial CI note`nSecond line — local only") { throw 'Actual native Notes line rendering is not verified.' }
+          $upgrade = Get-Content artifacts/diagnostics/rc7-upgrade/rc7-upgrade-smoke.json -Raw | ConvertFrom-Json
+          if ($upgrade.status -ne 'passed' -or $upgrade.source_commit -ne $env:GITHUB_SHA -or $upgrade.manual_acceptance -ne $false) { throw 'Invalid actual RC7 upgrade evidence.' }
+          foreach ($gate in @('actual_rc7_ui_baseline','actual_schema2_to3_upgrade','workspace_history_settings_preserved','validated_schema2_safety_backup','old_rc7_visible_downgrade_refusal','downgrade_copy_sha256_unchanged','original_upgraded_profile_unchanged')) {
+            if ($upgrade.$gate -ne $true) { throw "Missing actual RC7 upgrade gate: $gate" }
+          }
           $report = [ordered]@{
             schema_version = 1; version = $env:SHIFT_VERSION; source_commit = $env:GITHUB_SHA
             workflow_run = "https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
             environment = 'GitHub Actions disposable Windows x64 runner'; signature = 'unsigned'
             core_tests = @{ total = [int]$counts.total; passed = [int]$counts.passed; failed = [int]$counts.failed; skipped = [int]$counts.notExecuted }
             locked_restore = 'passed'; windows_self_contained_publish = 'passed'
+            actual_rc7_upgrade = 'passed'; downgrade_refusal = 'passed'; original_rc7_harness_passed = $false
+            rc7_harness_adaptation = $upgrade.harness_adaptation
+            launch_scenario_preflight = 'passed'; recovery_center_inspection = 'passed'; quick_actions_native = 'passed'; sqlite_schema = 3
             workspace_composer = 'passed'; launch_plan_preview = 'passed'; productivity_no_dispatch = 'passed'
             russian_localization = 'passed'; quick_workspace_setup = 'passed'; studio_starter_presets = 'passed'
             widget_lab_reuse_appearance = 'passed'; widget_desktop_keyboard = 'passed'; studio_profile_transfer = 'passed'; studio_notes_export = 'passed'; real_file_pickers_and_clipboard = 'passed'; compact_launcher_selection_and_keyboard = 'passed'
@@ -112,6 +120,8 @@ jobs:
           Copy-Item $nativeChecks[3] (Join-Path $evidenceRoot 'reinstalled-smoke.json')
           Copy-Item artifacts/diagnostics/studio/*.json $evidenceRoot
           Copy-Item artifacts/diagnostics/studio/*.txt $evidenceRoot
+          Copy-Item artifacts/diagnostics/rc7-upgrade/*.json $evidenceRoot
+          Copy-Item artifacts/diagnostics/rc7-upgrade/*.patch $evidenceRoot
           Compress-Archive -Path (Join-Path $evidenceRoot '*') -DestinationPath artifacts/SHIFT-Native-Smoke-Evidence.zip
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:

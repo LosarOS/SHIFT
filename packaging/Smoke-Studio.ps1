@@ -29,6 +29,7 @@ public static class StudioProbe {
 [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h,uint msg,IntPtr w,IntPtr l);
 [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h,int cmd);
 [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+[DllImport("user32.dll")] public static extern bool BringWindowToTop(IntPtr h);
 [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
 [DllImport("dwmapi.dll")] public static extern int DwmFlush();
 }
@@ -342,6 +343,57 @@ try {
  if($process.ExitCode -ne 0){throw "Restarted SHIFT exited with $($process.ExitCode)."}
  if([System.Windows.Forms.Clipboard]::GetText().Replace("`r`n","`n").Replace("`r","`n") -cne $expectedClipboard.Replace("`r`n","`n").Replace("`r","`n")){throw 'Explicit note copy was lost after process exit.'}
  $checks+='notes_clipboard_survives_process_exit'
+ # RC8: create real Lab actions, restart their owned window, and retain normal command consent.
+ $null=Tool 'actions-prepare'
+ $process.Dispose();$process=Start-Process (Join-Path $app 'SHIFT.exe') -WorkingDirectory $app -PassThru
+ function Reacquire-Main {
+  $script:main=Wait-For {
+   $condition=New-Object System.Windows.Automation.AndCondition((New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty,$process.Id)),(New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty,'SHIFT')))
+   [System.Windows.Automation.AutomationElement]::RootElement.FindFirst([System.Windows.Automation.TreeScope]::Children,$condition)
+  } 'quick-actions main'
+ }
+ Reacquire-Main
+ Click 'Nav.Studio';Click 'Studio.Tab.Widgets';Click 'Studio.Widget.Edit.00000000-0000-4000-8000-000000000501'
+ Set-Field 'Studio.QuickActions.Title' 'CI launch reviewed workspace'
+ Select-Value 'Studio.QuickActions.Workspace' 'Quick Actions CI workspace'
+ Click 'Studio.QuickActions.Add'
+ # UIA Invoke does not activate the WinUI owner. Keep every real widget visible,
+ # but bring the owned Lab window above the non-topmost stress fixture before capture.
+ $labHandle=[intptr]$main.Current.NativeWindowHandle
+ $null=Wait-For {
+  # The foreground owner can already be active while no-activate tool windows sit above it.
+  [void][StudioProbe]::BringWindowToTop($labHandle)
+  [void][StudioProbe]::SetForegroundWindow($labHandle)
+  if([StudioProbe]::GetForegroundWindow() -eq $labHandle){return $true}
+  return $null
+ } 'owned Lab window in foreground for real capture'
+ [void][StudioProbe]::DwmFlush()
+ Capture 'ru-quick-actions-lab'
+ Click '' 'Сохранить';$null=Wait-For {Find 'Studio.Widget.Search'} 'quick-actions editor saved'
+ $null=Tool 'actions-check-editor'
+ Click 'Studio.Tab.Profiles';Click 'Studio.Profile.Apply.00000000-0000-4000-8000-000000000502'
+ $quickWindow=Wait-For {$w=@(Widgets | Where-Object {$_.Current.Name -like '*Quick Actions CI*'});if($w.Count -eq 1 -and @(Widgets).Count -eq 1){$w[0]}} 'one Quick Actions window'
+ [void][StudioProbe]::ShowWindow([intptr]$main.Current.NativeWindowHandle,6);Capture 'desktop-quick-actions';[void][StudioProbe]::ShowWindow([intptr]$main.Current.NativeWindowHandle,9)
+ [void][StudioProbe]::PostMessage([intptr]$main.Current.NativeWindowHandle,0x0010,[intptr]::Zero,[intptr]::Zero)
+ if(-not $process.WaitForExit(15000) -or $process.ExitCode -ne 0){throw 'Quick Actions close failed.'}
+ $process.Dispose();$process=Start-Process (Join-Path $app 'SHIFT.exe') -WorkingDirectory $app -PassThru
+ Reacquire-Main
+ $quickWindow=Wait-For {$w=@(Widgets | Where-Object {$_.Current.Name -like '*Quick Actions CI*'});if($w.Count -eq 1 -and @(Widgets).Count -eq 1){$w[0]}} 'Quick Actions restart'
+ Click 'QuickAction.0' '' $quickWindow
+ $null=Wait-For {Find '' 'Разрешить выполнение команд?'} 'normal Quick Action command consent'
+ if(Test-Path (Join-Path $data 'quick-action-dispatch.txt')){throw 'Quick action dispatched before consent.'}
+ Click '' 'Отмена'
+ $null=Wait-For {((Tool 'actions-refused') | ConvertFrom-Json).declined} 'quick-action refusal persisted'
+ $null=Wait-For {Find 'Launch.Retry'} 'launch completed before next explicit action'
+ Click 'QuickAction.0' '' $quickWindow
+ $null=Wait-For {Find '' 'Разрешить выполнение команд?'} 'second explicit Quick Action consent'
+ Click '' 'Разрешить и запустить'
+ $null=Wait-For {Test-Path (Join-Path $data 'quick-action-dispatch.txt')} 'confirmed owned quick-action marker'
+ $null=Wait-For {Find '' 'Запросы отправлены'} 'quick-action completed dispatch'
+ (Tool 'actions-check-marker') | Set-Content (Join-Path $DiagnosticsDirectory 'quick-actions-native.json')
+ $checks+='quick_actions_lab_restart_consent_dispatch'
+ [void][StudioProbe]::PostMessage([intptr]$main.Current.NativeWindowHandle,0x0010,[intptr]::Zero,[intptr]::Zero)
+ if(-not $process.WaitForExit(15000) -or $process.ExitCode -ne 0){throw 'Quick Actions final quit failed.'}
  $errors=Get-ChildItem (Join-Path $data 'logs') -Filter '*.log' | Select-String -Pattern '\sERROR\s'
  if($errors){throw 'Unexpected application ERROR during native Studio acceptance.'}
  Copy-Item (Join-Path $data 'logs') (Join-Path $DiagnosticsDirectory 'studio-app-logs') -Recurse -Force

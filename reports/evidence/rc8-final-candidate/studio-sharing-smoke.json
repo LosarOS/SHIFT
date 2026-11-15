@@ -1,0 +1,24 @@
+﻿{
+    "schema_version":  1,
+    "status":  "passed",
+    "source_commit":  "28b69a5dc2e55361339e69e8743f2442691dcf74",
+    "profile_id":  "1cc41bd0-4921-4405-b4fe-6d7070ddbd8a",
+    "profiles_added":  1,
+    "definitions_added":  4,
+    "existing_data_unchanged":  true,
+    "live_widget_hwnds_unchanged":  true,
+    "runtime_state_excluded":  true,
+    "unicode_notes_export_verified":  true,
+    "file_picker_save":  "passed",
+    "file_picker_import":  "passed",
+    "clipboard":  "passed",
+    "manual_acceptance":  false,
+    "checks":  [
+                   "profile_export_default_privacy_and_explicit_initial_text",
+                   "saved_unicode_notes_export",
+                   "real_file_picker_exports_and_clipboard",
+                   "invalid_import_inline_error_no_save",
+                   "valid_import_preview_cancel_no_writes",
+                   "profile_import_atomic_save_no_activation"
+               ]
+}

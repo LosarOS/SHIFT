@@ -26,6 +26,10 @@ for name in sorted(paths):
         continue
     if path.suffix.lower() in {".ico", ".png", ".jpg", ".zip"}:
         continue
+    if path.parent.name == "packaging" and path.name.startswith("Smoke-") and path.suffix == ".ps1":
+        raw = path.read_bytes()
+        if any(byte >= 128 for byte in raw) and not raw.startswith(b"\xef\xbb\xbf"):
+            findings.append(f"{name}: Windows PowerShell smoke with non-ASCII text requires UTF-8 BOM")
     text = path.read_text(encoding="utf-8-sig", errors="replace")
     checked += 1
     for label, pattern in patterns.items():

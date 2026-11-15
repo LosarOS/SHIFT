@@ -48,9 +48,9 @@ public sealed class StudioProfileTransferTests
         var draft = StudioProfileTransfer.Import(StudioProfileTransfer.Export(source.Profile, source.Definitions));
         StudioValidator.Validate(draft.Profile);
         Assert.Equal(source.Profile.Name, draft.Profile.Name); Assert.Equal(source.Profile.Description, draft.Profile.Description);
-        Assert.Equal(4, draft.Definitions.Count); Assert.Equal(5, draft.Profile.Widgets.Count);
-        Assert.Equal(draft.Profile.Widgets[0].DefinitionId, draft.Profile.Widgets[4].DefinitionId);
-        for (var i = 0; i < 5; i++)
+        Assert.Equal(5, draft.Definitions.Count); Assert.Equal(6, draft.Profile.Widgets.Count);
+        Assert.Equal(draft.Profile.Widgets[0].DefinitionId, draft.Profile.Widgets[5].DefinitionId);
+        for (var i = 0; i < 6; i++)
         {
             var before = source.Profile.Widgets[i]; var after = draft.Profile.Widgets[i];
             Assert.Equal(before.Visible, after.Visible);
@@ -119,7 +119,7 @@ public sealed class StudioProfileTransferTests
     {
         var source = Source(); var extra = new WidgetDefinition { Title = "Не передавать" };
         var draft = StudioProfileTransfer.Import(StudioProfileTransfer.Export(source.Profile with { Enabled = false }, [.. source.Definitions, extra]));
-        Assert.Equal(4, draft.Definitions.Count); Assert.False(draft.Profile.Enabled);
+        Assert.Equal(5, draft.Definitions.Count); Assert.False(draft.Profile.Enabled);
         Assert.DoesNotContain(draft.Definitions, d => d.Title == extra.Title);
     }
 
@@ -248,7 +248,7 @@ public sealed class StudioProfileTransferTests
             var draft = StudioProfileTransfer.Import(Pack());
             Assert.Single(await store.ListProfilesAsync()); // Parsing itself did not persist or activate anything.
             var saved = await ((IStudioPresetStore)store).SavePresetAsync(draft);
-            Assert.Equal(2, (await store.ListProfilesAsync()).Count); Assert.Equal(5, (await store.ListDefinitionsAsync()).Count);
+            Assert.Equal(2, (await store.ListProfilesAsync()).Count); Assert.Equal(6, (await store.ListDefinitionsAsync()).Count);
             Assert.Equal(settings, await store.LoadStudioSettingsAsync());
             Assert.Equal(state, await store.GetWidgetStateAsync(owner.Widgets[0].Id));
             foreach (var widget in saved.Widgets) Assert.Null(await store.GetWidgetStateAsync(widget.Id));

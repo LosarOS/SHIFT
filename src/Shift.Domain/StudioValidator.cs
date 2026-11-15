@@ -29,6 +29,8 @@ public static class StudioValidator
         Require(Number(style.Opacity, .25, 1) && Number(style.FontSize, 10, 96) && Number(style.CornerRadius, 0, 64) && Number(style.Padding, 0, 64) && Number(style.BorderWidth, 0, 8), "Appearance", "Appearance values exceed supported bounds.");
         Require(SafeFonts.Contains(style.FontFamily, StringComparer.Ordinal), "Font", "Choose a supported local font.");
         Require(content!.InitialNotes is not null && content.InitialNotes.Length <= 20000 && !content.InitialNotes.Contains('\0'), "Notes", "Notes exceed 20000 characters or contain a null character.");
+        Require(content.Actions is not null && content.Actions.Count <= 12, "Actions", "Use up to 12 quick actions.");
+        foreach (var action in content.Actions!) WidgetQuickActions.Validate(action);
         Require(content.FocusMinutes is >= 1 and <= 1440 && content.UpdateIntervalSeconds is >= 1 and <= 3600, "Interval", "Invalid timer duration or update interval.");
         Require(Name(content.DateFormat, 80), "DateFormat", "Invalid date format.");
         try { _ = DateTimeOffset.UtcNow.ToString(content.DateFormat, CultureInfo.InvariantCulture); }

@@ -36,6 +36,7 @@ $data = if ($Installed) { Join-Path $env:LOCALAPPDATA 'SHIFT' } else { Join-Path
 if ($Installed -and $ExtractedArchive) { throw 'Installed smoke cannot claim portable archive validation.' }
 if ($Installed -and $env:GITHUB_ACTIONS -ne 'true') { throw 'Installed smoke only runs on an isolated GitHub Actions runner.' }
 if (-not $Installed -and -not (Test-Path (Join-Path $app 'portable.flag'))) { throw 'Expected a disposable portable build.' }
+if(-not $ResumeOwnedData -and -not $PreserveData -and -not $Installed -and $DataOwner -eq [guid]::Empty -and $env:GITHUB_ACTIONS -eq 'true'){$DataOwner=[guid]::NewGuid()}
 $ownerFile = Join-Path $data '.shift-ci-owner'
 if ($PreserveData -or $ResumeOwnedData) {
     if ($env:GITHUB_ACTIONS -ne 'true' -or $DataOwner -eq [guid]::Empty) { throw 'Data reuse requires an explicit owner token on a disposable CI runner.' }
@@ -103,8 +104,32 @@ function Click([string]$Name,[string]$Id='') {
     $control.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
 }
 function Set-Field([string]$Id,[string]$Value) {
-    $control = Wait-For { Find-Control '' ([System.Windows.Automation.ControlType]::Edit) $Id } "field $Id"
-    $control.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($Value)
+    Write-Host "Waiting for writable field ValuePattern on $Id"
+    $pattern = Wait-For {
+        $candidate=Find-Control '' ([System.Windows.Automation.ControlType]::Edit) $Id
+        if($null -eq $candidate -or -not $candidate.Current.IsEnabled){return $null}
+        [object]$current=$null
+        try {
+            if($candidate.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern,[ref]$current) -and
+               $null -ne $current -and -not $current.Current.IsReadOnly){return $current}
+        } catch [System.Windows.Automation.ElementNotAvailableException] { return $null }
+        return $null
+    } "writable field pattern $Id"
+    try { $pattern.SetValue($Value) }
+    catch [System.Windows.Automation.ElementNotAvailableException] {
+        Write-Host "Field peer replaced during SetValue on $Id; checking the exact postcondition without retrying the write."
+    }
+    $expectedValue=$Value.Replace("`r`n","`n").Replace("`r","`n")
+    $null=Wait-For {
+        $candidate=Find-Control '' ([System.Windows.Automation.ControlType]::Edit) $Id
+        if($null -eq $candidate){return $null}
+        [object]$current=$null
+        try {
+            if($candidate.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern,[ref]$current) -and
+               $null -ne $current -and $current.Current.Value.Replace("`r`n","`n").Replace("`r","`n") -ceq $expectedValue){return $true}
+        } catch [System.Windows.Automation.ElementNotAvailableException] { return $null }
+        return $null
+    } "field value acknowledged $Id"
 }
 function Quick-Selection {
     $list = Find-Control '' ([System.Windows.Automation.ControlType]::List) 'Quick.Results'
@@ -127,13 +152,22 @@ function History-Count {
 function Quick-Key([string]$Keys) {
     # Never inject into another program or an unverified modal dialog. Each key is sent once;
     # retries only reacquire the intended foreground window/focus, never repeat dispatch.
-    $field = Wait-For { Find-Control '' ([System.Windows.Automation.ControlType]::Edit) 'Quick.Search' } 'compact keyboard target'
-    [void][ShiftWindowProbe]::SetForegroundWindow($process.MainWindowHandle)
-    $field.SetFocus()
+    $focusState=@{id='';samples=0}
     $null = Wait-For {
+        $field=Find-Control '' ([System.Windows.Automation.ControlType]::Edit) 'Quick.Search'
+        if($null -eq $field -or -not $field.Current.IsEnabled){return $null}
+        [void][ShiftWindowProbe]::SetForegroundWindow($process.MainWindowHandle)
+        try { $field.SetFocus() }
+        catch [System.Windows.Automation.ElementNotAvailableException] { $focusState.samples=0;return $null }
         $focused = [System.Windows.Automation.AutomationElement]::FocusedElement
+        $identity=$field.GetRuntimeId() -join ':'
         if ([ShiftWindowProbe]::GetForegroundWindow() -eq $process.MainWindowHandle -and $focused -and
-            $focused.Current.ProcessId -eq $process.Id -and $focused.Current.AutomationId -ceq 'Quick.Search') { $true }
+            $focused.Current.ProcessId -eq $process.Id -and $focused.Current.AutomationId -ceq 'Quick.Search' -and
+            ($focused.GetRuntimeId() -join ':') -ceq $identity) {
+            if($focusState.id -ceq $identity){$focusState.samples++}else{$focusState.id=$identity;$focusState.samples=1}
+            if($focusState.samples -ge 3){return $true}
+        }else{$focusState.samples=0}
+        return $null
     } 'owned compact launcher keyboard focus'
     [System.Windows.Forms.SendKeys]::SendWait($Keys)
 }
@@ -162,6 +196,30 @@ function Select-Choice([string]$Id,[string]$Value) {
     } "collapsed choice $Id"
 }
 
+function Assert-Choice([string]$Id,[string]$Value) {
+    # Observe only. Do not repair a lost persisted selection by choosing it again.
+    $null=Wait-For {
+        $control=Find-Control '' ([System.Windows.Automation.ControlType]::ComboBox) $Id
+        if(-not $control){return $null}
+        $selected=@($control.GetCurrentPattern([System.Windows.Automation.SelectionPattern]::Pattern).Current.GetSelection())
+        if($selected.Count -eq 1 -and $selected[0].Current.Name -ceq $Value){return $true}
+        return $null
+    } "persisted selection $Id = $Value"
+}
+function Item-DeleteIds {
+    $scope=[System.Windows.Automation.AutomationElement]::FromHandle($process.MainWindowHandle)
+    $condition=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::Button)
+    return @($scope.FindAll([System.Windows.Automation.TreeScope]::Descendants,$condition)|Where-Object {$_.Current.AutomationId -cmatch '^Item\.Delete\.[0-9a-f]{32}$'}|ForEach-Object {$_.Current.AutomationId})
+}
+
+function Logical-DatabaseFingerprint {
+    $output=@(& dotnet $fingerprintTool database-fingerprint $data $DataOwner.ToString())
+    if($LASTEXITCODE -ne 0){throw 'Owned logical SQLite fingerprint failed.'}
+    $values=@($output|Where-Object {$_ -cmatch '^[0-9a-f]{64}$'})
+    if($values.Count -ne 1){throw 'Logical SQLite fingerprint did not return exactly one digest.'}
+    return $values[0]
+}
+
 function Capture([string]$Name) {
     if (-not $DiagnosticsDirectory -or $null -eq $process) { return }
     # UI Automation observes logical state before WinUI/DWM presents the frame.
@@ -182,6 +240,14 @@ function Capture([string]$Name) {
     } finally { $graphics.Dispose(); $bitmap.Dispose() }
 }
 try {
+    if($env:GITHUB_ACTIONS -eq 'true' -and -not $LegacyCompactLauncher -and -not $ResumeOwnedData){
+        $fingerprintProject=Join-Path (Split-Path $PSScriptRoot -Parent) 'tools/Shift.StudioAcceptance'
+        $fingerprintTool=Join-Path $fingerprintProject 'bin/Release/net10.0/Shift.StudioAcceptance.dll'
+        & dotnet restore $fingerprintProject --locked-mode --nologo
+        if($LASTEXITCODE -ne 0){throw 'Acceptance fingerprint locked restore failed.'}
+        & dotnet build $fingerprintProject -c Release --no-restore --nologo
+        if($LASTEXITCODE -ne 0){throw 'Acceptance fingerprint build failed.'}
+    }
     if ($env:GITHUB_ACTIONS -eq 'true' -and $env:SHIFT_CRASH_MONITOR) {
         $dumpDirectory = Join-Path $env:RUNNER_TEMP ('SHIFT-dumps-' + [guid]::NewGuid().ToString('N'))
         New-Item $dumpDirectory -ItemType Directory | Out-Null
@@ -272,6 +338,43 @@ try {
             Click '' 'Dialog.Close'
             if(Test-Path -LiteralPath $marker){throw 'Productivity preview dispatched a command.'}
             $productivityChecks+='workspace_productivity_russian_preview'
+            # RC8 scenario settings: safe owned missing-file failure, no consent/dispatch.
+            Click '' 'Workspace.Scenario'
+            Select-Choice 'Scenario.Preflight' 'Остановить при ошибках'
+            Select-Choice 'Scenario.OnError' 'Остановить оставшиеся шаги'
+            Capture 'launch-scenario-ru'
+            Click '' 'Dialog.Primary'
+            Click '' 'Workspace.Scenario'
+            Assert-Choice 'Scenario.Preflight' 'Остановить при ошибках'
+            Assert-Choice 'Scenario.OnError' 'Остановить оставшиеся шаги'
+            Click '' 'Dialog.Close'
+            $originalScenarioIds=@(Item-DeleteIds)
+            if($originalScenarioIds.Count -ne 1){throw 'Scenario requires exactly one owned command fixture.'}
+            $missingScenarioFile=Join-Path $data ('scenario-missing-'+[guid]::NewGuid().ToString('N')+'.txt')
+            if(Test-Path -LiteralPath $missingScenarioFile){throw 'Expected missing scenario fixture target.'}
+            Click '' 'Item.New'
+            Set-Field 'Field.Name' 'Owned missing scenario target'
+            Select-Choice 'Field.Kind' 'Файл'
+            Set-Field 'Field.Target' $missingScenarioFile
+            Click 'Сохранить'
+            $null=Wait-For {$ids=@(Item-DeleteIds);if($ids.Count -eq 2){$true}} 'saved owned missing-file item'
+            $temporaryScenarioIds=@(Item-DeleteIds|Where-Object {$_ -notin $originalScenarioIds})
+            if($temporaryScenarioIds.Count -ne 1){throw 'Cannot identify owned temporary scenario item.'}
+            Click '' 'Workspace.Launch'
+            $null=Wait-For {Find-Control 'Есть ошибки' ([System.Windows.Automation.ControlType]::Text)} 'preflight stops the scenario before dispatch'
+            $null=Wait-For {$b=Find-Control '' ([System.Windows.Automation.ControlType]::Button) 'Launch.Retry';if($b -and $b.Current.IsEnabled){$b}} 'finished preflight run'
+            if((Test-Path -LiteralPath $marker) -or (Find-Control 'Разрешить и запустить' ([System.Windows.Automation.ControlType]::Button))){throw 'Preflight stop dispatched a command or requested consent.'}
+            Capture 'launch-scenario-stopped'
+            Click '' 'Quick.Open';Set-Field 'Quick.Search' 'context SHIFT'
+            $null=Wait-For {Quick-Selection} 'owned scenario workspace selection'
+            Click '' 'Quick.Review'
+            Click '' $temporaryScenarioIds[0]
+            Click '' 'Dialog.Primary'
+            $null=Wait-For {$ids=@(Item-DeleteIds);if($ids.Count -eq 1 -and $ids[0] -ceq $originalScenarioIds[0]){$true}} 'temporary missing-file item removed, original command retained'
+            if(Test-Path -LiteralPath $marker){throw 'Scenario editor/cleanup dispatched a command.'}
+            # Keep the saved policy through the existing restart to test persistence.
+            $productivityChecks+='workspace_scenario_preflight_stop_no_dispatch'
+
         }
         Click '' 'Workspace.Launch'
         $null = Wait-For { Find-Control 'Разрешить и запустить' ([System.Windows.Automation.ControlType]::Button) } 'command consent'
@@ -453,10 +556,72 @@ try {
     Set-Field 'Quick.Search' 'SHIFT smoke'
     $null=Wait-For { Find-Control '↗  SHIFT smoke workspace' ([System.Windows.Automation.ControlType]::Text) } 'persisted workspace after restart'
     Click '' 'Quick.Close'
+    if(-not $LegacyCompactLauncher -and -not $ResumeOwnedData){
+        Click '' 'Quick.Open';Set-Field 'Quick.Search' 'context SHIFT'
+        $null=Wait-For {Quick-Selection} 'persisted scenario workspace selection'
+        Click '' 'Quick.Review'
+        Click '' 'Workspace.Scenario'
+        Assert-Choice 'Scenario.Preflight' 'Stop on errors'
+        Assert-Choice 'Scenario.OnError' 'Stop remaining steps'
+        Capture 'launch-scenario-restored-en'
+        # Restore default local settings without dispatch; installer preservation fixtures stay stable.
+        Select-Choice 'Scenario.Preflight' 'No preflight (legacy behavior)'
+        Select-Choice 'Scenario.OnError' 'Continue remaining steps'
+        Click '' 'Dialog.Primary'
+        Click '' 'Workspace.Scenario'
+        Assert-Choice 'Scenario.Preflight' 'No preflight (legacy behavior)'
+        Assert-Choice 'Scenario.OnError' 'Continue remaining steps'
+        Click '' 'Dialog.Close'
+        $productivityChecks+='workspace_scenario_settings_restart_and_cleanup'
+    }
     Click '' 'Nav.Settings'
     $theme=Wait-For { Find-Control '' ([System.Windows.Automation.ControlType]::ComboBox) 'Field.Theme' } 'persisted theme'
     $selected=$theme.GetCurrentPattern([System.Windows.Automation.SelectionPattern]::Pattern).Current.GetSelection()
     if($selected.Count -ne 1 -or $selected[0].Current.Name -ne 'Midnight'){throw 'Theme did not survive restart.'}
+    if($env:GITHUB_ACTIONS -eq 'true' -and -not $LegacyCompactLauncher -and -not $ResumeOwnedData){
+        Click '' 'Nav.History'
+        $recoveryHistoryBefore=Wait-For {History-Count} 'history before backup inspection'
+        Click '' 'Nav.Settings'
+        Click '' 'Settings.RecoveryCenter'
+        Click '' 'Recovery.Create'
+        $choiceName=Wait-For {
+            $combo=Find-Control '' ([System.Windows.Automation.ControlType]::ComboBox) 'Recovery.Backups'
+            if(-not $combo -or -not $combo.Current.IsEnabled){return $null}
+            $combo.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Expand()
+            $condition=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::ListItem)
+            $choice=[System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Descendants,$condition)|Where-Object {$_.Current.ProcessId -eq $process.Id -and $_.Current.Name.EndsWith('.db')}|Select-Object -First 1
+            if($choice){return $choice.Current.Name}
+            return $null
+        } 'owned backup available in recovery catalog'
+        Select-Choice 'Recovery.Backups' $choiceName
+        # One read transaction covers schema and all user rows, including committed WAL.
+        # Physical live DB/WAL bytes can change at checkpoint without a logical data change.
+        $recoveryBefore=Logical-DatabaseFingerprint
+        $backupName=($choiceName -split '·')[-1].Trim()
+        if([IO.Path]::GetFileName($backupName) -cne $backupName){throw 'Unexpected backup catalog filename.'}
+        $inspectedBackup=Join-Path (Join-Path $data 'backups') $backupName
+        $backupHashBefore=(Get-FileHash -LiteralPath $inspectedBackup -Algorithm SHA256).Hash
+        $recoveryMarkerHash=(Get-FileHash -LiteralPath (Join-Path $data 'dispatch-proof.txt') -Algorithm SHA256).Hash
+        $recoveryMarkerTime=(Get-Item -LiteralPath (Join-Path $data 'dispatch-proof.txt')).LastWriteTimeUtc
+        Click '' 'Recovery.Inspect'
+        $null=Wait-For {$summary=Find-Control '' ([System.Windows.Automation.ControlType]::Text) 'Recovery.Preview';if($summary -and $summary.Current.Name.StartsWith('Backup validation passed:')){$summary}} 'validated read-only SQLite recovery preview'
+        Capture 'recovery-center-preview'
+        Click '' 'Dialog.Close'
+        $recoveryAfter=Logical-DatabaseFingerprint
+        if($recoveryAfter -cne $recoveryBefore){throw 'Recovery preview/cancel changed logical live SQLite data.'}
+        if((Get-FileHash -LiteralPath $inspectedBackup -Algorithm SHA256).Hash -cne $backupHashBefore){throw 'Recovery inspection changed the selected backup file.'}
+        if($DiagnosticsDirectory){
+            @{status='passed';mode=$label;comparison='read-only transaction: schema and all user rows';before=$recoveryBefore;after=$recoveryAfter;selected_backup_sha256=$backupHashBefore;source_commit=$env:GITHUB_SHA} |
+                ConvertTo-Json -Depth 3 | Set-Content (Join-Path $DiagnosticsDirectory "$label-recovery-logical-proof.json")
+        }
+        Click '' 'Nav.History'
+        $recoveryHistoryAfter=Wait-For {History-Count} 'history after backup inspection'
+        if($recoveryHistoryAfter -ne $recoveryHistoryBefore -or
+            (Get-FileHash -LiteralPath (Join-Path $data 'dispatch-proof.txt') -Algorithm SHA256).Hash -cne $recoveryMarkerHash -or
+            (Get-Item -LiteralPath (Join-Path $data 'dispatch-proof.txt')).LastWriteTimeUtc -ne $recoveryMarkerTime){throw 'Recovery preview/cancel dispatched or changed history.'}
+        $productivityChecks+='recovery_center_inspection_no_restore'
+        Click '' 'Nav.Settings'
+    }
     Capture 'settings-restored'
     if(-not(Test-Path (Join-Path $data 'dispatch-proof.txt'))){throw 'Command proof data did not survive restart.'}
     $process.CloseMainWindow() | Out-Null
