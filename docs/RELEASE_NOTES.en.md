@@ -16,7 +16,7 @@ Backup inspection is not a complete resource archive. Before upgrade, Quit SHIFT
 
 ## Installation and evidence
 
-After publication, choose the x64 setup EXE or fully extract the portable ZIP. Existing public downloads remain RC7 until the candidate is approved. [RC8 guide](https://github.com/LosarOS/SHIFT/blob/main/docs/RC8-GUIDE-EN.md) · [validation journal](https://github.com/LosarOS/SHIFT/blob/main/reports/PRODUCT-EVOLUTION-2026-11-14.md).
+After publication, choose the x64 setup EXE or fully extract the portable ZIP. [RC8 guide](https://github.com/LosarOS/SHIFT/blob/main/docs/RC8-GUIDE-EN.md) · [validation journal](https://github.com/LosarOS/SHIFT/blob/main/reports/PRODUCT-EVOLUTION-2026-11-14.md).
 
 514 unique core tests passed on Linux and Windows. Candidate Windows publish, native UI/Studio, installer and actual RC7-upgrade checks have separate retained evidence; their final status is recorded in the journal rather than inferred from core compilation.
 
