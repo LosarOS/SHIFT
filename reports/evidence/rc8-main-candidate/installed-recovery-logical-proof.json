@@ -1,0 +1,9 @@
+{
+    "selected_backup_sha256":  "CC7D037B1360A817396AB08F2670AD9E88867BB43FBF722FEDD285C44E1AA941",
+    "source_commit":  "a5effcdcc4861ff099636be7782dd5155a029671",
+    "comparison":  "read-only transaction: schema and all user rows",
+    "mode":  "installed",
+    "before":  "89ff6ef907a3e4db3cbe6fca4bbcfa97010e530a256fff3002e41280535d8ccf",
+    "after":  "89ff6ef907a3e4db3cbe6fca4bbcfa97010e530a256fff3002e41280535d8ccf",
+    "status":  "passed"
+}

@@ -1,0 +1,22 @@
+﻿{
+    "workspace_history_settings_preserved":  true,
+    "environment":  "disposable Windows runner; owned portable data only",
+    "baseline_version":  "1.0.0-rc.7",
+    "harness_adaptation":  "Set-Field ValuePattern readiness/readback + Quick-Key stable owned focus; two helper hunks only",
+    "baseline_portable_sha256":  "4ee847d358c89eab5b3add2228db9c4d5f51762595ddd60776086595d2d8d98d",
+    "downgrade_observed_title":  "SHIFT не смог открыть локальные данные",
+    "compatible_harness_sha256":  "eb019a347b8644c1b6c7a28d72bcd4f60c4489f255e56c0af719f80832e7ba8d",
+    "downgrade_observed_reason":  "Эта база создана более новой версией SHIFT. Обновите приложение перед открытием.",
+    "downgrade_copy_sha256_unchanged":  true,
+    "source_commit":  "a5effcdcc4861ff099636be7782dd5155a029671",
+    "baseline_source":  "7bb1760b7095bcc254b25807b9eb2934cd807919",
+    "actual_schema2_to3_upgrade":  true,
+    "manual_acceptance":  false,
+    "actual_rc7_ui_baseline":  true,
+    "old_rc7_visible_downgrade_refusal":  true,
+    "original_upgraded_profile_unchanged":  true,
+    "original_harness_passed":  false,
+    "original_harness_sha256":  "3ff83fd85acea23d0182029479661d6d1b2237ccb87f08f9e0238de384094a47",
+    "status":  "passed",
+    "validated_schema2_safety_backup":  true
+}

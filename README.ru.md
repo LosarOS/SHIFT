@@ -1,4 +1,4 @@
-> **Проверенный кандидат RC8:** [514 core-тестов и native evidence](reports/evidence/rc8-final-candidate/README.md) · [реальные новые экраны](docs/screenshots/rc8-final-candidate/README.md). Source `28b69a5…`; публикация ещё не выполнена.
+> **Проверенный кандидат RC8:** [514 core-тестов и native evidence](reports/evidence/rc8-main-candidate/README.md) · [реальные новые экраны](docs/screenshots/rc8-main-candidate/README.md). Source `a5effcd…`; публикация ещё не выполнена.
 
 > **Кандидат RC8:** [новые возможности и инструкции](docs/RC8-GUIDE-RU.md) · [PR24](https://github.com/LosarOS/SHIFT/pull/24). Публикация ожидает подтверждения владельца.
 

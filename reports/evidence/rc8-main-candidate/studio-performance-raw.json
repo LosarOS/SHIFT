@@ -1,0 +1,30 @@
+[
+    {
+        "cpu_machine_percent":  0,
+        "working_set_bytes":  169771008,
+        "private_bytes":  69361664,
+        "sample_ms":  2005.2165,
+        "windows":  0
+    },
+    {
+        "cpu_machine_percent":  0,
+        "working_set_bytes":  315932672,
+        "private_bytes":  192081920,
+        "sample_ms":  2001.5253,
+        "windows":  1
+    },
+    {
+        "cpu_machine_percent":  0,
+        "working_set_bytes":  318701568,
+        "private_bytes":  193933312,
+        "sample_ms":  2000.9624000000001,
+        "windows":  5
+    },
+    {
+        "cpu_machine_percent":  0,
+        "working_set_bytes":  322899968,
+        "private_bytes":  196296704,
+        "sample_ms":  2000.5389,
+        "windows":  10
+    }
+]
