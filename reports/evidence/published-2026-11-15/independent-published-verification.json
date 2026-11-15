@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "status": "VERIFIED PRERELEASE WITH DISCLOSED LIMITATIONS",
+  "verified_at_utc": "2026-11-15T08:52:34.911759+00:00",
+  "repository": "LosarOS/SHIFT",
+  "release_url": "https://github.com/LosarOS/SHIFT/releases/tag/v1.0.0-rc.8",
+  "release_tag": "v1.0.0-rc.8",
+  "published_at": "2026-11-15T08:51:44Z",
+  "source_commit": "e8b432cab4c6007389e84f1e88f8fc7b950325d5",
+  "tag_source_verified": true,
+  "draft": false,
+  "prerelease": true,
+  "signature": "unsigned",
+  "checksum_manifest_verified": true,
+  "artifacts": [
+    {
+      "name": "SHA256SUMS.txt",
+      "bytes": 207,
+      "sha256": "effe76e26c4ab00bcccb0b9da275b562f75e28273b379cbdb5fce0bcb066d2c8",
+      "github_digest_verified": true,
+      "url": "https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.8/SHA256SUMS.txt",
+      "download_method": "public"
+    },
+    {
+      "name": "SHIFT-1.0.0-rc.8-win-x64-portable.zip",
+      "bytes": 106674298,
+      "sha256": "09a0673fd0e3b7aac7de2eee394ce2c74dc16588048fc00ebb6c54afed304ce7",
+      "github_digest_verified": true,
+      "url": "https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.8/SHIFT-1.0.0-rc.8-win-x64-portable.zip",
+      "download_method": "public",
+      "zip_crc_verified": true,
+      "entries": 649
+    },
+    {
+      "name": "SHIFT-1.0.0-rc.8-win-x64-setup.exe",
+      "bytes": 72617500,
+      "sha256": "0fcc17c3b074533aa96564312af9a82aed72b7fcf8a0694d79a340dffc438501",
+      "github_digest_verified": true,
+      "url": "https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.8/SHIFT-1.0.0-rc.8-win-x64-setup.exe",
+      "download_method": "public",
+      "pe_mz_verified": true
+    },
+    {
+      "name": "WINDOWS-VALIDATION.json",
+      "bytes": 2051,
+      "sha256": "c8efce8e510750091dd37ace975034cffd018dc2491358ce315cae7a235b61bc",
+      "github_digest_verified": true,
+      "url": "https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.8/WINDOWS-VALIDATION.json",
+      "download_method": "public"
+    },
+    {
+      "name": "SHIFT-Native-Smoke-Evidence.zip",
+      "bytes": 9399,
+      "sha256": "474b942a27b12274ddee657edffffe1bacbacd87473aa5d818c015a30fcca2a0",
+      "github_digest_verified": true,
+      "url": "https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.8/SHIFT-Native-Smoke-Evidence.zip",
+      "download_method": "public",
+      "zip_crc_verified": true,
+      "entries": 17
+    },
+    {
+      "name": "SHIFT-Windows-UI-Evidence.zip",
+      "bytes": 5296878,
+      "sha256": "720933ec7baf1821ed1bf0a6e22e4876551b159381d42cb936a41ea2198f3159",
+      "github_digest_verified": true,
+      "url": "https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.8/SHIFT-Windows-UI-Evidence.zip",
+      "download_method": "public",
+      "zip_crc_verified": true,
+      "entries": 55
+    }
+  ],
+  "physical_windows_acceptance": "NOT VERIFIED",
+  "successful_live_sdk_development": "not_applicable"
+}

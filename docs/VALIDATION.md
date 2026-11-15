@@ -1,3 +1,11 @@
+# Validation — SHIFT RC8
+
+**VERIFIED PRERELEASE WITH DISCLOSED LIMITATIONS.** [Publication report, downloads, SHA256 and raw evidence](../reports/RELEASE-PUBLICATION-2026-11-15.md). Published source/tag `e8b432cab4c6007389e84f1e88f8fc7b950325d5` / `v1.0.0-rc.8`. **514 core tests passed, 0 failed, 0 skipped** on the publication Windows runner. [Windows workflow](https://github.com/LosarOS/SHIFT/actions/runs/43695742372) passed native portable/installed scenarios, Quick Actions consent/dispatch, recovery inspection, schema2→3 preservation, wallpaper recovery and installer repair/uninstall/reinstall.
+
+All six public assets were independently downloaded after publication and matched GitHub SHA256 digests; binaries additionally matched the published checksum manifest. The new Recovery Center full restore-click scenario, physical Windows10/11/DPI/Narrator/sleep/RDP acceptance and performance benchmarks remain unverified. Binaries are unsigned. Earlier candidate hashes and screenshots retain their original source provenance.
+
+## Historical RC7 validation
+
 # Validation — SHIFT RC7
 
 **VERIFIED PRERELEASE WITH DISCLOSED LIMITATIONS.** [Russian report, downloads, hashes and raw evidence](../reports/SHIFT-RC7-VALIDATION-RU.md). Source/tag `7bb1760b7095bcc254b25807b9eb2934cd807919` / `v1.0.0-rc.7`. **461 unique core tests passed, 0 failed, 0 skipped**, Windows and Linux. [Canonical tagged Windows workflow](https://github.com/LosarOS/SHIFT/actions/runs/41522532771) passed native portable/installed Composer/Plan RU/EN, existing Studio20 gates, actual RC2 migration, wallpaper restore and installer repair/uninstall/reinstall/data preservation.

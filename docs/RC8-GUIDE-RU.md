@@ -1,10 +1,10 @@
 # SHIFT RC8: сценарии, быстрые действия и восстановление
 
-Это руководство кандидата RC8. Текущие опубликованные файлы RC7 не содержат новых функций. [PR24](https://github.com/LosarOS/SHIFT/pull/24); статус проверок — в инженерном отчёте.
+Руководство опубликованного [SHIFT 1.0.0-rc.8](https://github.com/LosarOS/SHIFT/releases/tag/v1.0.0-rc.8). [Свежая Windows-сборка, публичные файлы и SHA256](../reports/RELEASE-PUBLICATION-2026-11-15.md). Ниже отдельно сохранены доказательства предварительного кандидата; его хеши не выдаются за хеши опубликованной пересборки.
 
 ## Проверка этого кандидата
 
-Source `a5effcdcc4861ff099636be7782dd5155a029671`:514core-тестов прошли на canonical Windows runner,0failed/0skipped. Реальные portable/installed сценарии, inspection, Quick Actions, schema2→3 и защитный отказ старой RC7 зафиксированы отдельно. [Байты, хеши и gates](../reports/evidence/rc8-main-candidate/README.md) · [новые настоящие экраны](screenshots/rc8-main-candidate/README.md). Полная физическая Windows/DPI и ресурсный restore не объявлены проверенными. Релиз ожидает подтверждения владельца.
+Source `a5effcdcc4861ff099636be7782dd5155a029671`:514core-тестов прошли на canonical Windows runner,0failed/0skipped. Реальные portable/installed сценарии, inspection, Quick Actions, schema2→3 и защитный отказ старой RC7 зафиксированы отдельно. [Байты, хеши и gates](../reports/evidence/rc8-main-candidate/README.md) · [новые настоящие экраны](screenshots/rc8-main-candidate/README.md). Полная физическая Windows/DPI и ресурсный restore не объявлены проверенными. Опубликованная пересборка проверена отдельно — см. отчёт публикации выше.
 
 ![Quick Actions в настоящей мастерской](screenshots/rc8-main-candidate/quick-actions-lab-ru.png)
 

@@ -1,6 +1,6 @@
-> **Проверенный кандидат RC8:** [514 core-тестов и native evidence](reports/evidence/rc8-main-candidate/README.md) · [реальные новые экраны](docs/screenshots/rc8-main-candidate/README.md). Source `a5effcd…`; публикация ещё не выполнена.
+> **SHIFT 1.0.0-rc.8 опубликован:** [новые возможности](docs/RC8-GUIDE-RU.md) · [Windows-проверки и опубликованные SHA256](reports/RELEASE-PUBLICATION-2026-11-15.md) · [реальные экраны](docs/screenshots/rc8-main-candidate/README.md). Неподписанный prerelease; полная физическая Windows/DPI-приёмка остаётся отдельной.
 
-> **Кандидат RC8:** [новые возможности и инструкции](docs/RC8-GUIDE-RU.md) · [PR24](https://github.com/LosarOS/SHIFT/pull/24). Публикация ожидает подтверждения владельца.
+> **В RC8:** сценарии запуска с preflight, виджет «Быстрые действия» и Центр восстановления. [Руководство](docs/RC8-GUIDE-RU.md) · [Реализация PR24](https://github.com/LosarOS/SHIFT/pull/24).
 
 # SHIFT ↗
 
@@ -14,7 +14,7 @@ SHIFT — нативное приложение для Windows 10/11 x64, кот
 
 Данные остаются на компьютере. Без обязательной регистрации, облака, телеметрии и платных API.
 
-> **Выпущен [SHIFT 1.0.0-rc.7](https://github.com/LosarOS/SHIFT/releases/tag/v1.0.0-rc.7).** [Установщик](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.7/SHIFT-1.0.0-rc.7-win-x64-setup.exe) · [Portable](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.7/SHIFT-1.0.0-rc.7-win-x64-portable.zip) · [SHA256](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.7/SHA256SUMS.txt). **461 тест**, native Windows UIA и installer preservation прошли; публичные файлы повторно скачаны и сверены. [Отчёт с доказательствами](reports/SHIFT-RC7-VALIDATION-RU.md). Неподписанный prerelease; физическая Windows10/11, DPI и accessibility ещё требуют приёмки. Stable1.0 не объявлен.
+> **Выпущен [SHIFT 1.0.0-rc.8](https://github.com/LosarOS/SHIFT/releases/tag/v1.0.0-rc.8).** [Установщик](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.8/SHIFT-1.0.0-rc.8-win-x64-setup.exe) · [Portable](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.8/SHIFT-1.0.0-rc.8-win-x64-portable.zip) · [SHA256](https://github.com/LosarOS/SHIFT/releases/download/v1.0.0-rc.8/SHA256SUMS.txt). **514 тестов**, native Windows UIA и installer preservation прошли; публичные файлы повторно скачаны и сверены. [Отчёт с доказательствами](reports/RELEASE-PUBLICATION-2026-11-15.md). Неподписанный prerelease; физическая Windows10/11, DPI и accessibility ещё требуют приёмки. Stable1.0 не объявлен.
 
 ![Студия SHIFT — настоящее приложение на Windows CI](docs/screenshots/rc7/studio-overview.png)
 
