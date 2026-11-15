@@ -94,10 +94,31 @@ public sealed class BackupCatalogTests : IDisposable
     [Fact]
     public async Task Inventory_handles_absent_directory_and_known_subdirectories()
     {
-        var catalog = new BackupCatalog(); Assert.Empty((await catalog.ListAsync(root)).Entries);
+        var catalog = new BackupCatalog(); var missing = await catalog.ListAsync(root);
+        Assert.Empty(missing.Entries); Assert.Empty(missing.UnavailableDirectories);
         Directory.CreateDirectory(Path.Combine(root, "automatic"));
         var file = Path.Combine(root, "automatic", "snapshot.db"); await File.WriteAllTextAsync(file, "fixture");
-        Assert.Equal(file, Assert.Single((await catalog.ListAsync(root)).Entries).Path);
+        var inventory = await catalog.ListAsync(root);
+        Assert.Equal(file, Assert.Single(inventory.Entries).Path); Assert.Empty(inventory.UnavailableDirectories);
+    }
+    [Fact]
+    public async Task Inventory_missing_root_is_absent_not_an_access_warning()
+    {
+        var inventory = await new BackupCatalog().ListAsync(root);
+        Assert.Empty(inventory.Entries);
+        Assert.Empty(inventory.UnavailableDirectories);
+        Assert.False(inventory.Truncated);
+    }
+    [Fact]
+    public async Task Inventory_missing_optional_directories_do_not_warn()
+    {
+        Directory.CreateDirectory(root);
+        var snapshot = Path.Combine(root, "snapshot.db");
+        await File.WriteAllTextAsync(snapshot, "fixture");
+        var inventory = await new BackupCatalog().ListAsync(root);
+        Assert.Equal(snapshot, Assert.Single(inventory.Entries).Path);
+        Assert.Empty(inventory.UnavailableDirectories);
+        Assert.False(inventory.Truncated);
     }
     [Fact]
     public void New_recovery_text_is_localized_and_explicit_about_scope()

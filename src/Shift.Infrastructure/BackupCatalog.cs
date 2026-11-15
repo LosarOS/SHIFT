@@ -28,6 +28,7 @@ public sealed class BackupCatalog : IBackupCatalog
                 }
             }
             catch (DirectoryNotFoundException) { }
+            catch (FileNotFoundException) { } // Missing optional directories/rotated files are absence, not access failures.
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { unavailable.Add(location); }
             if (truncated) break;
         }
