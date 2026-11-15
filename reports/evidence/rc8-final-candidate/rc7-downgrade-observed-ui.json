@@ -1,0 +1,14 @@
+﻿{
+    "schema_version":  1,
+    "observed_title":  "SHIFT не смог открыть локальные данные",
+    "window_text":  [
+                        "SHIFT не смог открыть локальные данные",
+                        "Исходные данные сохранены. Проверьте доступ к папке, свободное место и лог. Для восстановления закройте SHIFT и замените shift.db резервной копией по инструкции.",
+                        "Эта база создана более новой версией SHIFT. Обновите приложение перед открытием."
+                    ],
+    "manual_acceptance":  false,
+    "baseline_source":  "7bb1760b7095bcc254b25807b9eb2934cd807919",
+    "observed_reason":  "Эта база создана более новой версией SHIFT. Обновите приложение перед открытием.",
+    "visible_refusal":  true,
+    "expected_reason_source":  "immutable RC7 Strings.Presentation.cs OperationalMessages"
+}

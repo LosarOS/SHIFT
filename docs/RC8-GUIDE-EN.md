@@ -11,3 +11,11 @@ In Studio Widget Lab, choose **Quick actions**, add up to12 titled saved-workspa
 SQLite backups do not include wallpaper files or local recovery drafts. For a full copy, Quit and copy the whole data directory including Studio/Images, Studio/RecoveryNotes and migration-backups. Schema3 migrates transactionally with backup. To downgrade, Quit, preserve the current directory and restore the previous full data directory for RC7; never edit user_version by hand.
 
 Unsigned candidate; physical Windows10/11, DPI/monitor, accessibility and sleep/RDP acceptance remain separate. Full resource-bundle restore and arbitrary third-party window restoration are outside RC8.
+
+## Candidate evidence
+
+Source `28b69a5dc2e55361339e69e8743f2442691dcf74`:514core tests passed on the canonical Windows runner,0failed/0skipped. Actual portable/installed policies, inspection, Quick Actions, schema2→3 migration and old RC7 refusal were retained. [Bytes, hashes and gates](../reports/evidence/rc8-final-candidate/README.md) · [genuine new captures](screenshots/rc8-final-candidate/README.md). Native inspection is not full-resource Restore; physical Windows/DPI remains separate. Publication still needs owner approval.
+
+![Actual Quick Actions editor](screenshots/rc8-final-candidate/quick-actions-lab-ru.png)
+
+The image is scrolled to action content, not the complete editor or full accessibility acceptance.

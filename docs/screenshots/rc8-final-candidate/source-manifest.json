@@ -1,0 +1,63 @@
+{
+  "source_commit": "28b69a5dc2e55361339e69e8743f2442691dcf74",
+  "workflow_run": 43661035655,
+  "artifact_id": 14140392572,
+  "original_archive_sha256": "0b69bb713bb4970c24b2b84eae3ec78a9b867dedb27dba4a245eba7e2ca39d09",
+  "scope": "final candidate, not a published release; older932checkpoint preserved separately",
+  "images": [
+    {
+      "file": "docs/screenshots/rc8-final-candidate/launch-scenario-ru.png",
+      "archive_member": "diagnostics/portable-launch-scenario-ru.png",
+      "sha256": "7cc82533670486ff492cb9c6f0bdf6382a8cf008628b9c40249c70e2b576acb1",
+      "unaltered_png_bytes": true,
+      "visually_reviewed": true,
+      "caption": "RU scenario settings with preflight/error policies and consent explanation.",
+      "technical_only": false
+    },
+    {
+      "file": "docs/screenshots/rc8-final-candidate/launch-scenario-stopped.png",
+      "archive_member": "diagnostics/portable-launch-scenario-stopped.png",
+      "sha256": "061da4a63ec571a469cc3a24ee67830e050bfbca3de811dda9e6b2711d70dba8",
+      "unaltered_png_bytes": true,
+      "visually_reviewed": true,
+      "caption": "Intentional missing test target; command skipped before dispatch, readable error.",
+      "technical_only": false
+    },
+    {
+      "file": "docs/screenshots/rc8-final-candidate/recovery-center-preview.png",
+      "archive_member": "diagnostics/portable-recovery-center-preview.png",
+      "sha256": "6f7217a16dcdef03fa4739639c6996d3029b1c7b27aabe2be570336f1dc6a23b",
+      "unaltered_png_bytes": true,
+      "visually_reviewed": true,
+      "caption": "English SQLite-only preview; schema3/counts, no false optional-missing-directory warning. No native restore performed.",
+      "technical_only": false
+    },
+    {
+      "file": "docs/screenshots/rc8-final-candidate/quick-actions-lab-ru.png",
+      "archive_member": "diagnostics/studio/studio-ru-quick-actions-lab.png",
+      "sha256": "761b857a9d4c52a94fe85975d83e67e1b926a70163ee7877e0b340b1fa0d1e27",
+      "unaltered_png_bytes": true,
+      "visually_reviewed": true,
+      "caption": "Real unobscured Widget Lab scrolled to Quick Actions content. Earlier/top controls and lower action fields are outside this viewport; not full DPI/a11y acceptance.",
+      "technical_only": false
+    },
+    {
+      "file": "docs/screenshots/rc8-final-candidate/desktop-quick-actions.png",
+      "archive_member": "diagnostics/studio/studio-desktop-quick-actions.png",
+      "sha256": "3780ca1acb8db1187be8e0fe5d03bd29a308ec6248a4d80c0204defdf738adff",
+      "unaltered_png_bytes": true,
+      "visually_reviewed": true,
+      "caption": "Real desktop Quick Actions widget with one reviewed workspace action. Normal disposable Windows Server taskbar includes a minimized System Properties tab.",
+      "technical_only": false
+    },
+    {
+      "file": "reports/evidence/rc8-final-candidate/technical-rc7-downgrade-refusal.png",
+      "archive_member": "diagnostics/rc7-upgrade/rc7-downgrade-refusal.png",
+      "sha256": "695bdce22902324513c818b19b66d25c332937dca93aaffce5bd2ef2f3194414",
+      "unaltered_png_bytes": true,
+      "visually_reviewed": true,
+      "caption": "Technical evidence: actual immutable RC7 refuses a newer copied schema3 database. Not a normal product hero.",
+      "technical_only": true
+    }
+  ]
+}

@@ -1,3 +1,5 @@
+> **Verified RC8 candidate:** [514 core tests and native evidence](reports/evidence/rc8-final-candidate/README.md) · [actual new screens](docs/screenshots/rc8-final-candidate/README.md). Source `28b69a5…`; not published yet.
+
 > **RC8 candidate:** [New feature guide](docs/RC8-GUIDE-EN.md) · [Review PR](https://github.com/LosarOS/SHIFT/pull/24). Publication pending owner approval.
 
 <div align="center">
