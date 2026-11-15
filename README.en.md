@@ -1,3 +1,5 @@
+> **RC8 candidate:** [New feature guide](docs/RC8-GUIDE-EN.md) · [Review PR](https://github.com/LosarOS/SHIFT/pull/24). Publication pending owner approval.
+
 <div align="center">
 
 > **SHIFT RC7:** [Windows prerelease](https://github.com/LosarOS/SHIFT/releases/tag/v1.0.0-rc.7) · [Русский быстрый старт](docs/QUICKSTART-RU.md) · [Validation report](reports/SHIFT-RC7-VALIDATION-RU.md). Reviewed multi-item composition, read-only launch plans and safer Studio layout saves. Studio remains opt-in.
@@ -96,7 +98,7 @@ dotnet test tests/Shift.Tests -c Release
 Create the Windows distribution with PowerShell 7 and Inno Setup 6:
 
 ```powershell
-pwsh ./packaging/Build-Release.ps1 -Version 1.0.0-rc.7
+pwsh ./packaging/Build-Release.ps1 -Version 1.0.0-rc.8
 ```
 
 The script runs locked restore, core tests, self-contained publish and UI Automation smoke, then creates a portable ZIP, per-user installer and SHA-256 checksums in `artifacts/`. Windows CI additionally tests the installed app and uninstall. The UI smoke includes an explicitly approved harmless command that writes a marker into its disposable test profile; it also verifies refusal does not execute it. Diagnostics and real-window screenshots are saved by CI; screenshots are genuine disposable Windows runner captures.

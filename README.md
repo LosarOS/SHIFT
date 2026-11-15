@@ -1,3 +1,5 @@
+> **Кандидат RC8:** [новые возможности и инструкции](docs/RC8-GUIDE-RU.md) · [PR24](https://github.com/LosarOS/SHIFT/pull/24). Публикация ожидает подтверждения владельца.
+
 # SHIFT ↗
 
 [English](README.en.md) · [Быстрый старт](docs/QUICKSTART-RU.md) · [Перенос профилей и заметок](docs/STUDIO-SHARING-RU.md)
@@ -115,7 +117,7 @@ dotnet test tests/Shift.Tests -c Release
 Windows-дистрибутив собирается штатным сценарием:
 
 ```powershell
-pwsh ./packaging/Build-Release.ps1 -Version 1.0.0-rc.7
+pwsh ./packaging/Build-Release.ps1 -Version 1.0.0-rc.8
 ```
 
 Сценарий проверяет locked restore, тесты ядра, self-contained publish, ресурсы WinUI и извлечённый portable. Windows pipeline дополнительно проверяет native UI, установку, повторную установку, удаление и сохранность данных. Результаты каждого выпуска отражаются в его evidence и validation report. Публикация требует прохождения соответствующих gates и сверки скачанных бинарников; одного успешного compile недостаточно.
