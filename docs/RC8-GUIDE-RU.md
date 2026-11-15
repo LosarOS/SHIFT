@@ -4,9 +4,9 @@
 
 ## Проверка этого кандидата
 
-Source `28b69a5dc2e55361339e69e8743f2442691dcf74`:514core-тестов прошли на canonical Windows runner,0failed/0skipped. Реальные portable/installed сценарии, inspection, Quick Actions, schema2→3 и защитный отказ старой RC7 зафиксированы отдельно. [Байты, хеши и gates](../reports/evidence/rc8-final-candidate/README.md) · [новые настоящие экраны](screenshots/rc8-final-candidate/README.md). Полная физическая Windows/DPI и ресурсный restore не объявлены проверенными. Релиз ожидает подтверждения владельца.
+Source `a5effcdcc4861ff099636be7782dd5155a029671`:514core-тестов прошли на canonical Windows runner,0failed/0skipped. Реальные portable/installed сценарии, inspection, Quick Actions, schema2→3 и защитный отказ старой RC7 зафиксированы отдельно. [Байты, хеши и gates](../reports/evidence/rc8-main-candidate/README.md) · [новые настоящие экраны](screenshots/rc8-main-candidate/README.md). Полная физическая Windows/DPI и ресурсный restore не объявлены проверенными. Релиз ожидает подтверждения владельца.
 
-![Quick Actions в настоящей мастерской](screenshots/rc8-final-candidate/quick-actions-lab-ru.png)
+![Quick Actions в настоящей мастерской](screenshots/rc8-main-candidate/quick-actions-lab-ru.png)
 
 Кадр прокручен к содержимому действий; это не весь редактор и не свидетельство полной accessibility-приёмки.
 

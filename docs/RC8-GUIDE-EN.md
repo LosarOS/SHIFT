@@ -14,8 +14,8 @@ Unsigned candidate; physical Windows10/11, DPI/monitor, accessibility and sleep/
 
 ## Candidate evidence
 
-Source `28b69a5dc2e55361339e69e8743f2442691dcf74`:514core tests passed on the canonical Windows runner,0failed/0skipped. Actual portable/installed policies, inspection, Quick Actions, schema2→3 migration and old RC7 refusal were retained. [Bytes, hashes and gates](../reports/evidence/rc8-final-candidate/README.md) · [genuine new captures](screenshots/rc8-final-candidate/README.md). Native inspection is not full-resource Restore; physical Windows/DPI remains separate. Publication still needs owner approval.
+Source `a5effcdcc4861ff099636be7782dd5155a029671`:514core tests passed on the canonical Windows runner,0failed/0skipped. Actual portable/installed policies, inspection, Quick Actions, schema2→3 migration and old RC7 refusal were retained. [Bytes, hashes and gates](../reports/evidence/rc8-main-candidate/README.md) · [genuine new captures](screenshots/rc8-main-candidate/README.md). Native inspection is not full-resource Restore; physical Windows/DPI remains separate. Publication still needs owner approval.
 
-![Actual Quick Actions editor](screenshots/rc8-final-candidate/quick-actions-lab-ru.png)
+![Actual Quick Actions editor](screenshots/rc8-main-candidate/quick-actions-lab-ru.png)
 
 The image is scrolled to action content, not the complete editor or full accessibility acceptance.
