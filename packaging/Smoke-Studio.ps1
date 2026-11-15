@@ -29,6 +29,7 @@ public static class StudioProbe {
 [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h,uint msg,IntPtr w,IntPtr l);
 [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h,int cmd);
 [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+[DllImport("user32.dll")] public static extern bool BringWindowToTop(IntPtr h);
 [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
 [DllImport("dwmapi.dll")] public static extern int DwmFlush();
 }
@@ -360,6 +361,8 @@ try {
  # but bring the owned Lab window above the non-topmost stress fixture before capture.
  $labHandle=[intptr]$main.Current.NativeWindowHandle
  $null=Wait-For {
+  # The foreground owner can already be active while no-activate tool windows sit above it.
+  [void][StudioProbe]::BringWindowToTop($labHandle)
   [void][StudioProbe]::SetForegroundWindow($labHandle)
   if([StudioProbe]::GetForegroundWindow() -eq $labHandle){return $true}
   return $null
