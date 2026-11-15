@@ -115,7 +115,10 @@ function Set-Field([string]$Id,[string]$Value) {
         } catch [System.Windows.Automation.ElementNotAvailableException] { return $null }
         return $null
     } "writable field pattern $Id"
-    $pattern.SetValue($Value)
+    try { $pattern.SetValue($Value) }
+    catch [System.Windows.Automation.ElementNotAvailableException] {
+        Write-Host "Field peer replaced during SetValue on $Id; checking the exact postcondition without retrying the write."
+    }
     $expectedValue=$Value.Replace("`r`n","`n").Replace("`r","`n")
     $null=Wait-For {
         $candidate=Find-Control '' ([System.Windows.Automation.ControlType]::Edit) $Id

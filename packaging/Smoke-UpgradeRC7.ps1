@@ -69,7 +69,12 @@ function Set-Field([string]$Id,[string]$Value) {
         } catch [System.Windows.Automation.ElementNotAvailableException] { return $null }
         return $null
     } "writable field pattern $Id"
-    $pattern.SetValue($Value)
+    $ambiguousSetValue=$false
+    try { $pattern.SetValue($Value) }
+    catch [System.Windows.Automation.ElementNotAvailableException] {
+        $ambiguousSetValue=$true
+        Write-Host "RC7 compatibility harness: SetValue peer replaced for $Id; checking postcondition without another write."
+    }
     $expectedValue=$Value.Replace("`r`n","`n").Replace("`r","`n")
     $null=Wait-For {
         $candidate=Find-Control '' ([System.Windows.Automation.ControlType]::Edit) $Id
@@ -81,6 +86,7 @@ function Set-Field([string]$Id,[string]$Value) {
         } catch [System.Windows.Automation.ElementNotAvailableException] { return $null }
         return $null
     } "field value acknowledged $Id"
+    if($ambiguousSetValue){Write-Host "RC7 compatibility harness: exact fresh-peer value acknowledged for $Id after ambiguous SetValue; no write was retried."}
 }
 '@
  $oldQuickKey=@'
@@ -142,7 +148,7 @@ function Quick-Key([string]$Keys) {
  $compatibleHarnessHash=(Get-FileHash -LiteralPath $compatibleSmoke -Algorithm SHA256).Hash.ToLowerInvariant()
  Copy-Item -LiteralPath $oldSmoke -Destination (Join-Path $diagnostics 'Smoke-RC7-original.ps1')
  Copy-Item -LiteralPath $compatibleSmoke -Destination (Join-Path $diagnostics 'Smoke-RC7-compatible.ps1')
- @{original_sha256=$originalHarnessHash;compatible_sha256=$compatibleHarnessHash;patch='Set-Field writable ValuePattern/readback + Quick-Key stable owned focus; one SetValue/one SendWait per call';reason='CI43653711472 Set-Field Unsupported Pattern; CI43654962743 Quick-Key SetFocus ElementNotAvailable (identical original RC7 helper)';diff_file='rc7-harness.patch';compatible_parser_passed=$true;readback_newlines_normalized=$true;original_harness_passed=$false;feature_assertions_removed=$false;binary_changed=$false} | ConvertTo-Json | Set-Content (Join-Path $diagnostics 'rc7-harness-adaptation.json')
+ @{original_sha256=$originalHarnessHash;compatible_sha256=$compatibleHarnessHash;patch='Set-Field writable ValuePattern/exact readback (ElementNotAvailable is ambiguous, never retried) + Quick-Key stable owned focus; one SetValue/one SendWait per call';reason='CI43653711472 Set-Field Unsupported Pattern; CI43654962743 Quick-Key SetFocus ElementNotAvailable (identical original RC7 helper); CI43657366311 SetValue ElementNotAvailable requires exact fresh-peer postcondition';diff_file='rc7-harness.patch';compatible_parser_passed=$true;readback_newlines_normalized=$true;original_harness_passed=$false;feature_assertions_removed=$false;binary_changed=$false} | ConvertTo-Json | Set-Content (Join-Path $diagnostics 'rc7-harness-adaptation.json')
  Expand-Archive -LiteralPath $zip -DestinationPath (Join-Path $root 'old')
  $oldApp=Join-Path $root 'old/SHIFT-1.0.0-rc.7-win-x64-portable'
  & powershell.exe -NoProfile -File $compatibleSmoke -AppDirectory $oldApp -DataOwner $owner -PreserveData -ExtractedArchive -DiagnosticsDirectory (Join-Path $diagnostics 'actual-rc7-baseline')
