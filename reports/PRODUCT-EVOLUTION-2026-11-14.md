@@ -1,17 +1,41 @@
-# Product Evolution — 2026-11-14
+# SHIFT — Product Evolution, сессия 14–15 ноября 2026
 
-## Approved scope
+## Авторизация и границы
 
-User approved the proposed scope on2026-11-14. Target candidate: 1.0.0-rc.8. Baseline HEAD: `205a5ff421f6084c7714f794e505e0d5e59b5afb`.
+Объём согласован владельцем. Базовый main: `205a5ff421f6084c7714f794e505e0d5e59b5afb`, публичный RC7. Кандидат: **1.0.0-rc.8**, PR [#24](https://github.com/LosarOS/SHIFT/pull/24), ветка `feature/rc8-product-evolution`.
 
-Launch scenario policies; Quick Actions native widget; backup inspection/recovery center. RU/EN, existing themes/data/consent preserved. Russian-primary README with full English alternative; real screenshots only.
+Отдельное подтверждение финальной публикации и merge ещё не получено. Main, существующие релизы и пользовательские профили не перезаписаны. Windows GUI и изменение обоев проверяются только на одноразовых GitHub runners. Linux executor используется для core-проверок; его результат не считается Windows runtime.
 
-## Environment and workflow
+## Реализованный объём
 
-Managed Linux executor now available; GitHub CLI authenticated as LosarOS. Fresh clean clones, isolated feature branches. .NET10.0.404 installed in task-owned /workspace/.dotnet; Python3.12 virtualenv /workspace/.venv-codex. Six agents own disjoint sections with shared-file narrow edits coordinated. Root owns integration, review, Windows CI and artifacts.
+1. Политики запуска: Doctor перед dispatch, продолжение / остановка / пропуск ошибок проверки; продолжение / остановка после ошибки dispatch. По умолчанию прежнее поведение. Не запускает параллельные процессы, не повторяет команды, не заменяет consent. При остановке до первого dispatch не применяется связанный Studio-профиль.
+2. Quick Actions: пятый встроенный тип, до12 декларативных действий Workspace / File / Folder / HTTP(S), реальный Lab и native widget. Preview не запускает действия. Workspace разрешается из текущего хранилища, переход в обычный launch/consent. Сериализация исходных четырёх типов не добавляет пустое поле Actions. Пакеты профилей удаляют локальные назначения с предупреждением; индивидуальные определения могут содержать пути, что описано в руководстве.
+3. Центр восстановления: ограниченный каталог, WAL-consistent приватная копия, проверка схемы/данных и сводка перед подтверждением restore. Cancel ждёт завершения принадлежащего ему snapshot. **Это SQLite-backup, не полный архив внешних изображений и заметок.**
+4. Schema3: транзакционная миграция v2→v3, проверка FK, валидированный backup перед миграцией. RC7 должен отказать в открытии новой схемы, не изменив базу.
+5. RU основной README, полноценный EN, отдельные руководства, оригинальная графика и шаблоны участия. Публичная download-ссылка остаётся на RC7 до одобрения кандидата.
 
-No final publication approval yet: prepare artifacts and PRs, request separate confirmation before final release. Never merge protected main without required approval. Preserve existing releases.
+## Подтверждённые проверки
 
-## Current state
+- .NET10.0.404: **512 уникальных тестов, 0 failed, 0 skipped**, Linux; тот же core suite успешно выполнен на Windows в CI [43658629380](https://github.com/LosarOS/SHIFT/actions/runs/43658629380). +51 случай относительно RC7. Повторные прогоны и поднаборы не суммируются.
+- Locked restore и source audit выполнены. Проверка NuGet Infrastructure, включая transitive, не обнаружила известных уязвимостей на момент проверки; это не аудит всех Windows/native компонентов.
+- Введены обязательные native gates: preflight stop/no dispatch, restart policy, recovery inspect/no restore, Quick Actions save/restart/refuse/approve, реальное обновление RC7 и отказ старого EXE открыть schema3.
+- Полный Windows-кандидат [43658826225](https://github.com/LosarOS/SHIFT/actions/runs/43658826225), source `48211c7cb4c073ad36a65b08219295c82083b317`: **IN PROGRESS на этом checkpoint**, не объявлен прошедшим.
 
-Implementation in progress. No new test/build/runtime PASS claimed until actual execution. Physical Windows/DPI/multi-monitor/live SDK remain distinct gates. Next: integrate modules, targeted checks, full regression, Windows candidate build and genuine evidence.
+## Диагностика и исправления native probes
+
+Все ошибки сохранены в Actions. Не исключались проверки ради зелёного статуса.
+
+- Добавление enum выявило коллизию ID тестового fixture; исходные четыре типа и пятый сценарий теперь независимы.
+- Хеширование живого WAL SQLite давало sharing violation; проверка неизменности теперь сравнивает детерминированный read-only logical fingerprint внутри snapshot-транзакции, а не делает небезопасную копию живого файла.
+- Fixture таймера опирался на позицию enum и затёр стартовую Notes; выбор выполняется по Kind. Реальная проверка переноса строк сохранена.
+- Новый PS-файл с RU требовал UTF8 BOM для Windows PowerShell5.1; добавлены ранняя проверка синтаксиса и encoding guard.
+- UIA WinUI заменяет Edit peers при перерисовке: ожидание writable pattern, точный readback, свежий keyboard focus. После неоднозначного SetValue проверяется постусловие без повторной записи. Нажатия и dispatch не повторяются.
+- Старый RC7 EXE остаётся неизменным. Его исходный harness сохранён по SHA; отдельно используется строго ограниченная compatibility-копия только двух UIA helper-функций. Diff/хеши пишутся в evidence; исходный harness не объявляется прошедшим.
+
+## Ограничения / дальнейшие шаги
+
+Дождаться полного Windows packaging + installed/reinstall/uninstall + upgrade smoke, скачать реальные файлы, независимо проверить SHA256/PE/PRI и просмотреть скриншоты. До этого статус **BLOCKED для публикации**. Физическая Windows10/11, DPI100/125/150/200, несколько дисплеев, Narrator, RDP, sleep/resume и длительный soak не подтверждены. Подписи нет, SmartScreen/антивирус не обещаются.
+
+GitHub metadata description/topics/homepage вернули403 Resource not accessible by integration. Файлы README/брендинга подготовлены; social preview и pinning не применены. Профильный PR LosarOS/LosarOS#1 безопасно объединён в незащищённый main; это не merge продукта.
+
+Следующий checkpoint должен содержать окончательные source SHA, Actions status, размеры/хеши бинарников, ссылки на retained evidence и точные оставшиеся gates.
